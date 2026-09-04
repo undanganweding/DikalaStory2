@@ -82,12 +82,66 @@ export const intelligenceService = {
 
   async getAllCredentialsIntelligence(): Promise<CredentialIntelligence[]> {
     const creds = await credentialService.listCredentials();
+    if (creds.length === 0) return [];
+
+    // Single usage query for all credentials to prevent N+1 database queries
+    const usages = await usageService.listUsage(500);
+    const usagesByCred: Record<string, any[]> = {};
+    for (const u of usages) {
+      if (u.credentialId) {
+        if (!usagesByCred[u.credentialId]) usagesByCred[u.credentialId] = [];
+        usagesByCred[u.credentialId].push(u);
+      }
+    }
+
     const results: CredentialIntelligence[] = [];
     for (const cred of creds) {
-      const intel = await this.getCredentialIntelligence(cred.id);
-      if (intel) {
-        results.push(intel);
+      const health = await healthService.getHealth(cred.id);
+      const credUsages = usagesByCred[cred.id] || [];
+
+      const totalRequests = credUsages.length;
+      const successfulRequests = credUsages.filter(u => u.success).length;
+      const failedRequests = totalRequests - successfulRequests;
+      const rateLimitHits = credUsages.filter(u => u.errorType === 'rate_limit' || (u.errorType && u.errorType.includes('429'))).length;
+
+      let totalTokens = 0;
+      let totalLatency = 0;
+
+      for (const u of credUsages) {
+        totalTokens += u.totalTokens || ((u.promptTokens || 0) + (u.completionTokens || 0));
+        totalLatency += u.latencyMs || 0;
       }
+
+      const avgLatencyMs = totalRequests > 0 ? Math.round(totalLatency / totalRequests) : 0;
+
+      let cooldownRemainingSec: number | undefined = undefined;
+      if (health.cooldownUntil && health.cooldownUntil > Date.now()) {
+        cooldownRemainingSec = Math.ceil((health.cooldownUntil - Date.now()) / 1000);
+      }
+
+      results.push({
+        credentialId: cred.id,
+        name: cred.name,
+        providerId: cred.providerId,
+        maskedKey: cred.maskedKey,
+        status: cred.status,
+        health: {
+          status: health.status,
+          consecutiveFailures: health.consecutiveFailures,
+          successRate: health.successRate,
+          cooldownUntil: health.cooldownUntil,
+          cooldownRemainingSec,
+          lastError: health.lastError,
+        },
+        metrics: {
+          totalRequests,
+          successfulRequests,
+          failedRequests,
+          rateLimitHits,
+          totalTokens,
+          avgLatencyMs,
+        },
+      });
     }
     return results;
   },
