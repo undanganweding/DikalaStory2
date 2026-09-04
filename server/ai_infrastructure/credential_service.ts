@@ -158,6 +158,30 @@ export const credentialService = {
     return true;
   },
 
+  async bulkRemoveCredentials(ids: string[]): Promise<number> {
+    let count = 0;
+    for (const id of ids) {
+      const removed = await this.removeCredential(id);
+      if (removed) count++;
+    }
+    return count;
+  },
+
+  async clearAllCredentials(): Promise<number> {
+    inMemoryCredentials.length = 0;
+    let count = 0;
+    try {
+      const allCreds = await db.getCredentials();
+      for (const cred of allCreds) {
+        await db.deleteCredential(cred.id);
+        count++;
+      }
+    } catch (err) {
+      console.warn('[CredentialService] Error clearing all credentials from database:', err);
+    }
+    return count;
+  },
+
   async removeCredentialsByProvider(providerId: string): Promise<number> {
     const creds = await db.getCredentials();
     const toRemove = creds.filter(c => c.providerId === providerId);

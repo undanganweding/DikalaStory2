@@ -20,6 +20,9 @@ import {
   Search,
   Filter,
   SlidersHorizontal,
+  CheckSquare,
+  Square,
+  AlertOctagon,
 } from 'lucide-react';
 
 export const ProjectsWorkspace: React.FC = () => {
@@ -28,6 +31,9 @@ export const ProjectsWorkspace: React.FC = () => {
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState('all');
+
+  // Selection for bulk operations
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Add Credential Modal State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -48,7 +54,10 @@ export const ProjectsWorkspace: React.FC = () => {
 
   // Deleting state & Modal
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [confirmDeleteCred, setConfirmDeleteCred] = useState<any | null>(null);
+  const [showDeleteSelectedModal, setShowDeleteSelectedModal] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -84,6 +93,21 @@ export const ProjectsWorkspace: React.FC = () => {
       return matchSearch && matchProv;
     });
   }, [credentials, searchQuery, providerFilter]);
+
+  // Handle Select All / Toggle Item
+  const handleToggleSelectAll = () => {
+    if (selectedIds.length === filteredCredentials.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredCredentials.map((c: any) => c.id));
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
 
   const handleAddCredential = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,12 +158,60 @@ export const ProjectsWorkspace: React.FC = () => {
       const res = await fetch(`/api/ai/credentials/${cred.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete credential');
       setConfirmDeleteCred(null);
+      setSelectedIds(prev => prev.filter(id => id !== cred.id));
       setActionSuccess(`Credential "${cred.name}" removed from vault.`);
       await refresh();
     } catch (err: any) {
       setActionError(err.message || 'Error deleting credential');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const executeDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      setIsBulkDeleting(true);
+      setActionError(null);
+      const res = await fetch('/api/ai/credentials/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to delete selected credentials');
+      }
+      const data = await res.json();
+      setShowDeleteSelectedModal(false);
+      setActionSuccess(`Successfully deleted ${data.deletedCount ?? selectedIds.length} credential keys.`);
+      setSelectedIds([]);
+      await refresh();
+    } catch (err: any) {
+      setActionError(err.message || 'Error deleting selected credentials');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const executeDeleteAll = async () => {
+    try {
+      setIsBulkDeleting(true);
+      setActionError(null);
+      const res = await fetch('/api/ai/credentials/clear-all', { method: 'POST' });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to delete all credentials');
+      }
+      const data = await res.json();
+      setShowDeleteAllModal(false);
+      setActionSuccess(`All ${data.deletedCount ?? 'vault'} API key credentials have been completely wiped.`);
+      setSelectedIds([]);
+      await refresh();
+    } catch (err: any) {
+      setActionError(err.message || 'Error deleting all credentials');
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -195,7 +267,18 @@ export const ProjectsWorkspace: React.FC = () => {
             Manage AI API keys, secret vault keys, weights, and quota routing pools securely.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {credentials.length > 0 && (
+            <button
+              onClick={() => setShowDeleteAllModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/15 hover:bg-rose-600/25 text-rose-300 hover:text-rose-200 border border-rose-500/30 text-xs font-mono font-bold rounded-lg transition"
+              title="Delete all API keys in the vault"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+              Delete All Keys
+            </button>
+          )}
+
           <button
             onClick={() => {
               if (credentialsError) {
@@ -251,42 +334,84 @@ export const ProjectsWorkspace: React.FC = () => {
         </div>
       )}
 
-      {/* Filter and Search Bar */}
+      {/* Filter and Search Bar + Batch Selection Toolbar */}
       {credentials.length > 0 && (
-        <div className="bg-zinc-900/60 p-4 rounded-xl border border-white/5 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-          <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-            <input
-              type="text"
-              placeholder="Search by credential name, provider, or masked key..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-950 border border-white/10 rounded-lg pl-9 pr-8 py-2 text-white text-xs font-mono focus:outline-none focus:border-indigo-500"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+        <div className="bg-zinc-900/60 p-4 rounded-xl border border-white/5 space-y-3">
+          <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Search by credential name, provider, or masked key..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-zinc-950 border border-white/10 rounded-lg pl-9 pr-8 py-2 text-white text-xs font-mono focus:outline-none focus:border-indigo-500"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono">
+              <span className="text-zinc-500 text-[11px]">Provider:</span>
+              <select
+                value={providerFilter}
+                onChange={(e) => setProviderFilter(e.target.value)}
+                className="bg-transparent text-zinc-200 focus:outline-none cursor-pointer"
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+                <option value="all" className="bg-zinc-900 text-zinc-200">All Providers</option>
+                {providerOptions.map((p) => (
+                  <option key={p.id} value={p.id} className="bg-zinc-900 text-zinc-200">
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-zinc-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono">
-            <span className="text-zinc-500 text-[11px]">Provider:</span>
-            <select
-              value={providerFilter}
-              onChange={(e) => setProviderFilter(e.target.value)}
-              className="bg-transparent text-zinc-200 focus:outline-none cursor-pointer"
-            >
-              <option value="all" className="bg-zinc-900 text-zinc-200">All Providers</option>
-              {providerOptions.map((p) => (
-                <option key={p.id} value={p.id} className="bg-zinc-900 text-zinc-200">
-                  {p.name}
-                </option>
-              ))}
-            </select>
+          {/* Bulk Selection Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/5 text-xs font-mono">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleToggleSelectAll}
+                className="flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 transition"
+              >
+                {selectedIds.length > 0 && selectedIds.length === filteredCredentials.length ? (
+                  <CheckSquare className="w-4 h-4 text-indigo-400" />
+                ) : (
+                  <Square className="w-4 h-4 text-zinc-500" />
+                )}
+                <span>
+                  {selectedIds.length > 0
+                    ? `${selectedIds.length} Selected`
+                    : 'Select All'}
+                </span>
+              </button>
+
+              {selectedIds.length > 0 && (
+                <button
+                  onClick={() => setSelectedIds([])}
+                  className="text-zinc-500 hover:text-zinc-300 underline text-[11px]"
+                >
+                  Deselect all
+                </button>
+              )}
+            </div>
+
+            {selectedIds.length > 0 && (
+              <button
+                onClick={() => setShowDeleteSelectedModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded-lg transition font-bold"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                Delete Selected ({selectedIds.length})
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -343,43 +468,61 @@ export const ProjectsWorkspace: React.FC = () => {
           {filteredCredentials.map((cred: any) => {
             const isTesting = testingId === cred.id;
             const isDeleting = deletingId === cred.id;
+            const isSelected = selectedIds.includes(cred.id);
             const testInfo = testResults[cred.id];
 
             return (
               <div
                 key={cred.id}
-                className="bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-indigo-500/30 transition text-xs font-mono"
+                className={`bg-zinc-900/80 border rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition text-xs font-mono ${
+                  isSelected
+                    ? 'border-indigo-500/60 bg-indigo-950/20'
+                    : 'border-white/5 hover:border-indigo-500/30'
+                }`}
               >
-                {/* Left: Provider, Name, Key */}
-                <div className="space-y-1.5 min-w-[280px]">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
-                      <Key className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-white text-sm flex items-center gap-2">
-                        <span>{cred.name}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-zinc-800 text-zinc-400 rounded border border-white/5 uppercase">
-                          {cred.providerId || 'google'}
-                        </span>
-                      </div>
-                      <div className="text-zinc-500 text-[11px] font-mono select-all">
-                        Key: {cred.maskedKey || '••••••••••••••••'}
-                      </div>
-                    </div>
-                  </div>
+                {/* Left: Checkbox + Provider, Name, Key */}
+                <div className="flex items-start gap-3 min-w-[280px]">
+                  <button
+                    onClick={() => handleToggleSelect(cred.id)}
+                    className="mt-2 text-zinc-500 hover:text-zinc-200 transition"
+                  >
+                    {isSelected ? (
+                      <CheckSquare className="w-4 h-4 text-indigo-400" />
+                    ) : (
+                      <Square className="w-4 h-4 text-zinc-600" />
+                    )}
+                  </button>
 
-                  {/* Badges / Weights */}
-                  <div className="flex items-center gap-3 text-[11px] text-zinc-400 pl-1 pt-1">
-                    <span>Priority: <strong className="text-zinc-200">{cred.priority ?? 1}</strong></span>
-                    <span>•</span>
-                    <span>Weight: <strong className="text-zinc-200">{cred.weight ?? 10}</strong></span>
-                    <span>•</span>
-                    <span className={`font-bold uppercase ${
-                      cred.status === 'active' ? 'text-emerald-400' : 'text-amber-400'
-                    }`}>
-                      {cred.status || 'active'}
-                    </span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+                        <Key className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-white text-sm flex items-center gap-2">
+                          <span>{cred.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 bg-zinc-800 text-zinc-400 rounded border border-white/5 uppercase">
+                            {cred.providerId || 'google'}
+                          </span>
+                        </div>
+                        <div className="text-zinc-500 text-[11px] font-mono select-all">
+                          Key: {cred.maskedKey || '••••••••••••••••'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Badges / Weights */}
+                    <div className="flex items-center gap-3 text-[11px] text-zinc-400 pl-1 pt-1">
+                      <span>Priority: <strong className="text-zinc-200">{cred.priority ?? 1}</strong></span>
+                      <span>•</span>
+                      <span>Weight: <strong className="text-zinc-200">{cred.weight ?? 10}</strong></span>
+                      <span>•</span>
+                      <span className={`font-bold uppercase ${
+                        cred.status === 'active' ? 'text-emerald-400' : 'text-amber-400'
+                      }`}>
+                        {cred.status || 'active'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -449,7 +592,7 @@ export const ProjectsWorkspace: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Single Confirmation Modal */}
       {confirmDeleteCred && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
@@ -481,6 +624,83 @@ export const ProjectsWorkspace: React.FC = () => {
               >
                 {deletingId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 <span>Remove Credential</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Selected Modal */}
+      {showDeleteSelectedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-2 rounded-lg bg-rose-500/20 border border-rose-500/30">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-bold text-white font-mono">Delete Selected Credentials?</h3>
+            </div>
+
+            <p className="text-xs text-zinc-300 font-mono leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-white">{selectedIds.length}</strong> selected API key credentials from the Secret Vault?
+            </p>
+
+            <div className="pt-2 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteSelectedModal(false)}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeDeleteSelected}
+                disabled={isBulkDeleting}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-mono font-bold rounded-lg transition flex items-center gap-2 shadow-lg shadow-rose-600/20"
+              >
+                {isBulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>Delete {selectedIds.length} Keys</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Keys Modal */}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-rose-500/40 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-2 rounded-lg bg-rose-500/20 border border-rose-500/30">
+                <AlertOctagon className="w-6 h-6 text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white font-mono">Wipe All Vault API Keys?</h3>
+                <span className="text-[11px] text-rose-400 font-mono font-bold">Destructive Action</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-300 font-mono leading-relaxed">
+              This will permanently delete <strong>all {credentials.length} API keys</strong> across all AI providers in the Secret Vault. AI requests will fail until new keys are added.
+            </p>
+
+            <div className="pt-2 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteAllModal(false)}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeDeleteAll}
+                disabled={isBulkDeleting}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-mono font-bold rounded-lg transition flex items-center gap-2 shadow-lg shadow-rose-600/20"
+              >
+                {isBulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>Wipe All Keys</span>
               </button>
             </div>
           </div>
@@ -569,10 +789,10 @@ export const ProjectsWorkspace: React.FC = () => {
                 </p>
               </div>
 
-              {/* Priority and Weight */}
+              {/* Priority & Weight */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-mono text-zinc-400 mb-1.5">Priority (1 = Highest)</label>
+                  <label className="block text-xs font-mono text-zinc-400 mb-1.5">Priority Order</label>
                   <input
                     type="number"
                     min="1"

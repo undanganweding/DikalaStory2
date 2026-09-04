@@ -513,6 +513,16 @@ export const supabaseDb = {
     return true;
   },
 
+  async clearAllProjects(): Promise<number> {
+    const projects = await this.listProjects();
+    let count = 0;
+    for (const p of projects) {
+      const ok = await this.deleteProject(p.id);
+      if (ok) count++;
+    }
+    return count;
+  },
+
   async resetProjectState(id: string): Promise<boolean> {
     const supabase = getSupabaseClient();
     await Promise.all([

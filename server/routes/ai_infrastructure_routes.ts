@@ -10,7 +10,7 @@ import { openaiCompatibleDriver } from '../ai_infrastructure/openai_compatible_d
 import { secretVault } from '../security/secret_vault';
 import { GoogleGenAI } from '@google/genai';
 import { globalAIQueue } from '../ai_infrastructure/rate_limiter_queue';
-
+import { db } from '../db';
 import { databaseHealthService } from '../ai_infrastructure/database_health_service';
 
 export const aiInfrastructureRouter = Router();
@@ -104,6 +104,40 @@ aiInfrastructureRouter.delete('/providers/:id', async (req: Request, res: Respon
       detachedCredentials: result.detachedCredentials,
       detachedModels: result.detachedModels,
     });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 1b1. Bulk Delete Providers
+aiInfrastructureRouter.post('/providers/bulk-delete', async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Array of provider IDs is required.' });
+    }
+    const result = await providerService.bulkRemoveProviders(ids);
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 1b1-2. Clear All Providers (or reset to baseline Google)
+aiInfrastructureRouter.post('/providers/clear-all', async (req: Request, res: Response) => {
+  try {
+    const { keepDefaultGoogle = false } = req.body || {};
+    const result = await providerService.removeAllProviders(keepDefaultGoogle);
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+aiInfrastructureRouter.delete('/providers', async (req: Request, res: Response) => {
+  try {
+    const result = await providerService.removeAllProviders(false);
+    res.json({ success: true, ...result });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -787,6 +821,107 @@ aiInfrastructureRouter.delete('/credentials/:id', async (req: Request, res: Resp
       return res.status(404).json({ error: 'Credential not found.' });
     }
     res.json({ success: true, id });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4c. Bulk Delete Credentials / Keys
+aiInfrastructureRouter.post('/credentials/bulk-delete', async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Array of credential IDs is required.' });
+    }
+    const count = await credentialService.bulkRemoveCredentials(ids);
+    res.json({ success: true, deletedCount: count });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4d. Clear All Credentials / Keys
+aiInfrastructureRouter.post('/credentials/clear-all', async (_req: Request, res: Response) => {
+  try {
+    const count = await credentialService.clearAllCredentials();
+    res.json({ success: true, deletedCount: count });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+aiInfrastructureRouter.delete('/credentials', async (_req: Request, res: Response) => {
+  try {
+    const count = await credentialService.clearAllCredentials();
+    res.json({ success: true, deletedCount: count });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4e. Clear All Projects / Connections Data
+aiInfrastructureRouter.post('/projects/clear-all', async (_req: Request, res: Response) => {
+  try {
+    const deletedCount = await db.clearAllProjects();
+    res.json({ success: true, deletedCount });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+aiInfrastructureRouter.delete('/projects', async (_req: Request, res: Response) => {
+  try {
+    const deletedCount = await db.clearAllProjects();
+    res.json({ success: true, deletedCount });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4f. Master Wipe All Infrastructure (Keys, Providers, Custom Models, Projects & Logs)
+aiInfrastructureRouter.post('/infrastructure/wipe-all', async (req: Request, res: Response) => {
+  try {
+    const { wipeProjects = true, wipeProviders = true, wipeCredentials = true, wipeModels = true, wipeLogs = true } = req.body || {};
+
+    let credentialsDeleted = 0;
+    let providersDeleted = 0;
+    let projectsDeleted = 0;
+    let modelsReset = false;
+    let logsCleared = false;
+
+    if (wipeCredentials) {
+      credentialsDeleted = await credentialService.clearAllCredentials();
+    }
+
+    if (wipeProviders) {
+      const pRes = await providerService.removeAllProviders(false);
+      providersDeleted = pRes.deletedProviders;
+    }
+
+    if (wipeModels) {
+      await modelRegistryService.resetToDefaults();
+      modelsReset = true;
+    }
+
+    if (wipeProjects) {
+      projectsDeleted = await db.clearAllProjects();
+    }
+
+    if (wipeLogs) {
+      await db.clearUsages();
+      logsCleared = true;
+    }
+
+    res.json({
+      success: true,
+      wiped: {
+        credentialsDeleted,
+        providersDeleted,
+        projectsDeleted,
+        modelsReset,
+        logsCleared,
+      },
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

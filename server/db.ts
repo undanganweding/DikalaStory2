@@ -611,6 +611,16 @@ export const firestoreDb = {
     return true;
   },
 
+  async clearAllProjects(): Promise<number> {
+    const projects = await this.listProjects();
+    let count = 0;
+    for (const p of projects) {
+      const ok = await this.deleteProject(p.id);
+      if (ok) count++;
+    }
+    return count;
+  },
+
   // --- Stage 1: Project Foundation ---
   async saveProjectFoundation(foundation: ProjectFoundation): Promise<ProjectFoundation> {
     if (!USE_FIRESTORE) {

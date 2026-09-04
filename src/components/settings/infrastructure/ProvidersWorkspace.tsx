@@ -23,6 +23,9 @@ import {
   Cpu,
   Sliders,
   Layers,
+  CheckSquare,
+  Square,
+  AlertOctagon,
 } from 'lucide-react';
 
 interface DiscoveredModelItem {
@@ -96,6 +99,28 @@ export const ProvidersWorkspace: React.FC = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteProvider, setConfirmDeleteProvider] = useState<any | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  // Bulk Selection & Deletion State
+  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showDeleteSelectedModal, setShowDeleteSelectedModal] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+
+  // Toggle selection
+  const handleToggleSelectAll = () => {
+    if (selectedProviderIds.length === providers.length) {
+      setSelectedProviderIds([]);
+    } else {
+      setSelectedProviderIds(providers.map((p: any) => p.id));
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedProviderIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
 
   // Reset / open wizard
   const handleOpenWizard = () => {
@@ -455,11 +480,61 @@ export const ProvidersWorkspace: React.FC = () => {
         throw new Error(err.error || 'Failed to delete provider');
       }
       setConfirmDeleteProvider(null);
+      setSelectedProviderIds(prev => prev.filter(id => id !== provider.id));
+      setActionSuccess(`Provider "${provider.name}" was removed.`);
       await refresh();
     } catch (err: any) {
       setActionError(err.message || 'Failed to delete provider');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // Bulk Delete Selected Providers
+  const executeDeleteSelectedProviders = async () => {
+    if (selectedProviderIds.length === 0) return;
+    try {
+      setIsBulkDeleting(true);
+      setActionError(null);
+      const res = await fetch('/api/ai/providers/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedProviderIds }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete selected providers');
+      }
+      const data = await res.json();
+      setShowDeleteSelectedModal(false);
+      setActionSuccess(`Successfully removed ${data.deletedCount ?? selectedProviderIds.length} providers.`);
+      setSelectedProviderIds([]);
+      await refresh();
+    } catch (err: any) {
+      setActionError(err.message || 'Error deleting selected providers');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  // Wipe All Providers
+  const executeDeleteAllProviders = async () => {
+    try {
+      setIsBulkDeleting(true);
+      setActionError(null);
+      const res = await fetch('/api/ai/providers/clear-all', { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to reset all providers');
+      }
+      setShowDeleteAllModal(false);
+      setActionSuccess('All custom AI providers have been wiped and provider pool cleanly reset.');
+      setSelectedProviderIds([]);
+      await refresh();
+    } catch (err: any) {
+      setActionError(err.message || 'Error wiping all providers');
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -488,7 +563,18 @@ export const ProvidersWorkspace: React.FC = () => {
             Production provider pools, credential rotators, latency trackers, and dynamic model catalogs.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {providers.length > 0 && (
+            <button
+              onClick={() => setShowDeleteAllModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/15 hover:bg-rose-600/25 text-rose-300 hover:text-rose-200 border border-rose-500/30 text-xs font-mono font-bold rounded-lg transition"
+              title="Wipe and reset all AI providers"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+              Delete All Providers
+            </button>
+          )}
+
           <button
             onClick={handleOpenWizard}
             className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-bold rounded-lg transition shadow-lg shadow-indigo-600/25 cursor-pointer"
@@ -507,6 +593,18 @@ export const ProvidersWorkspace: React.FC = () => {
         </div>
       </div>
 
+      {actionSuccess && (
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs font-mono flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>{actionSuccess}</span>
+          </div>
+          <button onClick={() => setActionSuccess(null)} className="text-emerald-400 hover:text-white p-1">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {actionError && (
         <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs font-mono flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -516,6 +614,48 @@ export const ProvidersWorkspace: React.FC = () => {
           <button onClick={() => setActionError(null)} className="text-rose-400 hover:text-white p-1">
             <X className="w-3.5 h-3.5" />
           </button>
+        </div>
+      )}
+
+      {/* Bulk Toolbar */}
+      {providers.length > 0 && (
+        <div className="bg-zinc-900/40 p-3 rounded-xl border border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleToggleSelectAll}
+              className="flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 transition"
+            >
+              {selectedProviderIds.length > 0 && selectedProviderIds.length === providers.length ? (
+                <CheckSquare className="w-4 h-4 text-indigo-400" />
+              ) : (
+                <Square className="w-4 h-4 text-zinc-500" />
+              )}
+              <span>
+                {selectedProviderIds.length > 0
+                  ? `${selectedProviderIds.length} Selected`
+                  : 'Select All Providers'}
+              </span>
+            </button>
+
+            {selectedProviderIds.length > 0 && (
+              <button
+                onClick={() => setSelectedProviderIds([])}
+                className="text-zinc-500 hover:text-zinc-300 underline text-[11px]"
+              >
+                Deselect all
+              </button>
+            )}
+          </div>
+
+          {selectedProviderIds.length > 0 && (
+            <button
+              onClick={() => setShowDeleteSelectedModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 rounded-lg transition font-bold"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+              Delete Selected ({selectedProviderIds.length})
+            </button>
+          )}
         </div>
       )}
 
@@ -570,63 +710,82 @@ export const ProvidersWorkspace: React.FC = () => {
           const discoveryInfo = discoveryStatus[p.id];
           const testInfo = testResults[p.id];
 
+          const isSelected = selectedProviderIds.includes(p.id);
+
           return (
             <div
               key={p.id || p.name}
-              className="bg-zinc-900/80 border border-white/5 rounded-xl p-5 flex flex-col gap-4 hover:border-indigo-500/30 transition shadow-lg"
+              className={`bg-zinc-900/80 border rounded-xl p-5 flex flex-col gap-4 transition shadow-lg ${
+                isSelected
+                  ? 'border-indigo-500/60 bg-indigo-950/20'
+                  : 'border-white/5 hover:border-indigo-500/30'
+              }`}
             >
               <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                 {/* Left Info */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2.5 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
-                      <Server className="w-4 h-4" />
+                <div className="space-y-2 flex items-start gap-3">
+                  <button
+                    onClick={() => handleToggleSelect(p.id)}
+                    className="mt-3 text-zinc-500 hover:text-zinc-200 transition"
+                  >
+                    {isSelected ? (
+                      <CheckSquare className="w-4 h-4 text-indigo-400" />
+                    ) : (
+                      <Square className="w-4 h-4 text-zinc-600" />
+                    )}
+                  </button>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2.5 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+                        <Server className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white font-mono text-sm">{p.name}</span>
+                          <span
+                            className={`px-2 py-0.5 text-[10px] font-mono rounded-full font-bold uppercase ${
+                              isLive
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-zinc-800 text-zinc-400 border border-white/5'
+                            }`}
+                          >
+                            {isLive ? '🟢 Connected' : '⚪ Disabled'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-mono text-zinc-400 flex items-center gap-2 mt-0.5">
+                          <span>ID: <span className="text-zinc-300">{p.id}</span></span>
+                          <span>•</span>
+                          <span>Protocol: <span className="text-indigo-300 font-bold">{protocolBadge}</span></span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white font-mono text-sm">{p.name}</span>
-                        <span
-                          className={`px-2 py-0.5 text-[10px] font-mono rounded-full font-bold uppercase ${
-                            isLive
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                              : 'bg-zinc-800 text-zinc-400 border border-white/5'
-                          }`}
-                        >
-                          {isLive ? '🟢 Connected' : '⚪ Disabled'}
+
+                    {/* Base URL */}
+                    {p.baseUrl && (
+                      <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-400 pl-1">
+                        <Globe className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        <span className="text-zinc-500">Base URL:</span>
+                        <span className="text-indigo-300 select-all font-mono text-[11px] bg-zinc-950 px-2 py-0.5 rounded border border-white/5">
+                          {p.baseUrl}
                         </span>
                       </div>
-                      <div className="text-[11px] font-mono text-zinc-400 flex items-center gap-2 mt-0.5">
-                        <span>ID: <span className="text-zinc-300">{p.id}</span></span>
-                        <span>•</span>
-                        <span>Protocol: <span className="text-indigo-300 font-bold">{protocolBadge}</span></span>
-                      </div>
-                    </div>
-                  </div>
+                    )}
 
-                  {/* Base URL */}
-                  {p.baseUrl && (
-                    <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-400 pl-1">
-                      <Globe className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                      <span className="text-zinc-500">Base URL:</span>
-                      <span className="text-indigo-300 select-all font-mono text-[11px] bg-zinc-950 px-2 py-0.5 rounded border border-white/5">
-                        {p.baseUrl}
-                      </span>
+                    {/* Capabilities Badges */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      {p.capabilities &&
+                        Object.entries(p.capabilities).map(([cap, enabled]: [string, any]) =>
+                          enabled ? (
+                            <span
+                              key={cap}
+                              className="px-2 py-0.5 bg-zinc-800/80 text-zinc-300 border border-white/5 text-[10px] font-mono rounded uppercase"
+                            >
+                              ✓ {cap}
+                            </span>
+                          ) : null
+                        )}
                     </div>
-                  )}
-
-                  {/* Capabilities Badges */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                    {p.capabilities &&
-                      Object.entries(p.capabilities).map(([cap, enabled]: [string, any]) =>
-                        enabled ? (
-                          <span
-                            key={cap}
-                            className="px-2 py-0.5 bg-zinc-800/80 text-zinc-300 border border-white/5 text-[10px] font-mono rounded uppercase"
-                          >
-                            ✓ {cap}
-                          </span>
-                        ) : null
-                      )}
                   </div>
                 </div>
 
@@ -1390,6 +1549,86 @@ export const ProvidersWorkspace: React.FC = () => {
               >
                 {deletingId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 <span>Delete Provider</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Selected Providers Modal */}
+      {showDeleteSelectedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-2 rounded-lg bg-rose-500/20 border border-rose-500/30">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-bold text-white font-mono">Delete Selected Providers?</h3>
+            </div>
+
+            <p className="text-xs text-zinc-300 font-mono leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-white">{selectedProviderIds.length}</strong> selected AI providers from the registry?
+            </p>
+            <p className="text-[11px] text-zinc-500 font-mono">
+              Associated credentials and discovered model catalogs under these providers will be cleanly detached.
+            </p>
+
+            <div className="pt-2 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteSelectedModal(false)}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeDeleteSelectedProviders}
+                disabled={isBulkDeleting}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-mono font-bold rounded-lg transition flex items-center gap-2 shadow-lg shadow-rose-600/20"
+              >
+                {isBulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>Delete {selectedProviderIds.length} Providers</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Providers Modal */}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-rose-500/40 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-2 rounded-lg bg-rose-500/20 border border-rose-500/30">
+                <AlertOctagon className="w-6 h-6 text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white font-mono">Wipe All AI Providers?</h3>
+                <span className="text-[11px] text-rose-400 font-mono font-bold">Destructive Action</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-zinc-300 font-mono leading-relaxed">
+              This will remove <strong>all {providers.length} AI providers</strong> in the registry and reset the provider infrastructure to baseline defaults.
+            </p>
+
+            <div className="pt-2 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteAllModal(false)}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeDeleteAllProviders}
+                disabled={isBulkDeleting}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-mono font-bold rounded-lg transition flex items-center gap-2 shadow-lg shadow-rose-600/20"
+              >
+                {isBulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>Wipe All Providers</span>
               </button>
             </div>
           </div>

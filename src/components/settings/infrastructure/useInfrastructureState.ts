@@ -256,6 +256,100 @@ export function useInfrastructureState() {
     return data;
   }, [fetchData]);
 
+  const deleteCredential = useCallback(async (id: string) => {
+    const res = await fetch(`/api/ai/credentials/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to delete credential' }));
+      throw new Error(err.error || 'Failed to delete credential');
+    }
+    await fetchData(true);
+  }, [fetchData]);
+
+  const bulkDeleteCredentials = useCallback(async (ids: string[]) => {
+    const res = await fetch('/api/ai/credentials/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to bulk delete credentials' }));
+      throw new Error(err.error || 'Failed to bulk delete credentials');
+    }
+    await fetchData(true);
+  }, [fetchData]);
+
+  const deleteAllCredentials = useCallback(async () => {
+    const res = await fetch('/api/ai/credentials/clear-all', { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to delete all credentials' }));
+      throw new Error(err.error || 'Failed to delete all credentials');
+    }
+    await fetchData(true);
+  }, [fetchData]);
+
+  const deleteProvider = useCallback(async (id: string) => {
+    const res = await fetch(`/api/ai/providers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to delete provider' }));
+      throw new Error(err.error || 'Failed to delete provider');
+    }
+    await fetchData(true);
+  }, [fetchData]);
+
+  const bulkDeleteProviders = useCallback(async (ids: string[]) => {
+    const res = await fetch('/api/ai/providers/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to bulk delete providers' }));
+      throw new Error(err.error || 'Failed to bulk delete providers');
+    }
+    await fetchData(true);
+  }, [fetchData]);
+
+  const deleteAllProviders = useCallback(async (keepDefaultGoogle = false) => {
+    const res = await fetch('/api/ai/providers/clear-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keepDefaultGoogle }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to delete all providers' }));
+      throw new Error(err.error || 'Failed to delete all providers');
+    }
+    await fetchData(true);
+  }, [fetchData]);
+
+  const deleteAllProjects = useCallback(async () => {
+    const res = await fetch('/api/ai/projects/clear-all', { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to delete all projects' }));
+      throw new Error(err.error || 'Failed to delete all projects');
+    }
+    await fetchData(true);
+  }, [fetchData]);
+
+  const wipeAllInfrastructure = useCallback(async (options?: {
+    wipeProjects?: boolean;
+    wipeProviders?: boolean;
+    wipeCredentials?: boolean;
+    wipeModels?: boolean;
+    wipeLogs?: boolean;
+  }) => {
+    const res = await fetch('/api/ai/infrastructure/wipe-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(options || {}),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to wipe infrastructure' }));
+      throw new Error(err.error || 'Failed to wipe infrastructure');
+    }
+    await fetchData(true);
+  }, [fetchData]);
+
   return {
     ...state,
     refresh: () => fetchData(true),
@@ -266,5 +360,13 @@ export function useInfrastructureState() {
     resetDefaultModels,
     clearLogs,
     runHealthCheckAll,
+    deleteCredential,
+    bulkDeleteCredentials,
+    deleteAllCredentials,
+    deleteProvider,
+    bulkDeleteProviders,
+    deleteAllProviders,
+    deleteAllProjects,
+    wipeAllInfrastructure,
   };
 }

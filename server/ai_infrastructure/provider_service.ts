@@ -58,6 +58,45 @@ export const providerService = {
     };
   },
 
+  async bulkRemoveProviders(ids: string[]): Promise<{ deletedCount: number; detachedCredentials: number; detachedModels: number }> {
+    let deletedCount = 0;
+    let detachedCredentials = 0;
+    let detachedModels = 0;
+    for (const id of ids) {
+      const res = await this.removeProvider(id);
+      if (res.success) {
+        deletedCount++;
+        detachedCredentials += res.detachedCredentials;
+        detachedModels += res.detachedModels;
+      }
+    }
+    return { deletedCount, detachedCredentials, detachedModels };
+  },
+
+  async removeAllProviders(keepDefaultGoogle = false): Promise<{ deletedProviders: number; detachedCredentials: number; detachedModels: number }> {
+    const providers = await this.listProviders();
+    let deletedProviders = 0;
+    let detachedCredentials = 0;
+    let detachedModels = 0;
+
+    for (const prov of providers) {
+      if (keepDefaultGoogle && prov.id === 'google') continue;
+      const res = await this.removeProvider(prov.id);
+      if (res.success) {
+        deletedProviders++;
+        detachedCredentials += res.detachedCredentials;
+        detachedModels += res.detachedModels;
+      }
+    }
+
+    if (!keepDefaultGoogle) {
+      // Re-seed clean Google default
+      await this.initializeDefaults();
+    }
+
+    return { deletedProviders, detachedCredentials, detachedModels };
+  },
+
   async initializeDefaults(): Promise<void> {
     const google = await db.getProvider('google');
     if (!google) {
