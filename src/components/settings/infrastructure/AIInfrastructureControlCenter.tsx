@@ -72,34 +72,44 @@ export const AIInfrastructureControlCenter: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-52 bg-[#0F131E] border-r border-white/5 p-4 flex flex-col justify-between">
-          <div className="space-y-1.5">
-            <div className="px-2 py-1 mb-2 text-[10px] font-mono uppercase text-zinc-500 font-bold tracking-wider">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* Sidebar / Adaptive Navigation */}
+        <div className="w-full md:w-52 bg-[#0F131E] border-b md:border-b-0 md:border-r border-white/5 p-3 md:p-4 flex flex-row md:flex-col justify-between overflow-x-auto shrink-0 scrollbar-none">
+          <div className="flex flex-col md:flex-col items-stretch gap-1.5 w-full">
+            <div className="hidden md:block px-2 py-1 mb-2 text-[10px] font-mono uppercase text-zinc-500 font-bold tracking-wider">
               Control Center
             </div>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveWorkspace(item.id)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-mono font-bold transition ${
-                    activeWorkspace === item.id
-                      ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
+            <div className="flex flex-row md:flex-col gap-1.5 overflow-x-auto md:overflow-visible w-full pb-1 md:pb-0 scrollbar-none items-center md:items-stretch">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveWorkspace(item.id)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-bold transition whitespace-nowrap shrink-0 ${
+                      activeWorkspace === item.id
+                        ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+              {/* Wipe Button visible on mobile inside horizontal bar */}
+              <button
+                onClick={() => setShowWipeAllModal(true)}
+                className="md:hidden flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-mono font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Wipe All</span>
+              </button>
+            </div>
           </div>
 
-          {/* Master Reset / Wipe All in Danger Zone */}
-          <div className="pt-4 border-t border-white/5 space-y-2">
+          {/* Master Reset / Wipe All in Danger Zone (Desktop only) */}
+          <div className="hidden md:block pt-4 border-t border-white/5 space-y-2">
             <div className="px-2 text-[10px] font-mono uppercase text-zinc-500 font-bold tracking-wider">
               Danger Zone
             </div>
@@ -115,7 +125,7 @@ export const AIInfrastructureControlCenter: React.FC = () => {
         </div>
 
         {/* Workspace Content */}
-        <div className="flex-1 bg-[#121624] p-6 overflow-y-auto">
+        <div className="flex-1 bg-[#121624] p-4 md:p-6 overflow-y-auto">
           {renderWorkspace()}
         </div>
       </div>

@@ -54,6 +54,11 @@ export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Bulk Delete State
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+
   const handleDeleteConfirm = async () => {
     if (!projectToDelete) return;
     try {
@@ -85,8 +90,35 @@ export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
   const completedCount = projects.filter((p) => p.status === 'completed').length;
   const draftCount = projects.filter((p) => p.status === 'draft' || p.status === 'failed' || p.status === 'blocked').length;
 
+  const getFilterTabLabel = () => {
+    if (filter === 'processing') return 'Sedang Berjalan';
+    if (filter === 'completed') return 'Selesai';
+    if (filter === 'draft') return 'Draft & Idle';
+    return 'Semua Proyek';
+  };
+
+  const handleBulkDelete = async () => {
+    if (filteredProjects.length === 0) return;
+    setIsBulkDeleting(true);
+    setBulkProgress({ current: 0, total: filteredProjects.length });
+
+    try {
+      for (let i = 0; i < filteredProjects.length; i++) {
+        const proj = filteredProjects[i];
+        setBulkProgress({ current: i + 1, total: filteredProjects.length });
+        await onDeleteProject(proj.id);
+      }
+    } catch (err) {
+      console.error('Gagal menghapus proyek massal:', err);
+    } finally {
+      setIsBulkDeleting(false);
+      setIsBulkDeleteModalOpen(false);
+      setBulkProgress({ current: 0, total: 0 });
+    }
+  };
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
+    <div className="p-4 sm:p-6 lg:p-8 pb-24 md:pb-16 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
       {/* Production Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#181926] border border-[#2B2D44] p-6 rounded-3xl shadow-xl">
         <div>
@@ -103,7 +135,7 @@ export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
 
         <button
           onClick={() => setShowCreateForm(true)}
-          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-5 py-3 rounded-2xl text-xs shadow-lg shadow-indigo-600/30 transition transform active:scale-95 shrink-0"
+          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-5 py-3 rounded-2xl text-xs shadow-lg shadow-indigo-600/30 transition transform active:scale-95 shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
           Buat Proyek Baru
@@ -113,10 +145,10 @@ export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
       {/* Filter Tabs & Search Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         {/* Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               filter === 'all'
                 ? 'bg-indigo-600 text-white shadow-md'
                 : 'bg-[#1E2032] hover:bg-[#25283E] text-slate-400 border border-[#2B2D44]'
@@ -130,7 +162,7 @@ export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
 
           <button
             onClick={() => setFilter('processing')}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               filter === 'processing'
                 ? 'bg-indigo-600 text-white shadow-md'
                 : 'bg-[#1E2032] hover:bg-[#25283E] text-slate-400 border border-[#2B2D44]'
@@ -145,7 +177,7 @@ export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
 
           <button
             onClick={() => setFilter('completed')}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               filter === 'completed'
                 ? 'bg-emerald-600 text-white shadow-md'
                 : 'bg-[#1E2032] hover:bg-[#25283E] text-slate-400 border border-[#2B2D44]'
@@ -160,7 +192,7 @@ export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
 
           <button
             onClick={() => setFilter('draft')}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+            className={`px-4 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
               filter === 'draft'
                 ? 'bg-purple-600 text-white shadow-md'
                 : 'bg-[#1E2032] hover:bg-[#25283E] text-slate-400 border border-[#2B2D44]'
@@ -173,16 +205,29 @@ export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
           </button>
         </div>
 
-        {/* Search Input */}
-        <div className="relative max-w-sm w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari naskah atau judul proyek..."
-            className="w-full bg-[#1B1C2E] border border-[#2B2D44] focus:border-indigo-500 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition"
-          />
+        {/* Search Input & Bulk Delete Button */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
+          <div className="relative max-w-sm w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari naskah atau judul..."
+              className="w-full bg-[#1B1C2E] border border-[#2B2D44] focus:border-indigo-500 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition"
+            />
+          </div>
+
+          {filteredProjects.length > 0 && (
+            <button
+              onClick={() => setIsBulkDeleteModalOpen(true)}
+              className="px-3.5 py-2.5 rounded-2xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-rose-200 border border-rose-500/30 hover:border-rose-500/50 flex items-center justify-center gap-2 transition whitespace-nowrap shrink-0 shadow-sm cursor-pointer"
+              title={`Hapus seluruh ${filteredProjects.length} proyek yang tampil pada tab ini`}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Hapus Semua ({filteredProjects.length})</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -306,6 +351,106 @@ export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Hapus Massal Proyek Tab */}
+      {isBulkDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-[#141624] border border-rose-500/40 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative overflow-hidden">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 shrink-0">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-rose-400">
+                    Aksi Hapus Massal (Bulk Delete)
+                  </span>
+                  <h3 className="text-lg font-black text-white">
+                    Hapus Semua Proyek ({filteredProjects.length})?
+                  </h3>
+                </div>
+              </div>
+              <button
+                disabled={isBulkDeleting}
+                onClick={() => setIsBulkDeleteModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-white bg-[#1C1E30] hover:bg-[#25283E] rounded-xl transition cursor-pointer disabled:opacity-50"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-300">
+              <p className="leading-relaxed">
+                Anda akan menghapus seluruh <strong className="text-rose-300">{filteredProjects.length} proyek</strong> yang saat ini tampil di tab <strong className="text-indigo-300 font-bold">"{getFilterTabLabel()}"</strong>
+                {searchQuery && <span> dengan filter pencarian <strong className="text-amber-300">"{searchQuery}"</strong></span>}.
+              </p>
+
+              {/* List preview of projects to be deleted */}
+              <div className="bg-[#0B0C14] border border-[#23253A] rounded-2xl p-3 max-h-40 overflow-y-auto space-y-1.5 scrollbar-thin">
+                {filteredProjects.map((proj, pIdx) => (
+                  <div key={proj.id || pIdx} className="flex items-center justify-between text-[11px] font-mono py-1 border-b border-[#1A1C2C] last:border-0 text-slate-300">
+                    <span className="truncate pr-2 font-sans font-medium text-slate-200">{pIdx + 1}. {proj.title}</span>
+                    <span className="shrink-0 px-2 py-0.5 rounded text-[9px] bg-[#16182C] text-slate-400 border border-[#232644] uppercase font-bold">
+                      {proj.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-2.5 text-rose-300">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-snug">
+                  <strong>Peringatan:</strong> Seluruh naskah, breakdown adegan, subdivisi shot, prompt visual, dan riwayat pipeline untuk proyek-proyek ini akan dihapus secara permanen.
+                </p>
+              </div>
+
+              {isBulkDeleting && (
+                <div className="space-y-1.5 pt-2">
+                  <div className="flex justify-between text-[11px] font-mono font-bold text-slate-300">
+                    <span>Proses Menghapus...</span>
+                    <span className="text-rose-400">{bulkProgress.current} / {bulkProgress.total}</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-[#1A1C2C] overflow-hidden border border-[#2B2D44]">
+                    <div
+                      className="h-full bg-rose-500 transition-all duration-200"
+                      style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#23253A]">
+              <button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={() => setIsBulkDeleteModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-[#1C1E30] hover:bg-[#25283E] text-slate-300 text-xs font-bold transition cursor-pointer disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isBulkDeleting}
+                onClick={handleBulkDelete}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-rose-600/30 cursor-pointer disabled:opacity-50"
+              >
+                {isBulkDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Menghapus ({bulkProgress.current}/{bulkProgress.total})...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Ya, Hapus Semua ({filteredProjects.length} Proyek)</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

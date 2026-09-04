@@ -117,48 +117,57 @@ export const SceneWorkspace: React.FC<SceneWorkspaceProps> = ({
     setStoryboardMode('scene_breakdown');
   };
 
+  const sanitizedTitle = (project?.title || 'Storyboard')
+    .replace(/^#+\s*/g, '')
+    .replace(/#+/g, '—')
+    .trim();
+
   return (
     <div id="storyboard-workspace-container" className="w-full h-full flex flex-col overflow-hidden">
-      {/* 1. COMPACT HEADER */}
-      <div className="flex items-center justify-between border-b border-[#1E2034] px-4 py-2 shrink-0">
-        <div className="flex items-center gap-4">
-          <h1 className="text-sm font-bold text-white tracking-tight">{project?.title || 'Storyboard'}</h1>
-          <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500">
-             <span>{scenes.length} Scenes</span>
+      {/* 1. COMPACT RESPONSIVE HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#1E2034] px-3 sm:px-4 py-2.5 gap-2 shrink-0 bg-[#090B12]">
+        <div className="flex items-center justify-between sm:justify-start gap-2.5 sm:gap-4 min-w-0">
+          <h1 className="text-xs sm:text-sm font-black text-white tracking-tight truncate max-w-[200px] sm:max-w-xs md:max-w-md" title={sanitizedTitle}>
+            {sanitizedTitle}
+          </h1>
+          <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-mono text-slate-400 shrink-0 bg-[#121422] px-2 py-0.5 rounded-md border border-[#1E2034]">
+             <span className="text-indigo-300 font-bold">{scenes.length} SC</span>
              <span>•</span>
-             <span>{totalShotsCount} Shots</span>
+             <span className="text-amber-300 font-bold">{totalShotsCount} SH</span>
              <span>•</span>
              <span>{formatDuration(totalDurationSec)}</span>
           </div>
         </div>
         
         {/* Top-Level Mode Switcher */}
-        <div className="flex items-center gap-1 bg-[#090A14] p-0.5 rounded-md border border-[#1E2034] shrink-0">
+        <div className="flex items-center gap-1 bg-[#090A14] p-1 rounded-xl border border-[#1E2034] shrink-0 self-start sm:self-auto w-full sm:w-auto justify-stretch">
           <button
             onClick={() => setStoryboardMode('story_flow')}
-            className={`px-3 py-1 rounded text-[10px] font-mono font-bold transition ${
+            className={`flex-1 sm:flex-initial min-h-[36px] sm:min-h-[28px] px-3.5 py-1 rounded-lg text-[10px] font-mono font-bold transition select-none flex items-center justify-center gap-1.5 ${
               storyboardMode === 'story_flow'
-                ? 'bg-[#1C1E34] text-indigo-300'
-                : 'text-slate-500 hover:text-slate-300'
+                ? 'bg-[#1C1E34] text-indigo-300 border border-indigo-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            STORY FLOW
+            <BookOpen className="w-3 h-3" />
+            <span>STORY FLOW</span>
           </button>
           <button
             onClick={() => setStoryboardMode('scene_breakdown')}
-            className={`px-3 py-1 rounded text-[10px] font-mono font-bold transition ${
+            className={`flex-1 sm:flex-initial min-h-[36px] sm:min-h-[28px] px-3.5 py-1 rounded-lg text-[10px] font-mono font-bold transition select-none flex items-center justify-center gap-1.5 ${
               storyboardMode === 'scene_breakdown'
-                ? 'bg-[#1C1E34] text-indigo-300'
-                : 'text-slate-500 hover:text-slate-300'
+                ? 'bg-[#1C1E34] text-indigo-300 border border-indigo-500/40 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            BREAKDOWN
+            <Layers className="w-3 h-3" />
+            <span>BREAKDOWN</span>
           </button>
         </div>
       </div>
 
       {/* 2. MAIN VIEWPORT */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-2 sm:p-4">
         {storyboardMode === 'story_flow' && (
           <StoryboardStoryFlow
             project={project}

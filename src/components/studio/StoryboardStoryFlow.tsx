@@ -407,41 +407,41 @@ export const StoryboardStoryFlow: React.FC<StoryboardStoryFlowProps> = ({
       {/* ========================================================= */}
       {/* 1. TOP CONTROL BAR: FILTERS, VIEWS, AND FULL SCREEN       */}
       {/* ========================================================= */}
-      <div className="bg-[#0A0D16] border border-[#1F2338] p-3 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-md">
+      <div className="bg-[#0A0D16] border border-[#1F2338] p-2.5 sm:p-3 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3 shadow-md">
         
         {/* Left Side: View Tabs */}
-        <div className="flex items-center gap-1.5 bg-[#121526] p-1 rounded-xl border border-[#232742]">
+        <div className="flex flex-wrap items-center gap-1.5 bg-[#121526] p-1 rounded-xl border border-[#232742] w-full md:w-auto">
           <button
             onClick={() => setActiveTab('screenplay')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition flex items-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial min-h-[36px] sm:min-h-[30px] px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition flex items-center justify-center gap-1.5 select-none ${
               activeTab === 'screenplay'
-                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>NASKAH ALUR CERITA</span>
+            <span>NASKAH CERITA</span>
           </button>
           <button
             onClick={() => setActiveTab('grid')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition flex items-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial min-h-[36px] sm:min-h-[30px] px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition flex items-center justify-center gap-1.5 select-none ${
               activeTab === 'grid'
-                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
-            <span>VISUAL STORYBOARD BOARD</span>
+            <span>BOARD VISUAL</span>
           </button>
         </div>
 
         {/* Middle: Scene Selector Filter (Per Scene vs Lihat Semua) */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full md:w-auto">
           <span className="text-[10px] font-mono text-slate-400 uppercase hidden lg:inline">Filter:</span>
           <select
             value={sceneFilter}
             onChange={(e) => setSceneFilter(e.target.value)}
-            className="bg-[#121526] border border-[#232742] text-xs font-mono px-3 py-1.5 rounded-xl text-slate-200 focus:outline-none focus:border-amber-500 transition cursor-pointer"
+            className="w-full md:w-auto bg-[#121526] border border-[#232742] text-xs font-mono px-3 py-2 sm:py-1.5 rounded-xl text-slate-200 focus:outline-none focus:border-amber-500 transition cursor-pointer min-h-[36px] sm:min-h-[30px]"
           >
             <option value="all">Lihat Semua Adegan (Full Story)</option>
             {scenes.map((sc, sIdx) => (
@@ -453,19 +453,19 @@ export const StoryboardStoryFlow: React.FC<StoryboardStoryFlowProps> = ({
         </div>
 
         {/* Right Side: Export, Print and Fullscreen */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full md:w-auto">
           <button
             onClick={handleOpenNewWindow}
-            className="px-3 py-1.5 rounded-xl border border-[#232742] bg-[#121526] text-slate-300 hover:text-white text-xs font-mono transition flex items-center gap-1.5"
+            className="flex-1 sm:flex-initial min-h-[36px] sm:min-h-[30px] px-3 py-1.5 rounded-xl border border-[#232742] bg-[#121526] text-slate-300 hover:text-white text-xs font-mono transition flex items-center justify-center gap-1.5"
             title="Buka naskah di jendela terpisah untuk dicetak / ekspor PDF"
           >
             <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
-            <span>Open in Window</span>
+            <span>Window</span>
           </button>
 
           <button
             onClick={() => setIsReaderOpen(true)}
-            className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black font-mono font-bold text-xs transition flex items-center gap-1.5 shadow-lg shadow-amber-500/10 hover:brightness-110"
+            className="flex-1 sm:flex-initial min-h-[36px] sm:min-h-[30px] px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-black font-mono font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/10 hover:brightness-110"
           >
             <Maximize2 className="w-3.5 h-3.5" />
             <span>Layar Penuh</span>

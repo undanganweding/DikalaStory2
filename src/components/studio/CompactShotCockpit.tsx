@@ -683,10 +683,10 @@ export const CompactShotCockpit: React.FC<CompactShotCockpitProps> = React.memo(
       {/* ===================================================================== */}
       {/* 1. COMPACT SHOT HEADER & TELEMETRY                                    */}
       {/* ===================================================================== */}
-      <div className="px-4 py-3 bg-[#0E0F1A] border-b border-[#1E2034] flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="px-3 sm:px-4 py-2.5 sm:py-3 bg-[#0E0F1A] border-b border-[#1E2034] flex flex-col md:flex-row md:items-center justify-between gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
           {/* Back/Next Navigator Chevron Trigger */}
-          <div className="flex items-center bg-[#05060C] p-0.5 rounded-lg border border-[#1C1F38]">
+          <div className="flex items-center bg-[#05060C] p-0.5 rounded-lg border border-[#1C1F38] shrink-0">
             <button
               onClick={() => {
                 const idx = sceneShots.findIndex(s => s.id === shot.id);
@@ -698,7 +698,7 @@ export const CompactShotCockpit: React.FC<CompactShotCockpitProps> = React.memo(
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <span className="px-3 py-0.5 text-xs font-mono font-extrabold text-amber-300">
+            <span className="px-2.5 sm:px-3 py-0.5 text-xs font-mono font-extrabold text-amber-300">
               S{String(sceneNumber).padStart(2, '0')}.{String(shot.shot_number).padStart(2, '0')}
             </span>
             <button
@@ -715,11 +715,11 @@ export const CompactShotCockpit: React.FC<CompactShotCockpitProps> = React.memo(
           </div>
 
           {/* Quick Stats Indicator Badges */}
-          <div className="flex items-center gap-1.5 text-[10px] font-mono">
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
             <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-bold">
               {shot.shot_type || shot.camera?.framing || 'Medium Shot'}
             </span>
-            <span className="px-2 py-0.5 rounded bg-[#161726] text-slate-300 border border-[#232644]">
+            <span className="hidden sm:inline px-2 py-0.5 rounded bg-[#161726] text-slate-300 border border-[#232644]">
               {shot.camera_movement || 'Static'}
             </span>
             <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-extrabold">
@@ -742,7 +742,7 @@ export const CompactShotCockpit: React.FC<CompactShotCockpitProps> = React.memo(
         </div>
 
         {/* Existing Pipeline Actions (Generate / Validate / Save) */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full md:w-auto">
           {/* Quick Copy Pos + Neg (Both) Button */}
           <button
             onClick={(e) => {
@@ -750,7 +750,7 @@ export const CompactShotCockpit: React.FC<CompactShotCockpitProps> = React.memo(
               handleCopy(fullText, `header-copy-both-${shotId}`, e);
             }}
             disabled={!activePrompt.hasPrompt}
-            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-extrabold flex items-center gap-1.5 border transition ${
+            className={`min-h-[36px] sm:min-h-[30px] px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-mono font-extrabold flex items-center gap-1.5 border transition flex-1 sm:flex-initial justify-center ${
               copiedKey === `header-copy-both-${shotId}`
                 ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
                 : 'bg-amber-500/20 border-amber-500/40 hover:bg-amber-500/30 text-amber-300 hover:text-white'
@@ -774,7 +774,7 @@ export const CompactShotCockpit: React.FC<CompactShotCockpitProps> = React.memo(
           <button
             onClick={(e) => handleCopy(activePrompt.text, `header-copy-${shotId}`, e)}
             disabled={!activePrompt.hasPrompt}
-            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 border transition ${
+            className={`min-h-[36px] sm:min-h-[30px] px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 border transition flex-1 sm:flex-initial justify-center ${
               copiedKey === `header-copy-${shotId}`
                 ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
                 : 'bg-[#151728] border-[#25284A] hover:bg-[#202444] text-slate-300 hover:text-white'
@@ -798,7 +798,7 @@ export const CompactShotCockpit: React.FC<CompactShotCockpitProps> = React.memo(
           <button
             onClick={(e) => handleRegenerate(false, e)}
             disabled={isGenerating}
-            className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs flex items-center gap-1.5 transition shadow-md shadow-indigo-600/20 disabled:opacity-40"
+            className="min-h-[36px] sm:min-h-[30px] px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 transition shadow-md shadow-indigo-600/20 disabled:opacity-40 w-full sm:w-auto"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
             <span>{isGenerating ? 'Compiling...' : 'Run Compiler'}</span>
@@ -809,8 +809,8 @@ export const CompactShotCockpit: React.FC<CompactShotCockpitProps> = React.memo(
       {/* ===================================================================== */}
       {/* 2. CREATIVE WORKSPACE TAB SELECTION BAR                               */}
       {/* ===================================================================== */}
-      <div className="px-4 bg-[#0A0B14] border-b border-[#18192E] flex flex-wrap items-center justify-between shrink-0">
-        <div className="flex items-center -mb-px overflow-x-auto">
+      <div className="px-3 sm:px-4 bg-[#0A0B14] border-b border-[#18192E] flex flex-wrap items-center justify-between shrink-0">
+        <div className="flex items-center -mb-px overflow-x-auto scrollbar-none py-1 sm:py-0 w-full sm:w-auto">
           {([
             { id: 'overview', label: 'Overview console', icon: <Clapperboard className="w-3.5 h-3.5" /> },
             { id: 'prompt', label: 'Prompt Engine', icon: <Terminal className="w-3.5 h-3.5" /> },
@@ -824,9 +824,9 @@ export const CompactShotCockpit: React.FC<CompactShotCockpitProps> = React.memo(
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
-                className={`px-4 py-2.5 text-[11px] font-mono font-bold tracking-wider uppercase border-b-2 flex items-center gap-2 shrink-0 transition-all ${
+                className={`min-h-[44px] px-3 sm:px-4 py-2 text-[11px] font-mono font-bold tracking-wider uppercase border-b-2 flex items-center gap-2 shrink-0 transition-all select-none ${
                   isActive
-                    ? 'border-indigo-500 text-indigo-400'
+                    ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
                     : 'border-transparent text-slate-500 hover:text-slate-300'
                 }`}
               >

@@ -1167,9 +1167,9 @@ aiInfrastructureRouter.post('/health/check-all', async (req: Request, res: Respo
   try {
     const credentials = await credentialService.listCredentials();
     const activeCreds = credentials.filter(c => c.status === 'active');
-    const results: Array<{ credentialId: string; name: string; providerId: string; success: boolean; latencyMs?: number; error?: string }> = [];
 
-    for (const cred of activeCreds) {
+    // Run active credential checks in parallel with a 4-second timeout cap per check
+    const results = await Promise.all(activeCreds.map(async (cred) => {
       const startTime = Date.now();
       try {
         let apiKey = '';
@@ -1190,12 +1190,17 @@ aiInfrastructureRouter.post('/health/check-all', async (req: Request, res: Respo
           const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash'];
           let lastErr: any = null;
           let pingSuccess = false;
+
           for (const m of candidateModels) {
             try {
-              await ai.models.generateContent({
-                model: m,
-                contents: 'ping',
-              });
+              // Execute ping with a 4s max timeout
+              await Promise.race([
+                ai.models.generateContent({
+                  model: m,
+                  contents: 'ping',
+                }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout during ping')), 4000))
+              ]);
               pingSuccess = true;
               break;
             } catch (err: any) {
@@ -1211,13 +1216,13 @@ aiInfrastructureRouter.post('/health/check-all', async (req: Request, res: Respo
         }
 
         await healthService.recordSuccess(cred.id);
-        results.push({ credentialId: cred.id, name: cred.name, providerId: cred.providerId, success: true, latencyMs });
+        return { credentialId: cred.id, name: cred.name, providerId: cred.providerId, success: true, latencyMs };
       } catch (err: any) {
         const latencyMs = Date.now() - startTime;
         await healthService.recordFailure(cred.id, err.message);
-        results.push({ credentialId: cred.id, name: cred.name, providerId: cred.providerId, success: false, latencyMs, error: err.message });
+        return { credentialId: cred.id, name: cred.name, providerId: cred.providerId, success: false, latencyMs, error: err.message };
       }
-    }
+    }));
 
     const overview = await intelligenceService.getDashboardOverview();
     res.json({

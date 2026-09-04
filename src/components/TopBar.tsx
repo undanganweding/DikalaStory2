@@ -16,6 +16,7 @@ import {
   Zap,
   Sliders,
   GitCommit,
+  Menu,
 } from 'lucide-react';
 import { Project, StudioWorkspaceTab } from '../types';
 import { APP_CURRENT_VERSION } from '../data/changelogData';
@@ -33,6 +34,7 @@ interface TopBarProps {
   onOpenVersionHistory?: () => void;
   onNewProject: () => void;
   onChangeModel?: (model: string) => void;
+  onOpenMobileMenu?: () => void;
   unreadCount?: number;
   isGenerating?: boolean;
 }
@@ -57,6 +59,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenVersionHistory,
   onNewProject,
   onChangeModel,
+  onOpenMobileMenu,
   unreadCount = 0,
   isGenerating = false,
 }) => {
@@ -100,15 +103,24 @@ export const TopBar: React.FC<TopBarProps> = ({
     : (AVAILABLE_MODELS.find((m) => m.id === currentModelId) || { id: currentModelId, name: currentModelId, badge: 'Pinned Model' });
 
   return (
-    <header className="h-16 bg-[#181926] border-b border-[#26283B] px-4 sm:px-6 flex items-center justify-between z-30 sticky top-0">
-      {/* Left Area: Logo & Main Navigation Pills */}
-      <div className="flex items-center gap-4 min-w-0">
+    <header className="h-14 sm:h-16 bg-[#181926] border-b border-[#26283B] px-3 sm:px-6 flex items-center justify-between z-30 sticky top-0">
+      {/* Left Area: Hamburger (Mobile) + Logo & Main Navigation Pills (Desktop) */}
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+        {/* Mobile Hamburger Trigger */}
+        <button
+          onClick={onOpenMobileMenu}
+          className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-white/5 text-zinc-300 hover:text-white active:bg-white/10"
+          aria-label="Buka Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
         <div
           onClick={() => onSelectMainMode('dashboard')}
-          className="flex items-center gap-3 cursor-pointer group"
+          className="flex items-center gap-2 sm:gap-3 cursor-pointer group"
           title="Ke Dashboard Utama"
         >
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 p-0.5 shadow-md shadow-indigo-600/30">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 p-0.5 shadow-md shadow-indigo-600/30 shrink-0">
             <div className="w-full h-full bg-[#181926] rounded-[14px] flex items-center justify-center">
               <Film className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition duration-200" />
             </div>
@@ -123,8 +135,8 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
         </div>
 
-        {/* Main Navigation Mode Tabs */}
-        <div className="flex items-center gap-1.5 bg-[#1B1C2E] p-1 rounded-2xl border border-[#2B2D44]">
+        {/* Main Navigation Mode Tabs (Desktop / Tablet) */}
+        <div className="hidden md:flex items-center gap-1.5 bg-[#1B1C2E] p-1 rounded-2xl border border-[#2B2D44]">
           <button
             onClick={() => onSelectMainMode('dashboard')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
@@ -161,6 +173,15 @@ export const TopBar: React.FC<TopBarProps> = ({
             </button>
           )}
         </div>
+
+        {/* Mobile current project title indicator */}
+        {currentProject && (
+          <div className="md:hidden flex items-center gap-1.5 min-w-0 max-w-[140px] sm:max-w-[200px]">
+            <span className="text-xs font-bold text-slate-200 truncate">
+              {currentProject.title}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Center Search Bar (Reference SaaS Style) */}
@@ -182,12 +203,12 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       {/* Right Area: Actions, Model, Notifications, Profile */}
-      <div className="flex items-center gap-2.5 sm:gap-3">
-        {/* Model Switcher */}
-        <div className="relative">
+      <div className="flex items-center gap-1.5 sm:gap-3">
+        {/* Model Switcher (Desktop/Tablet) */}
+        <div className="relative hidden sm:block">
           <button
             onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-            className="flex items-center gap-2 bg-[#202234] hover:bg-[#26283D] border border-[#2D304A] px-3 py-2 rounded-2xl text-xs text-slate-200 transition"
+            className="flex items-center gap-2 bg-[#202234] hover:bg-[#26283D] border border-[#2D304A] px-3 py-2 rounded-2xl text-xs text-slate-200 transition min-h-[44px]"
             title="Pilih Model AI"
           >
             <Cpu className="w-4 h-4 text-indigo-400" />
@@ -245,20 +266,20 @@ export const TopBar: React.FC<TopBarProps> = ({
           )}
         </div>
 
-        {/* Settings */}
+        {/* Settings (Desktop) */}
         <button
           onClick={() => onNavigate('settings')}
-          className="p-2 text-slate-400 hover:text-indigo-300 bg-[#202234] hover:bg-[#26283D] border border-[#2D304A] rounded-2xl transition"
+          className="hidden sm:flex p-2.5 text-slate-400 hover:text-indigo-300 bg-[#202234] hover:bg-[#26283D] border border-[#2D304A] rounded-2xl transition min-h-[44px] min-w-[44px] items-center justify-center"
           title="Studio Settings"
         >
           <Sliders className="w-4 h-4" />
         </button>
 
-        {/* Drive Export */}
+        {/* Drive Export (Desktop) */}
         {currentProject && (
           <button
             onClick={onOpenDriveExport}
-            className="p-2 text-slate-400 hover:text-indigo-300 bg-[#202234] hover:bg-[#26283D] border border-[#2D304A] rounded-2xl transition"
+            className="hidden sm:flex p-2.5 text-slate-400 hover:text-indigo-300 bg-[#202234] hover:bg-[#26283D] border border-[#2D304A] rounded-2xl transition min-h-[44px] min-w-[44px] items-center justify-center"
             title="Ekspor ke Google Drive"
           >
             <Download className="w-4 h-4" />
@@ -268,19 +289,19 @@ export const TopBar: React.FC<TopBarProps> = ({
         {/* Notifications */}
         <button
           onClick={onOpenNotificationCenter}
-          className="relative p-2 text-slate-400 hover:text-slate-200 bg-[#202234] hover:bg-[#26283D] border border-[#2D304A] rounded-2xl transition"
+          className="relative p-2.5 text-slate-400 hover:text-slate-200 bg-[#202234] hover:bg-[#26283D] border border-[#2D304A] rounded-2xl transition min-h-[44px] min-w-[44px] flex items-center justify-center"
           title="Pusat Notifikasi & Log"
         >
           <Bell className="w-4 h-4" />
           {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse border-2 border-[#181926]" />
+            <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse border-2 border-[#181926]" />
           )}
         </button>
 
         {/* New Project CTA */}
         <button
           onClick={onNewProject}
-          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-4 py-2 rounded-2xl text-xs shadow-lg shadow-indigo-600/25 transition transform active:scale-95"
+          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-3 sm:px-4 py-2 rounded-2xl text-xs shadow-lg shadow-indigo-600/25 transition transform active:scale-95 min-h-[44px]"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
           <span className="hidden sm:inline">Proyek Baru</span>
@@ -288,10 +309,10 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* Profile Avatar Card */}
         <div
-          className="flex items-center gap-2 pl-2 border-l border-[#26283B]"
+          className="hidden sm:flex items-center gap-2 pl-2 border-l border-[#26283B]"
           title="Ali Mamedgasanov - Studio Director"
         >
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-bold text-xs shadow-md">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-bold text-xs shadow-md">
             AM
           </div>
         </div>

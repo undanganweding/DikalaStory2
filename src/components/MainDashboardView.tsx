@@ -70,7 +70,7 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
   const recentLogs = [...logs].reverse().slice(0, 5);
 
   return (
-    <div className="p-3.5 sm:p-5 max-w-7xl mx-auto space-y-4 animate-in fade-in duration-150">
+    <div className="p-3.5 sm:p-5 pb-24 md:pb-12 max-w-7xl mx-auto space-y-4 animate-in fade-in duration-150">
       {/* SaaS Dashboard Title & Quick Action Header (Compact) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#141624] border border-[#23253A] px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl shadow-lg">
         <div className="space-y-0.5">

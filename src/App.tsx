@@ -6,6 +6,8 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { TopBar } from './components/TopBar';
 import { Sidebar } from './components/Sidebar';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { MobileNavDrawer } from './components/MobileNavDrawer';
 import { MainDashboardView } from './components/MainDashboardView';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 
@@ -94,6 +96,7 @@ export default function App() {
   const [shotPromptError, setShotPromptError] = useState<Record<string, string>>({});
   const [isPipelineCarouselOpen, setIsPipelineCarouselOpen] = useState<boolean>(false);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
 
 
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -675,7 +678,7 @@ export default function App() {
   const unreadLogsCount = logs.filter((l) => l.level === 'error' || l.level === 'warn').length;
 
   return (
-    <div className="min-h-screen bg-[#090B10] text-zinc-100 flex flex-col font-sans selection:bg-amber-500/30 selection:text-amber-200 overflow-hidden">
+    <div className="h-screen h-[100dvh] w-full bg-[#090B10] text-zinc-100 flex flex-col font-sans selection:bg-amber-500/30 selection:text-amber-200 overflow-hidden relative">
       {/* Top Bar */}
       <TopBar
         currentProject={currentProject}
@@ -708,10 +711,11 @@ export default function App() {
         onChangeModel={handleChangeModelAndRetry}
         unreadCount={unreadLogsCount}
         isGenerating={currentProject?.status === 'processing'}
+        onOpenMobileMenu={() => setIsMobileNavOpen(true)}
       />
 
       {/* Main View Router */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 min-h-0 flex overflow-hidden relative pb-16 md:pb-0">
         {isInitialLoading && (
           <div className="absolute inset-0 bg-[#090B10]/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center gap-3">
             <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
@@ -729,7 +733,7 @@ export default function App() {
         )}
 
         {mainMode === 'dashboard' && (
-          <div className="flex-1 overflow-y-auto bg-[#090B10]">
+          <div className="flex-1 min-h-0 h-full overflow-y-auto bg-[#090B10] scrollbar-thin">
             <MainDashboardView
               projects={projects}
               activeProject={currentProject}
@@ -750,7 +754,7 @@ export default function App() {
           </div>
         }>
           {mainMode === 'production' && (
-            <div className="flex-1 overflow-y-auto bg-[#090B10]">
+            <div className="flex-1 min-h-0 h-full overflow-y-auto bg-[#090B10] scrollbar-thin">
               <ProductionProjectsView
                 projects={projects}
                 activeProjectId={currentProject?.id || null}
@@ -768,7 +772,7 @@ export default function App() {
         {mainMode === 'studio' && (
           <>
             {!currentProject && activeTab !== 'settings' ? (
-              <div className="flex-1 overflow-y-auto bg-[#090B10]">
+              <div className="flex-1 min-h-0 h-full overflow-y-auto bg-[#090B10] scrollbar-thin">
                 <ProductionProjectsView
                   projects={projects}
                   activeProjectId={null}
@@ -1038,6 +1042,43 @@ export default function App() {
             setMainMode('studio');
             setActiveTab('overview');
           }}
+        />
+
+        {/* Mobile Navigation Components (<=768px) */}
+        <MobileNavDrawer
+          isOpen={isMobileNavOpen}
+          onClose={() => setIsMobileNavOpen(false)}
+          currentProject={currentProject}
+          activeTab={activeTab}
+          mainMode={mainMode}
+          onSelectMainMode={setMainMode}
+          onNavigateTab={(tab) => {
+            setActiveTab(tab);
+            setMainMode('studio');
+          }}
+          onNewProject={() => {
+            setCurrentProject(null);
+            setMainMode('production');
+          }}
+          onOpenProjectsModal={() => setIsProjectsModalOpen(true)}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onOpenNotificationCenter={() => setIsNotificationCenterOpen(true)}
+          onOpenDriveExport={() => setIsDriveExportOpen(true)}
+          unreadCount={unreadLogsCount}
+          isGenerating={currentProject?.status === 'processing'}
+        />
+
+        <MobileBottomNav
+          mainMode={mainMode}
+          activeTab={activeTab}
+          currentProject={currentProject}
+          onSelectMainMode={setMainMode}
+          onNavigateTab={(tab) => {
+            setActiveTab(tab);
+            setMainMode('studio');
+          }}
+          onOpenProjectsModal={() => setIsProjectsModalOpen(true)}
+          isGenerating={currentProject?.status === 'processing'}
         />
       </Suspense>
     </div>

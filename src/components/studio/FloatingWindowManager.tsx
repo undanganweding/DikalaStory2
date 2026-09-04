@@ -261,7 +261,20 @@ const DraggableFloatingWindow: React.FC<DraggableFloatingWindowProps> = ({
     }
   };
 
-  const style: React.CSSProperties = win.isMaximized
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
+  const style: React.CSSProperties = isMobile
+    ? {
+        position: 'fixed',
+        left: 8,
+        right: 8,
+        top: 12,
+        bottom: 64,
+        width: 'calc(100vw - 16px)',
+        height: 'calc(100dvh - 76px)',
+        zIndex: win.zIndex,
+      }
+    : win.isMaximized
     ? {
         position: 'fixed',
         left: 12,

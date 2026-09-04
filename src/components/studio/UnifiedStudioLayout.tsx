@@ -219,13 +219,13 @@ export const UnifiedStudioLayout: React.FC<UnifiedStudioLayoutProps> = ({
   return (
     <div
       id="unified-studio-cockpit"
-      className="h-[100dvh] w-screen flex flex-col bg-[#0A0B12] text-slate-200 overflow-hidden select-none"
+      className="h-full w-full flex-1 flex flex-col bg-[#0A0B12] text-slate-200 overflow-hidden select-none"
     >
-      {/* 1. STUDIO TOP BAR (Collapsed, Compact) */}
+      {/* 1. STUDIO TOP BAR (Desktop Only, Hidden on mobile as TopBar handles it) */}
       {!isFocusMode && (
         <header
           id="studio-cockpit-header"
-          className="h-10 bg-[#0E0F1A] border-b border-[#1E2034] px-4 flex items-center justify-between shrink-0 z-20"
+          className="hidden md:flex h-10 bg-[#0E0F1A] border-b border-[#1E2034] px-4 items-center justify-between shrink-0 z-20"
         >
           <div className="flex items-center gap-3 min-w-0">
             <button
@@ -235,8 +235,8 @@ export const UnifiedStudioLayout: React.FC<UnifiedStudioLayoutProps> = ({
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <span className="text-sm font-bold text-slate-100 tracking-tight">
-              {currentProject?.title}
+            <span className="text-sm font-bold text-slate-100 tracking-tight truncate max-w-sm">
+              {currentProject?.title?.replace(/^#+\s*/g, '').replace(/#+/g, '—')}
             </span>
           </div>
 
@@ -260,15 +260,17 @@ export const UnifiedStudioLayout: React.FC<UnifiedStudioLayoutProps> = ({
       )}
 
       {/* 2. 3-COLUMN STUDIO BODY */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* EXPLORER RAIL */}
+      <div className="flex-1 min-h-0 flex overflow-hidden relative">
+        {/* EXPLORER RAIL (Desktop only >= 768px) */}
         {!isFocusMode && (
-          <ExplorerRail
-            isExpanded={isExplorerOpen}
-            onToggleExpand={() => setIsExplorerOpen(!isExplorerOpen)}
-            activeTab={activeTab}
-            onSelectTab={onSelectTab}
-          />
+          <div className="hidden md:flex shrink-0">
+            <ExplorerRail
+              isExpanded={isExplorerOpen}
+              onToggleExpand={() => setIsExplorerOpen(!isExplorerOpen)}
+              activeTab={activeTab}
+              onSelectTab={onSelectTab}
+            />
+          </div>
         )}
         
         {/* WORKSPACE */}
@@ -277,8 +279,8 @@ export const UnifiedStudioLayout: React.FC<UnifiedStudioLayoutProps> = ({
           className="flex-1 flex flex-col min-w-0 bg-[#080911] overflow-hidden relative"
         >
           {/* Breadcrumb & Navigation Sub-Bar */}
-          <div className="h-8 px-3.5 bg-[#10111D] border-b border-[#1B1D30] flex items-center justify-between text-xs shrink-0">
-            <div className="flex items-center gap-2 min-w-0 text-slate-400 font-mono text-[11px]">
+          <div className="h-8 px-2.5 sm:px-3.5 bg-[#10111D] border-b border-[#1B1D30] flex items-center justify-between text-xs shrink-0 overflow-x-auto scrollbar-none gap-2 select-none">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 text-slate-400 font-mono text-[11px] whitespace-nowrap shrink-0">
               <span className="text-indigo-400 font-semibold">STUDIO</span>
               <span>/</span>
               <span className="text-slate-300 font-medium uppercase">{activeTab}</span>
@@ -295,7 +297,7 @@ export const UnifiedStudioLayout: React.FC<UnifiedStudioLayoutProps> = ({
                         data: activeScene,
                       })
                     }
-                    className="text-cyan-400 hover:underline font-semibold flex items-center gap-1"
+                    className="text-cyan-400 hover:underline font-semibold flex items-center gap-0.5"
                     title="Buka Floating Window Adegan"
                   >
                     SC-{String(activeScene.scene_number).padStart(2, '0')}
@@ -324,8 +326,8 @@ export const UnifiedStudioLayout: React.FC<UnifiedStudioLayoutProps> = ({
               )}
             </div>
 
-            {/* Quick Context Tab Pills */}
-            <div className="flex items-center gap-1">
+            {/* Quick Context Tab Pills (Tablet/Desktop) */}
+            <div className="hidden sm:flex items-center gap-1 shrink-0">
               {['scenes', 'story', 'bibles', 'continuity', 'pipeline'].map((tab) => (
                 <button
                   key={tab}
@@ -342,8 +344,8 @@ export const UnifiedStudioLayout: React.FC<UnifiedStudioLayoutProps> = ({
             </div>
           </div>
 
-          {/* Active Workspace Viewport Render (Strict internal scroll, no viewport stretch) */}
-          <div className="flex-1 overflow-y-auto relative p-3 sm:p-4 bg-[#080911]">
+          {/* Active Workspace Viewport Render */}
+          <div className="flex-1 min-h-0 overflow-y-auto relative p-2.5 sm:p-4 pb-20 bg-[#080911] scrollbar-thin">
             {children}
           </div>
         </main>

@@ -288,8 +288,50 @@ ${sceneNeg}`;
 
   return (
     <div id="storyboard-scene-breakdown-view" className="space-y-4 animate-in fade-in duration-200">
-      {/* 1. COMPACT SCENE GRID */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+      {/* 1. SCENE SELECTOR: MOBILE HORIZONTAL SWIPE CARDS & DESKTOP GRID */}
+      {/* Mobile Horizontal Swipe Track */}
+      <div className="md:hidden flex overflow-x-auto gap-2.5 pb-2 pt-1 px-0.5 snap-x scrollbar-none select-none">
+        {scenes.map((sc, idx) => {
+          const isSelected = sc.id === activeSceneId;
+          const scShots = shots[sc.id] || [];
+
+          return (
+            <div
+              key={sc.id}
+              onClick={() => {
+                setActiveSceneId(sc.id);
+                if (onSelectScene) onSelectScene(sc.id);
+              }}
+              className={`w-[220px] shrink-0 snap-start p-3 rounded-2xl text-left transition border cursor-pointer min-h-[48px] flex flex-col justify-between ${
+                isSelected
+                  ? 'bg-gradient-to-br from-[#1C1E38] to-[#14162B] border-indigo-500 shadow-lg shadow-indigo-950/40 ring-1 ring-indigo-500/30'
+                  : 'bg-[#0D0F1A] border-[#1E2238] active:bg-[#16182C]'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded-md ${
+                  isSelected ? 'bg-indigo-500 text-white shadow-sm' : 'bg-[#181A2A] text-slate-300'
+                }`}>
+                  SC-{String(sc.scene_number || idx + 1).padStart(2, '0')}
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+                  {sc.duration_sec || 0}s
+                </span>
+              </div>
+              <div className="text-xs font-bold text-slate-100 truncate mb-1">
+                {sc.title || `Adegan ${sc.scene_number}`}
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span className="truncate max-w-[120px]">{sc.location_name || 'Latar Umum'}</span>
+                <span className="text-indigo-400 font-bold">{scShots.length} SH</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Grid (>= 768px / 1024px) */}
+      <div className="hidden md:grid md:grid-cols-4 lg:grid-cols-6 gap-2">
         {scenes.map((sc, idx) => {
           const isSelected = sc.id === activeSceneId;
           const scShots = shots[sc.id] || [];
@@ -335,26 +377,26 @@ ${sceneNeg}`;
       {currentScene && (
         <>
           {/* 2. SCENE TOP COMMAND & NARRATIVE HEADER */}
-          <div className="bg-[#0F131E] border border-[#21253C] rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+          <div className="bg-[#0F131E] border border-[#21253C] rounded-2xl p-3 sm:p-5 shadow-lg space-y-3 sm:space-y-4">
             {/* Header Title Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1E2238] pb-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 text-[10px] font-mono uppercase text-amber-400 font-bold">
-                  <span>SCENE {String(currentScene.scene_number).padStart(2, '0')}</span>
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] font-mono uppercase text-amber-400 font-bold">
+                  <span className="bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/25">SCENE {String(currentScene.scene_number).padStart(2, '0')}</span>
                   <span>•</span>
-                  <span className="truncate">{currentScene.location_name || 'Latar Sinematik'}</span>
+                  <span className="truncate max-w-[150px] sm:max-w-xs">{currentScene.location_name || 'Latar Sinematik'}</span>
                   <span>•</span>
                   <span>{currentScene.time_of_day || 'Day'}</span>
                   <span>•</span>
                   <span className="text-indigo-300 font-bold">{sceneAuthoritativeDuration}s</span>
                 </div>
-                <h2 className="text-lg sm:text-xl font-black text-white truncate mt-0.5">
+                <h2 className="text-base sm:text-xl font-black text-white truncate mt-1">
                   {currentScene.title || `Adegan ${currentScene.scene_number}`}
                 </h2>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex flex-wrap items-center gap-1.5 shrink-0 w-full sm:w-auto">
                 <button
                   onClick={() =>
                     openWindow({
@@ -365,11 +407,11 @@ ${sceneNeg}`;
                       data: currentScene,
                     })
                   }
-                  className="px-2.5 py-1.5 rounded-lg text-xs bg-[#1C1E32] hover:bg-[#252844] border border-[#2B2E4A] text-slate-200 font-semibold transition flex items-center gap-1.5"
-                  title="Buka Floating Window Adegan (Double-Click ready)"
+                  className="min-h-[36px] sm:min-h-[30px] px-2.5 py-1.5 rounded-lg text-xs bg-[#1C1E32] hover:bg-[#252844] border border-[#2B2E4A] text-slate-200 font-semibold transition flex items-center gap-1.5"
+                  title="Buka Floating Window Adegan"
                 >
                   <Maximize2 className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Scene Window</span>
+                  <span>Window</span>
                 </button>
 
                 <button
@@ -377,7 +419,7 @@ ${sceneNeg}`;
                     handleCopy(readScenePrompt(currentScene).text, `sc-master-${currentScene.id}`)
                   }
                   disabled={!readScenePrompt(currentScene).hasPrompt}
-                  className="px-2.5 py-1.5 bg-[#1C1E32] hover:bg-[#252844] text-amber-300 border border-amber-500/30 rounded-lg text-xs font-bold flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="min-h-[36px] sm:min-h-[30px] px-2.5 py-1.5 bg-[#1C1E32] hover:bg-[#252844] text-amber-300 border border-amber-500/30 rounded-lg text-xs font-bold flex items-center gap-1.5 transition disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Salin Master Banana Image Prompt 1-Klik"
                 >
                   {copiedId === `sc-master-${currentScene.id}` ? (
@@ -395,7 +437,7 @@ ${sceneNeg}`;
                     const globalVideoPrompt = buildGlobalSceneVideoPrompt(currentScene, currentShots);
                     handleCopy(globalVideoPrompt, `sc-video-global-${currentScene.id}`);
                   }}
-                  className="px-2.5 py-1.5 bg-[#1C1E32] hover:bg-[#252844] text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-bold flex items-center gap-1.5 transition"
+                  className="min-h-[36px] sm:min-h-[30px] px-2.5 py-1.5 bg-[#1C1E32] hover:bg-[#252844] text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-bold flex items-center gap-1.5 transition"
                   title="Salin Prompt Video Global Adegan Ini (Gabungan Seluruh Shot Berdurasi)"
                 >
                   {copiedId === `sc-video-global-${currentScene.id}` ? (
@@ -404,14 +446,14 @@ ${sceneNeg}`;
                     <Video className="w-3.5 h-3.5 text-indigo-400" />
                   )}
                   <span>
-                    {copiedId === `sc-video-global-${currentScene.id}` ? 'Tersalin!' : 'Salin Video Scene'}
+                    {copiedId === `sc-video-global-${currentScene.id}` ? 'Tersalin!' : 'Salin Video'}
                   </span>
                 </button>
 
                 <button
                   onClick={() => onRegenerateScenePrompt(currentScene.id)}
                   disabled={isProcessing}
-                  className="px-2.5 py-1.5 rounded-lg text-xs bg-[#1C1E32] hover:bg-[#252844] border border-[#2B2E4A] text-slate-200 font-semibold transition flex items-center gap-1.5"
+                  className="min-h-[36px] sm:min-h-[30px] px-2.5 py-1.5 rounded-lg text-xs bg-[#1C1E32] hover:bg-[#252844] border border-[#2B2E4A] text-slate-200 font-semibold transition flex items-center gap-1.5"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isProcessing ? 'animate-spin' : ''}`} />
                   <span>Regen</span>
@@ -420,10 +462,10 @@ ${sceneNeg}`;
                 <button
                   onClick={() => onRunScenePipeline(currentScene.id)}
                   disabled={isProcessing}
-                  className="px-3 py-1.5 rounded-lg text-xs bg-amber-500 hover:bg-amber-400 text-black font-extrabold shadow-md shadow-amber-500/20 transition flex items-center gap-1.5"
+                  className="min-h-[36px] sm:min-h-[30px] px-3 py-1.5 rounded-lg text-xs bg-amber-500 hover:bg-amber-400 text-black font-extrabold shadow-md shadow-amber-500/20 transition flex items-center gap-1.5"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>{isProcessing ? 'Memproses...' : 'Pipeline'}</span>
+                  <span>{isProcessing ? 'Proses...' : 'Pipeline'}</span>
                 </button>
               </div>
             </div>
