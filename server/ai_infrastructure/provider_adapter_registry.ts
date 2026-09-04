@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { openaiCompatibleDriver } from './openai_compatible_driver';
 import { AIProvider } from '../../src/types';
+import { globalAIQueue } from './rate_limiter_queue';
 
 export interface ProviderExecutionAdapter {
   execute(params: {
@@ -86,11 +87,11 @@ const googleGenerativeAIAdapter: ProviderExecutionAdapter = {
       config.responseMimeType = 'application/json';
       config.responseSchema = responseSchema;
     }
-    const generatePromise = ai.models.generateContent({
+    const generatePromise = globalAIQueue.enqueue(() => ai.models.generateContent({
       model,
       contents: prompt,
       config,
-    });
+    }));
     const response: any = await Promise.race([generatePromise, timeoutPromise]);
     const latencyMs = Date.now() - startTime;
     const text = response.text || '';
@@ -108,15 +109,15 @@ const googleGenerativeAIAdapter: ProviderExecutionAdapter = {
     const startTime = Date.now();
     try {
       const ai = new GoogleGenAI({ apiKey });
-      const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.1-flash-lite'];
+      const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash'];
       let lastErr: any = null;
       let ok = false;
       for (const m of candidateModels) {
         try {
-          await ai.models.generateContent({
+          await globalAIQueue.enqueue(() => ai.models.generateContent({
             model: m,
             contents: 'Ping connectivity test. Reply with OK.',
-          });
+          }));
           ok = true;
           break;
         } catch (err: any) {

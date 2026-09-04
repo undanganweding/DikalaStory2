@@ -87,9 +87,9 @@ export const AI_TASKS: Record<AITaskId, AITaskDefinition> = {
     id: 'shot_breakdown',
     stageCode: 'S6',
     name: 'Shot Breakdown & Cinematic Camera Grammar',
-    description: 'High-throughput shot generation, lens choices, camera movements, and lighting setup formatting.',
+    description: 'Cinematic camera grammar, shot composition, lens choice, lighting, and timeline rhythm continuity.',
     requiredCapabilities: ['text', 'structured_output', 'fast'],
-    preferredTier: 'flash',
+    preferredTier: 'pro',
     contextRequirement: 'standard',
     minContextWindow: 64000,
     outputFormatRequirement: 'structured_schema',
@@ -105,7 +105,7 @@ export const AI_TASKS: Record<AITaskId, AITaskDefinition> = {
     name: 'Master Frame & Image Prompt Compiler',
     description: 'Visual stylization, composition prompt engineering, negative prompt curation, and aesthetic fidelity.',
     requiredCapabilities: ['text', 'creative'],
-    preferredTier: 'flash',
+    preferredTier: 'pro',
     contextRequirement: 'standard',
     minContextWindow: 32000,
     outputFormatRequirement: 'json',
@@ -198,34 +198,34 @@ export const taskRegistry = {
     }
 
     // 2. Direct match in AI_TASKS keys
-    const lowerKey = normalized.toLowerCase() as AITaskId;
-    if (AI_TASKS[lowerKey]) {
-      return AI_TASKS[lowerKey];
+    const lowerStr = normalized.toLowerCase();
+    if (AI_TASKS[lowerStr as AITaskId]) {
+      return AI_TASKS[lowerStr as AITaskId];
     }
 
-    // 3. Partial / heuristic matching for legacy task names
-    if (lowerKey.includes('story') || lowerKey.includes('script') || lowerKey.includes('s1')) {
+    // 3. Partial / heuristic / alias matching for cinematic task names
+    if (lowerStr === 'story_analysis' || lowerStr.includes('story') || lowerStr.includes('script') || lowerStr.includes('s1')) {
       return AI_TASKS.story_analysis;
     }
-    if (lowerKey.includes('character') || lowerKey.includes('s2')) {
+    if (lowerStr === 'character_detection' || lowerStr === 'character_analysis' || lowerStr.includes('character') || lowerStr.includes('s2')) {
       return AI_TASKS.character_analysis;
     }
-    if (lowerKey.includes('location') || lowerKey.includes('object') || lowerKey.includes('s3')) {
+    if (lowerStr === 'location_detection' || lowerStr === 'location_object_analysis' || lowerStr.includes('location') || lowerStr.includes('object') || lowerStr.includes('s3')) {
       return AI_TASKS.location_object_analysis;
     }
-    if (lowerKey.includes('narrative') || lowerKey.includes('structure') || lowerKey.includes('s4')) {
+    if (lowerStr === 'narrative_structure' || lowerStr.includes('narrative') || lowerStr.includes('structure') || lowerStr.includes('s4')) {
       return AI_TASKS.narrative_structure;
     }
-    if (lowerKey.includes('scene') || lowerKey.includes('s5')) {
+    if (lowerStr === 'scene_breakdown' || lowerStr.includes('scene') || lowerStr.includes('s5')) {
       return AI_TASKS.scene_breakdown;
     }
-    if (lowerKey.includes('shot') || lowerKey.includes('s6')) {
+    if (lowerStr === 'shot_breakdown' || lowerStr.includes('shot') || lowerStr.includes('s6')) {
       return AI_TASKS.shot_breakdown;
     }
-    if (lowerKey.includes('master_frame') || lowerKey.includes('image') || lowerKey.includes('s7')) {
+    if (lowerStr === 'master_frame' || lowerStr === 'master_frame_generation' || lowerStr.includes('master_frame') || lowerStr.includes('image') || lowerStr.includes('s7')) {
       return AI_TASKS.master_frame_generation;
     }
-    if (lowerKey.includes('video') || lowerKey.includes('s8')) {
+    if (lowerStr === 'video_prompt' || lowerStr === 'video_prompt_generation' || lowerStr.includes('video') || lowerStr.includes('s8')) {
       return AI_TASKS.video_prompt_generation;
     }
 
@@ -278,6 +278,7 @@ export const taskRegistry = {
    */
   isModelEligibleForTask(
     model: {
+      id?: string;
       capabilities: string[];
       contextWindow?: number;
       tier?: string;
@@ -285,6 +286,27 @@ export const taskRegistry = {
     task: AITaskDefinition
   ): { eligible: boolean; reasons: string[] } {
     const reasons: string[] = [];
+
+    // Cinematic reasoning guard: flash-lite / lite tier models are strictly ineligible for cinematic reasoning (S1-S8)
+    const isCinematicTask = [
+      'story_analysis',
+      'character_analysis',
+      'character_detection',
+      'location_object_analysis',
+      'location_detection',
+      'narrative_structure',
+      'scene_breakdown',
+      'shot_breakdown',
+      'master_frame_generation',
+      'master_frame',
+      'video_prompt_generation',
+      'video_prompt',
+    ].includes(task.id) || ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'].includes(task.stageCode || '');
+
+    const modelIdLower = ((model.id || '')).toLowerCase();
+    if (isCinematicTask && (model.tier === 'lite' || modelIdLower.includes('flash-lite') || modelIdLower.includes('lite'))) {
+      reasons.push(`Model '${model.id || 'lite'}' (tier: lite) is ineligible for cinematic reasoning in SINEMA pipeline`);
+    }
 
     // 1. Capability check
     for (const reqCap of task.requiredCapabilities) {

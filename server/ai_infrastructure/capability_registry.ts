@@ -37,7 +37,7 @@ export const modelsRegistry: Record<string, ModelDefinition> = {
     providers: {
       'google': {
         supported: true,
-        nativeModelName: 'gemini-3.7-flash',
+        nativeModelName: 'gemini-2.5-flash',
       },
       // Any custom provider id will support ops-5 by default (native exact match)
       'custom_gate_provider': {
@@ -66,26 +66,6 @@ export const modelsRegistry: Record<string, ModelDefinition> = {
       },
     },
   },
-  'gemini-3.8-flash': {
-    id: 'gemini-3.8-flash',
-    requiredCapability: 'text',
-    providers: {
-      'google': {
-        supported: true,
-        nativeModelName: 'gemini-3.8-flash',
-      },
-    },
-  },
-  'gemini-flash-latest': {
-    id: 'gemini-flash-latest',
-    requiredCapability: 'text',
-    providers: {
-      'google': {
-        supported: true,
-        nativeModelName: 'gemini-flash-latest',
-      },
-    },
-  },
   'gemini-3.7-flash': {
     id: 'gemini-3.7-flash',
     requiredCapability: 'text',
@@ -93,66 +73,6 @@ export const modelsRegistry: Record<string, ModelDefinition> = {
       'google': {
         supported: true,
         nativeModelName: 'gemini-3.7-flash',
-      },
-    },
-  },
-  'gemini-3.1-pro-preview': {
-    id: 'gemini-3.1-pro-preview',
-    requiredCapability: 'text',
-    providers: {
-      'google': {
-        supported: true,
-        nativeModelName: 'gemini-3.1-pro-preview',
-      },
-    },
-  },
-  'gemini-3.6-flash': {
-    id: 'gemini-3.6-flash',
-    requiredCapability: 'text',
-    providers: {
-      'google': {
-        supported: true,
-        nativeModelName: 'gemini-3.6-flash',
-      },
-    },
-  },
-  'gemini-3.5-flash': {
-    id: 'gemini-3.5-flash',
-    requiredCapability: 'text',
-    providers: {
-      'google': {
-        supported: true,
-        nativeModelName: 'gemini-3.5-flash',
-      },
-    },
-  },
-  'gemini-3.1-flash-lite': {
-    id: 'gemini-3.1-flash-lite',
-    requiredCapability: 'text',
-    providers: {
-      'google': {
-        supported: true,
-        nativeModelName: 'gemini-3.1-flash-lite',
-      },
-    },
-  },
-  'gemini-3.1-flash-image': {
-    id: 'gemini-3.1-flash-image',
-    requiredCapability: 'image',
-    providers: {
-      'google': {
-        supported: true,
-        nativeModelName: 'gemini-3.1-flash-image',
-      },
-    },
-  },
-  'veo-3.1-lite-generate-preview': {
-    id: 'veo-3.1-lite-generate-preview',
-    requiredCapability: 'video',
-    providers: {
-      'google': {
-        supported: true,
-        nativeModelName: 'veo-3.1-lite-generate-preview',
       },
     },
   },
@@ -214,11 +134,13 @@ export const capabilityRegistry = {
       // Reasoning / Deep analysis
       if (
         rawId.includes('pro') ||
+        (rawId.includes('gemini') && !rawId.includes('lite')) ||
         rawId.includes('r1') ||
         rawId.includes('o1') ||
         rawId.includes('o3') ||
         rawId.includes('reasoning') ||
-        rawDesc.includes('reasoning')
+        rawDesc.includes('reasoning') ||
+        rawId === 'ops-5'
       ) {
         capsSet.add('reasoning');
         capsSet.add('structured_output');
@@ -241,6 +163,11 @@ export const capabilityRegistry = {
       capsSet.add('creative');
     }
 
+    // Explicitly enforce that lite models NEVER have reasoning capability
+    if (rawId.includes('lite') || rawId.includes('flash-lite')) {
+      capsSet.delete('reasoning');
+    }
+
     // Incorporate any explicit user-specified or upstream detected capabilities
     if (Array.isArray(raw.capabilities)) {
       for (const c of raw.capabilities) {
@@ -250,7 +177,9 @@ export const capabilityRegistry = {
 
     // 3. Determine Canonical Tier
     let tier: 'flash' | 'pro' | 'lite' | 'ultra' = 'flash';
-    if (rawId.includes('ultra') || rawId.includes('opus') || rawId.includes('o1-high')) {
+    if (raw.tier && ['flash', 'pro', 'lite', 'ultra'].includes(raw.tier)) {
+      tier = raw.tier as any;
+    } else if (rawId.includes('ultra') || rawId.includes('opus') || rawId.includes('o1-high')) {
       tier = 'ultra';
     } else if (
       rawId.includes('pro') ||
@@ -262,10 +191,10 @@ export const capabilityRegistry = {
       tier = 'pro';
     } else if (
       rawId.includes('lite') ||
-      rawId.includes('mini') ||
       rawId.includes('haiku') ||
       rawId.includes('small') ||
-      rawId.includes('nano')
+      rawId.includes('nano') ||
+      /(?:^|[^a-z])mini(?:$|[^a-z])/i.test(rawId)
     ) {
       tier = 'lite';
     } else {
@@ -340,7 +269,23 @@ export const capabilityRegistry = {
     // 1. Check provider-wide capabilities from db config
     const reqCap = this.getRequiredCapability(modelId);
     if (provider && provider.capabilities) {
-      const capEnabled = provider.capabilities[reqCap];
+      let capEnabled = true;
+      if (Array.isArray(provider.capabilities)) {
+        capEnabled = provider.capabilities.includes(reqCap);
+      } else if (typeof provider.capabilities === 'object') {
+        capEnabled = provider.capabilities[reqCap] !== false;
+      } else if (typeof provider.capabilities === 'string') {
+        try {
+          const parsed = JSON.parse(provider.capabilities);
+          if (Array.isArray(parsed)) {
+            capEnabled = parsed.includes(reqCap);
+          } else if (typeof parsed === 'object') {
+            capEnabled = parsed[reqCap] !== false;
+          }
+        } catch {
+          capEnabled = true;
+        }
+      }
       if (!capEnabled) {
         return {
           capable: false,
@@ -349,7 +294,12 @@ export const capabilityRegistry = {
       }
     }
 
-    // 2. Check model-specific registry in AMM
+    // 2. Google provider natively supports all Gemini & Veo models
+    if (providerId === 'google' && (modelId.startsWith('gemini') || modelId.startsWith('veo') || modelId === 'ops-5')) {
+      return { capable: true };
+    }
+
+    // 3. Check model-specific registry in AMM
     const modelDef = modelsRegistry[modelId];
     if (modelDef) {
       const provConfig = modelDef.providers[providerId];
@@ -389,6 +339,10 @@ export const capabilityRegistry = {
           };
         }
       } else {
+        // If provider is google, allow any gemini model
+        if (providerId === 'google' && (modelId.startsWith('gemini') || modelId.startsWith('veo'))) {
+          return { capable: true };
+        }
         return {
           capable: false,
           reason: `Model '${modelId}' not found in capability registry`,

@@ -293,10 +293,12 @@ function parseRetryDelayMs(err: any, attemptNumber: number): number {
 export function getFallbackModels(primaryModel: string, provider: string = 'google'): string[] {
   const resolved = resolveGeminiModel(primaryModel);
   const candidates = [
+    'gemini-3.8-flash',
+    'gemini-flash-latest',
     'gemini-3.7-flash',
     'gemini-3.6-flash',
     'gemini-3.1-pro-preview',
-    'gemini-3.1-flash-lite',
+    'gemini-2.5-pro',
   ];
 
   const fallbacks: string[] = [];

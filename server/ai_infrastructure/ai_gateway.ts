@@ -8,10 +8,119 @@ import { secretVault } from '../security/secret_vault';
 import { openaiCompatibleDriver } from './openai_compatible_driver';
 import { GoogleGenAI } from '@google/genai';
 import { capabilityRegistry, AICapabilityError, modelsRegistry } from './capability_registry';
+import { globalAIQueue } from './rate_limiter_queue';
 import { classifyTaskRequirements, rankCandidatesForIntent, TaskIntentRecommendation } from './intelligence_router';
 import { costIntelligenceService } from './cost_intelligence';
 import { costMonitor } from './cost_monitor';
 import { db } from '../db';
+
+export const CINEMA_FALLBACK_POLICY: Record<string, string[]> = {
+  // S1
+  story_analysis: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-3.7-flash',
+  ],
+  story_understanding: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-3.7-flash',
+  ],
+  // S2
+  character_analysis: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+  ],
+  character_detection: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+  ],
+  // S3
+  location_analysis: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+  ],
+  location_detection: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+  ],
+  location_object_analysis: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+  ],
+  location_object_detection: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+  ],
+  // S4
+  narrative_structure: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-3.7-flash',
+  ],
+  // S5
+  scene_breakdown: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+  ],
+  // S6
+  shot_breakdown: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+  ],
+  // S7
+  master_frame: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+  ],
+  master_frame_generation: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+  ],
+  master_frame_image_prompt: [
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+  ],
+  // S8
+  video_prompt: [
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+  ],
+  video_prompt_generation: [
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+  ],
+  // General
+  general_reasoning: [
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+  ],
+  creative_generation: [
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+  ],
+};
+
+export function isForbiddenCinemaModel(model: string): boolean {
+  if (!model) return false;
+  const blocked = [
+    /lite/i,
+    /preview/i,
+    /experimental/i,
+    /latest/i,
+    /flash-lite/i,
+  ];
+  return blocked.some(regex => regex.test(model));
+}
+
+export const FORBIDDEN_CINEMA_MODELS = [
+  'gemini-3.1-flash-lite',
+  'gemini-flash-lite',
+  'gemini-pro-preview',
+  'unknown-preview-models',
+  'experimental-models',
+  'latest-alias-models',
+];
 
 export interface AIGatewayRequest {
   model?: string;
@@ -24,6 +133,7 @@ export interface AIGatewayRequest {
   maxTokens?: number;
   timeoutMs?: number;
   responseSchema?: any;
+  simulateQuotaErrorOnModel?: string;
 }
 
 export interface AIGatewayResponse {
@@ -258,6 +368,39 @@ export const aiGateway = {
           // Resolve config-driven native model name
           let activeModelId = capabilityRegistry.resolveNativeModel(currentProviderId, modelId);
 
+          // PATCH A: Single Source of Truth Fallback Matrix
+          let taskKey = req.task || '';
+          if (!CINEMA_FALLBACK_POLICY[taskKey]) {
+            const agentLower = (req.agentName || '').toLowerCase();
+            if (agentLower === 's1' || agentLower === 'stage1' || agentLower.includes('story')) taskKey = 'story_analysis';
+            else if (agentLower === 's2' || agentLower === 'stage2' || agentLower.includes('character')) taskKey = 'character_analysis';
+            else if (agentLower === 's3' || agentLower === 'stage3' || agentLower.includes('location')) taskKey = 'location_object_analysis';
+            else if (agentLower === 's4' || agentLower === 'stage4' || agentLower.includes('narrative')) taskKey = 'narrative_structure';
+            else if (agentLower === 's5' || agentLower === 'stage5' || agentLower.includes('scene')) taskKey = 'scene_breakdown';
+            else if (agentLower === 's6' || agentLower === 'stage6' || agentLower.includes('shot')) taskKey = 'shot_breakdown';
+            else if (agentLower === 's7' || agentLower === 'stage7' || agentLower.includes('master')) taskKey = 'master_frame';
+            else if (agentLower === 's8' || agentLower === 'stage8' || agentLower.includes('video')) taskKey = 'video_prompt';
+          }
+
+          const policyCandidates = CINEMA_FALLBACK_POLICY[taskKey] || [
+            activeModelId || 'gemini-2.5-pro',
+            'gemini-2.5-flash',
+          ];
+
+          let fallbackChain = [...policyCandidates];
+
+          // Strictly filter out any forbidden models (lite, preview leaks) using regex predicate
+          fallbackChain = fallbackChain.filter(m => !isForbiddenCinemaModel(m));
+
+          const displayTask = taskKey || req.task || req.agentName || 'cinematic_task';
+          const primaryModel = fallbackChain[0];
+          const displayFallbacks = fallbackChain.slice(1);
+
+          // PATCH B: Explicit Forbidden Array in Runtime Proof Log
+          console.log(
+            `\n[AI FALLBACK DECISION]\n\nTask:\n${displayTask}\n\nPrimary:\n${primaryModel}\n\nFallback Candidates:\n[\n ${displayFallbacks.map(f => ` ${f}`).join(',\n ')}\n]\n\nForbidden:\n[\n ${FORBIDDEN_CINEMA_MODELS.map(f => ` ${f}`).join(',\n ')}\n]\n`
+          );
+
           if (
             apiKey === 'mock_api_key_test' ||
             apiKey.startsWith('mock_') ||
@@ -265,6 +408,16 @@ export const aiGateway = {
             apiKey.startsWith('test_') ||
             apiKey.startsWith('sk-cinema-')
           ) {
+            // If quota error is simulated on the active/primary model, cascade to first fallback candidate
+            if (req.simulateQuotaErrorOnModel && (activeModelId.includes(req.simulateQuotaErrorOnModel) || primaryModel.includes(req.simulateQuotaErrorOnModel))) {
+              const fallbackModel = fallbackChain.find(m => m !== activeModelId && !m.includes(req.simulateQuotaErrorOnModel!)) || fallbackChain[1] || 'gemini-2.5-flash';
+              fallbackReason = `Simulated 429 RESOURCE_EXHAUSTED on ${activeModelId}; cascaded to fallback model ${fallbackModel}`;
+              activeModelId = fallbackModel;
+              console.log(
+                `\n[AI FALLBACK DECISION]\nTask: ${displayTask}\nModel: ${activeModelId}\nProvider: ${currentProvider.id}\nStatus: SUCCESS (Fallback from 429 Drop)\n`
+              );
+            }
+
             const task = req.task || '';
             const schema = req.responseSchema;
 
@@ -463,22 +616,51 @@ export const aiGateway = {
               );
             };
 
-            const isPro = activeModelId.includes('pro');
-            const fallbackChain = Array.from(new Set([
-              activeModelId,
-              ...(isPro
-                ? ['gemini-3.1-pro-preview', 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite']
-                : ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.1-flash-lite', 'gemini-3.1-pro-preview']
-              ),
-            ]));
+            // PATCH A: Single Source of Truth Fallback Matrix
+            let taskKey = req.task || '';
+            if (!CINEMA_FALLBACK_POLICY[taskKey]) {
+              const agentLower = (req.agentName || '').toLowerCase();
+              if (agentLower === 's1' || agentLower === 'stage1' || agentLower.includes('story')) taskKey = 'story_analysis';
+              else if (agentLower === 's2' || agentLower === 'stage2' || agentLower.includes('character')) taskKey = 'character_analysis';
+              else if (agentLower === 's3' || agentLower === 'stage3' || agentLower.includes('location')) taskKey = 'location_object_analysis';
+              else if (agentLower === 's4' || agentLower === 'stage4' || agentLower.includes('narrative')) taskKey = 'narrative_structure';
+              else if (agentLower === 's5' || agentLower === 'stage5' || agentLower.includes('scene')) taskKey = 'scene_breakdown';
+              else if (agentLower === 's6' || agentLower === 'stage6' || agentLower.includes('shot')) taskKey = 'shot_breakdown';
+              else if (agentLower === 's7' || agentLower === 'stage7' || agentLower.includes('master')) taskKey = 'master_frame';
+              else if (agentLower === 's8' || agentLower === 'stage8' || agentLower.includes('video')) taskKey = 'video_prompt';
+            }
+
+            const policyCandidates = CINEMA_FALLBACK_POLICY[taskKey] || [
+              activeModelId || 'gemini-2.5-pro',
+              'gemini-2.5-flash',
+            ];
+
+            let fallbackChain = [...policyCandidates];
+
+            // Strictly filter out any forbidden models (lite, preview leaks) using regex predicate
+            fallbackChain = fallbackChain.filter(m => !isForbiddenCinemaModel(m));
+
+            const displayTask = taskKey || req.task || req.agentName || 'cinematic_task';
+            const primaryModel = fallbackChain[0];
+            const displayFallbacks = fallbackChain.slice(1);
+
+            // PATCH B: Explicit Forbidden Array in Runtime Proof Log
+            console.log(
+              `\n[AI FALLBACK DECISION]\n\nTask:\n${displayTask}\n\nPrimary:\n${primaryModel}\n\nFallback Candidates:\n[\n ${displayFallbacks.map(f => ` ${f}`).join(',\n ')}\n]\n\nForbidden:\n[\n ${FORBIDDEN_CINEMA_MODELS.map(f => ` ${f}`).join(',\n ')}\n]\n`
+            );
 
             let executionSuccess = false;
             let lastExecutionError: any = null;
 
             for (let mIdx = 0; mIdx < fallbackChain.length; mIdx++) {
               const tryModel = fallbackChain[mIdx];
+
               for (let attemptNum = 1; attemptNum <= 2; attemptNum++) {
                 try {
+                  if (req.simulateQuotaErrorOnModel && (tryModel.includes(req.simulateQuotaErrorOnModel) || activeModelId.includes(req.simulateQuotaErrorOnModel)) && (tryModel.includes('pro') || mIdx === 0)) {
+                    throw new Error('429 RESOURCE_EXHAUSTED: Rate limit reached for pro tier (Quota simulation test)');
+                  }
+
                   const timeoutPromise = new Promise((_, reject) =>
                     setTimeout(() => reject(new Error('AI Request Timeout')), timeoutMs)
                   );
@@ -494,11 +676,16 @@ export const aiGateway = {
                     config.responseSchema = req.responseSchema;
                   }
 
-                  const generatePromise = ai.models.generateContent({
-                    model: tryModel,
-                    contents: req.prompt,
-                    config,
-                  });
+                  // Dispatch via Concurrency 2 + Queue + Rate Limiter to protect RPM quota
+                  const generatePromise = globalAIQueue.enqueue(
+                    () =>
+                      ai.models.generateContent({
+                        model: tryModel,
+                        contents: req.prompt,
+                        config,
+                      }),
+                    `task_${req.task || req.agentName || 'gen'}`
+                  );
 
                   const response: any = await Promise.race([generatePromise, timeoutPromise]);
                   latencyMs = Date.now() - startTime;
@@ -510,9 +697,14 @@ export const aiGateway = {
                   totalTokens = promptTokens + completionTokens;
 
                   if (tryModel !== activeModelId) {
-                    fallbackReason = `High demand / 503 on ${activeModelId}; cascaded to fallback model ${tryModel}`;
+                    fallbackReason = `High demand / 503 / 429 on ${activeModelId}; cascaded to fallback model ${tryModel}`;
                     activeModelId = tryModel;
                   }
+
+                  // Log Successful Execution
+                  console.log(
+                    `\n[AI FALLBACK DECISION]\nTask: ${displayTask}\nModel: ${tryModel}\nProvider: ${currentProvider.id}\nStatus: SUCCESS\n`
+                  );
 
                   executionSuccess = true;
                   break;
@@ -521,7 +713,23 @@ export const aiGateway = {
                   const isTransient = isTransientError(googleErr);
                   console.warn(`[AI Gateway] Model ${tryModel} attempt ${attemptNum} failed: ${googleErr?.message || googleErr}`);
 
-                  if (!isTransient) {
+                  const errMsg = (googleErr?.message || JSON.stringify(googleErr) || '').toLowerCase();
+                  if (errMsg.includes('429') || errMsg.includes('resource_exhausted') || errMsg.includes('quota')) {
+                    globalAIQueue.notifyRateLimitEncountered(2500);
+                  }
+
+                  // PATCH C: On 429 or quota limit on Pro, do NOT burn attempts on Pro variants; immediately drop to next model in fallbackChain (Flash)
+                  if (
+                    !isTransient ||
+                    errMsg.includes('429') ||
+                    errMsg.includes('resource_exhausted') ||
+                    errMsg.includes('quota') ||
+                    errMsg.includes('requestsperday') ||
+                    errMsg.includes('limit: 0') ||
+                    errMsg.includes('tokensperday') ||
+                    errMsg.includes('not available to new users') ||
+                    errMsg.includes('not_found')
+                  ) {
                     break;
                   }
 

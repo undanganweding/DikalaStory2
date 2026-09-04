@@ -234,32 +234,241 @@ Output in English/Indonesian as appropriate with high narrative dignity.`;
     throw new Error('Stage 1 failed: LLM provider returned an empty response.');
   }
 
-  const parsed = safeParseJSON(response.text) as Partial<Stage1Output> | null;
+  // Safe JSON extraction & validation layer for S1
+  let parsed = extractAndValidateS1JSON(response.text);
+
+  // If initial parsing or validation failed, retry once with a JSON repair instruction
+  if (!parsed.valid || !parsed.data) {
+    console.warn(`[S1 Story Understanding] Initial JSON parse/validation issue (${parsed.validationError || 'Invalid JSON'}). Initiating single repair retry...`);
+    try {
+      const repairPrompt = `You are an expert JSON recovery system. The previous response produced invalid or malformed JSON.
+Fix the syntax errors, unescaped quotes, trailing commas, or truncated brackets, and output strictly the valid JSON object conforming to the schema:
+
+=== CORRUPT / MALFORMED OUTPUT ===
+${response.text}
+==================================`;
+
+      const repairResponse = await executeTask({
+        taskId: 'story_analysis',
+        stageCode: 'S1',
+        prompt: repairPrompt,
+        systemInstruction: 'Output only valid, strictly formed JSON without markdown formatting or commentary.',
+        temperature: 0.1,
+        responseSchema,
+        projectPolicy: {
+          mode: input.model ? 'pin' : 'auto',
+          quality: 'high',
+          priority: 'quality',
+          pinnedModelId: input.model,
+          pinnedProviderId: input.reasoningConfig?.provider_name || input.reasoningConfig?.provider_type,
+        },
+      });
+
+      if (repairResponse.text) {
+        const repaired = extractAndValidateS1JSON(repairResponse.text, true);
+        if (repaired.valid && repaired.data) {
+          parsed = repaired;
+        }
+      }
+    } catch (repairErr: any) {
+      console.error('[S1 Story Understanding] JSON repair retry failed:', repairErr.message);
+    }
+  }
+
+  const data = parsed.data || {};
+
   return {
-    era: parsed?.era || 'Unknown Era',
-    theme: parsed?.theme || 'General Theme',
-    genre: parsed?.genre || 'Cinematic Drama',
-    timeline: parsed?.timeline || 'Linear Timeline',
-    main_characters: Array.isArray(parsed?.main_characters) ? parsed.main_characters : ['Protagonist'],
-    supporting_characters: Array.isArray(parsed?.supporting_characters) ? parsed.supporting_characters : [],
-    locations: Array.isArray(parsed?.locations) ? parsed.locations : ['Main Location'],
-    main_conflict: parsed?.main_conflict || 'Dramatic conflict',
-    emotional_arc: parsed?.emotional_arc || 'Transformation and growth',
-    narrative_arc: parsed?.narrative_arc || 'Inciting incident, rising action, climax, resolution',
-    visual_tone: parsed?.visual_tone || 'Cinematic panavision 35mm film grain',
+    era: data.era || 'Unknown Era',
+    theme: data.theme || 'General Theme',
+    genre: data.genre || 'Cinematic Drama',
+    timeline: data.timeline || 'Linear Timeline',
+    main_characters: Array.isArray(data.main_characters) && data.main_characters.length > 0 ? data.main_characters : ['Protagonist'],
+    supporting_characters: Array.isArray(data.supporting_characters) ? data.supporting_characters : [],
+    locations: Array.isArray(data.locations) && data.locations.length > 0 ? data.locations : ['Main Location'],
+    main_conflict: data.main_conflict || 'Dramatic conflict',
+    emotional_arc: data.emotional_arc || 'Transformation and growth',
+    narrative_arc: data.narrative_arc || 'Inciting incident, rising action, climax, resolution',
+    visual_tone: data.visual_tone || 'Cinematic panavision 35mm film grain',
     
-    is_historical_religious_biography: parsed?.is_historical_religious_biography || false,
-    research_basic_facts: parsed?.research_basic_facts,
-    research_timeline: parsed?.research_timeline,
-    research_era_context: parsed?.research_era_context,
-    research_sources: parsed?.research_sources,
+    is_historical_religious_biography: Boolean(data.is_historical_religious_biography),
+    research_basic_facts: data.research_basic_facts,
+    research_timeline: data.research_timeline,
+    research_era_context: data.research_era_context,
+    research_sources: data.research_sources,
     
-    act_1_world_setup: parsed?.act_1_world_setup,
-    act_2_human_element: parsed?.act_2_human_element,
-    act_3_rising_conflict: parsed?.act_3_rising_conflict,
-    act_4_climax_breath: parsed?.act_4_climax_breath,
-    act_5_legacy_meaning: parsed?.act_5_legacy_meaning,
-    narrative_style_mode: parsed?.narrative_style_mode,
-    islamic_validation_safeguard: parsed?.islamic_validation_safeguard,
+    act_1_world_setup: data.act_1_world_setup,
+    act_2_human_element: data.act_2_human_element,
+    act_3_rising_conflict: data.act_3_rising_conflict,
+    act_4_climax_breath: data.act_4_climax_breath,
+    act_5_legacy_meaning: data.act_5_legacy_meaning,
+    narrative_style_mode: data.narrative_style_mode,
+    islamic_validation_safeguard: data.islamic_validation_safeguard,
+  };
+}
+
+/**
+ * Robust JSON extraction and validation tailored for Stage 1 Story Understanding.
+ * Handles markdown fences, surrounding commentary, unescaped string literals, and truncated JSON.
+ */
+export function extractAndValidateS1JSON(rawText: string, isRetry: boolean = false): {
+  data: Partial<Stage1Output> | null;
+  valid: boolean;
+  method: string;
+  validationError?: string;
+} {
+  const rawLength = rawText ? rawText.length : 0;
+  let cleaned = (rawText || '').trim();
+
+  // 1. Strip Markdown Code Fences (```json ... ``` or ``` ...)
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+  }
+
+  // 2. Extract First Valid JSON Object if surrounded by extra commentary
+  let jsonCandidate = cleaned;
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    jsonCandidate = cleaned.substring(firstBrace, lastBrace + 1);
+  } else if (firstBrace !== -1 && lastBrace === -1) {
+    // Unterminated JSON candidate starting at first brace
+    jsonCandidate = cleaned.substring(firstBrace);
+  }
+
+  let parsedObj: any = null;
+  let parseMethod = 'DIRECT';
+
+  // Strategy A: Direct Parse
+  try {
+    parsedObj = JSON.parse(jsonCandidate);
+    parseMethod = isRetry ? 'REPAIRED_VIA_LLM' : 'DIRECT';
+  } catch (errA) {
+    // Strategy B: Sanitize unescaped newlines/tabs inside strings & trailing commas
+    try {
+      const sanitized = jsonCandidate
+        .replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match) => {
+          return match
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r')
+            .replace(/\t/g, '\\t');
+        })
+        .replace(/,\s*([}\]])/g, '$1'); // Remove trailing commas
+      parsedObj = JSON.parse(sanitized);
+      parseMethod = 'SANITIZED';
+    } catch (errB) {
+      // Strategy C: Repair Unterminated / Truncated JSON
+      try {
+        let repaired = jsonCandidate
+          .replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match) => {
+            return match
+              .replace(/\n/g, '\\n')
+              .replace(/\r/g, '\\r')
+              .replace(/\t/g, '\\t');
+          })
+          .replace(/,\s*([}\]])/g, '$1');
+
+        // Check if string literal is unterminated
+        let inString = false;
+        let escaped = false;
+        for (let i = 0; i < repaired.length; i++) {
+          const char = repaired[i];
+          if (char === '\\' && !escaped) {
+            escaped = true;
+            continue;
+          }
+          if (char === '"' && !escaped) {
+            inString = !inString;
+          }
+          escaped = false;
+        }
+
+        if (inString) {
+          repaired += '"';
+        }
+
+        // Balance open brackets and braces
+        const stack: string[] = [];
+        inString = false;
+        escaped = false;
+        for (let i = 0; i < repaired.length; i++) {
+          const char = repaired[i];
+          if (char === '\\' && !escaped) {
+            escaped = true;
+            continue;
+          }
+          if (char === '"' && !escaped) {
+            inString = !inString;
+          }
+          escaped = false;
+
+          if (!inString) {
+            if (char === '{') stack.push('}');
+            else if (char === '[') stack.push(']');
+            else if (char === '}' || char === ']') {
+              if (stack.length > 0 && stack[stack.length - 1] === char) {
+                stack.pop();
+              }
+            }
+          }
+        }
+
+        while (stack.length > 0) {
+          repaired += stack.pop();
+        }
+
+        parsedObj = JSON.parse(repaired);
+        parseMethod = 'REPAIRED';
+      } catch (errC: any) {
+        parseMethod = 'FAILED';
+      }
+    }
+  }
+
+  // Validate S1 Schema
+  const requiredFields = [
+    'era',
+    'theme',
+    'genre',
+    'timeline',
+    'main_characters',
+    'supporting_characters',
+    'locations',
+    'main_conflict',
+    'emotional_arc',
+    'narrative_arc',
+    'visual_tone',
+  ];
+
+  let isValid = false;
+  let validationSummary = '';
+  let validationError: string | undefined;
+
+  if (parsedObj && typeof parsedObj === 'object' && !Array.isArray(parsedObj)) {
+    const presentCount = requiredFields.filter(f => parsedObj[f] !== undefined && parsedObj[f] !== null).length;
+    if (presentCount >= 6) { // Sufficiently populated S1 schema object
+      isValid = true;
+      validationSummary = `VALID (${presentCount}/${requiredFields.length} core fields verified)`;
+    } else {
+      isValid = false;
+      validationError = `Missing critical fields (found ${presentCount}/${requiredFields.length})`;
+      validationSummary = `INVALID: ${validationError}`;
+    }
+  } else {
+    isValid = false;
+    validationError = 'Failed to parse object structure';
+    validationSummary = `INVALID: ${validationError}`;
+  }
+
+  // Runtime Proof Log as mandated by contract
+  const extractedPreview = (jsonCandidate || '').replace(/\s+/g, ' ').substring(0, 100);
+  console.log(
+    `\n[S1 JSON VALIDATION]\n\nRaw length:\n${rawLength}\n\nExtracted JSON:\n${extractedPreview}${rawLength > 100 ? '...' : ''}\n\nParse:\n${parseMethod}\n\nValidation:\n${validationSummary}\n`
+  );
+
+  return {
+    data: parsedObj,
+    valid: isValid,
+    method: parseMethod,
+    validationError,
   };
 }

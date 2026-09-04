@@ -36,6 +36,7 @@ interface ProductionProjectsViewProps {
     reasoning_config?: ReasoningConfig;
   }) => Promise<void>;
   isCreating: boolean;
+  onOpenPipelineModal?: () => void;
 }
 
 export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
@@ -45,6 +46,7 @@ export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
   onDeleteProject,
   onCreateProject,
   isCreating,
+  onOpenPipelineModal,
 }) => {
   const [filter, setFilter] = useState<'all' | 'processing' | 'completed' | 'draft'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -230,17 +232,26 @@ export const ProductionProjectsView: React.FC<ProductionProjectsViewProps> = ({
                   </span>
 
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase ${
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectProject(proj.id);
+                        if (proj.status === 'processing') {
+                          onOpenPipelineModal?.();
+                        }
+                      }}
+                      className={`px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase transition ${
                         proj.status === 'completed'
                           ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                           : proj.status === 'processing'
-                          ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 animate-pulse'
+                          ? 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 animate-pulse cursor-pointer'
                           : 'bg-slate-700/30 text-slate-400'
                       }`}
+                      title={proj.status === 'processing' ? 'Klik untuk melihat animasi loading kartu pipeline' : undefined}
                     >
-                      {proj.status === 'processing' ? `Stage ${currentStage}/8` : proj.status}
-                    </span>
+                      {proj.status === 'processing' ? `Stage ${currentStage}/8 ✦` : proj.status}
+                    </button>
 
                     <button
                       onClick={(e) => {

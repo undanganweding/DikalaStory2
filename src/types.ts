@@ -2118,6 +2118,7 @@ export interface TaskExecutionPlan {
     eligibleCandidates: number;
     selectedModelTier: string;
     contextWindow: number;
+    fallbackChain?: string[];
   };
   decisionTimestamp: number;
 }

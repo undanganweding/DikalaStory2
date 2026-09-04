@@ -10,6 +10,7 @@ import {
 } from '../src/types';
 import { classifyError } from './llm_provider';
 import { getGeminiAI } from './gemini';
+import { globalAIQueue } from './ai_infrastructure/rate_limiter_queue';
 
 const DATA_DIR = process.env.VERCEL ? path.join('/tmp', 'data') : path.join(process.cwd(), 'data');
 const CREDENTIALS_META_FILE = path.join(DATA_DIR, 'credentials_meta.json');
@@ -603,14 +604,14 @@ export class CredentialManager {
     try {
       if (provider === 'google') {
         const ai = getGeminiAI(apiKey);
-        const res = await ai.models.generateContent({
+        const res = await globalAIQueue.enqueue(() => ai.models.generateContent({
           model: 'gemini-3.8-flash',
           contents: 'Ping test. Output {"status":"ok"} in valid JSON.',
           config: {
             temperature: 0.1,
             responseMimeType: 'application/json',
           },
-        });
+        }));
         const latency = Date.now() - startTime;
         if (!res.text) throw new Error('Empty response received from Gemini.');
         return {

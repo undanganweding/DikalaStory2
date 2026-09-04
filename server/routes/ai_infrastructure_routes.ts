@@ -9,6 +9,7 @@ import { observabilityService } from '../ai_infrastructure/observability_service
 import { openaiCompatibleDriver } from '../ai_infrastructure/openai_compatible_driver';
 import { secretVault } from '../security/secret_vault';
 import { GoogleGenAI } from '@google/genai';
+import { globalAIQueue } from '../ai_infrastructure/rate_limiter_queue';
 
 import { databaseHealthService } from '../ai_infrastructure/database_health_service';
 
@@ -193,17 +194,17 @@ aiInfrastructureRouter.post('/test-connection', async (req: Request, res: Respon
 
     if (isGoogle) {
       const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-      const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.1-flash-lite'];
+      const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash'];
       let response: any = null;
       let lastErr: any = null;
       let usedModel = candidateModels[0];
 
       for (const m of candidateModels) {
         try {
-          response = await ai.models.generateContent({
+          response = await globalAIQueue.enqueue(() => ai.models.generateContent({
             model: m,
             contents: 'Ping connectivity test. Reply with OK.',
-          });
+          }));
           usedModel = m;
           break;
         } catch (err: any) {
@@ -826,7 +827,7 @@ aiInfrastructureRouter.post('/credentials/:id/test', async (req: Request, res: R
       }
       responseSample = 'Connection verified successfully';
     } else if (isGoogleProtocol) {
-      const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.1-flash-lite'];
+      const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash'];
       const ai = new GoogleGenAI({ apiKey });
       let response: any = null;
       let lastErr: any = null;
@@ -834,10 +835,10 @@ aiInfrastructureRouter.post('/credentials/:id/test', async (req: Request, res: R
 
       for (const m of candidateModels) {
         try {
-          response = await ai.models.generateContent({
+          response = await globalAIQueue.enqueue(() => ai.models.generateContent({
             model: m,
             contents: 'Ping connectivity test. Reply with OK.',
-          });
+          }));
           testModel = m;
           break;
         } catch (err: any) {
@@ -855,7 +856,7 @@ aiInfrastructureRouter.post('/credentials/:id/test', async (req: Request, res: R
       responseSample = responseText.trim().substring(0, 50);
     } else {
       // Generic fallback
-      const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.1-flash-lite'];
+      const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash'];
       const ai = new GoogleGenAI({ apiKey });
       let response: any = null;
       let lastErr: any = null;
@@ -863,10 +864,10 @@ aiInfrastructureRouter.post('/credentials/:id/test', async (req: Request, res: R
 
       for (const m of candidateModels) {
         try {
-          response = await ai.models.generateContent({
+          response = await globalAIQueue.enqueue(() => ai.models.generateContent({
             model: m,
             contents: 'Ping connectivity test. Reply with OK.',
-          });
+          }));
           testModel = m;
           break;
         } catch (err: any) {
@@ -1051,7 +1052,7 @@ aiInfrastructureRouter.post('/health/check-all', async (req: Request, res: Respo
           if (!testRes.success) throw new Error(testRes.error || 'Connection failed');
         } else {
           const ai = new GoogleGenAI({ apiKey });
-          const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.1-flash-lite'];
+          const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash'];
           let lastErr: any = null;
           let pingSuccess = false;
           for (const m of candidateModels) {

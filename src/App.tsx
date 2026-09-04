@@ -18,6 +18,8 @@ const CommandPalette = React.lazy(() => import('./components/CommandPalette').th
 const NotificationCenter = React.lazy(() => import('./components/NotificationCenter').then(m => ({ default: m.NotificationCenter })));
 const VersionHistoryModal = React.lazy(() => import('./components/VersionHistoryModal').then(m => ({ default: m.VersionHistoryModal })));
 
+import { PipelineCardCarouselModal } from './components/pipeline/PipelineCardCarouselModal';
+
 // Lazy-loaded Studio & Workspaces
 const UnifiedStudioLayout = React.lazy(() => import('./components/studio/UnifiedStudioLayout').then(m => ({ default: m.UnifiedStudioLayout })));
 const ProjectDashboardWorkspace = React.lazy(() => import('./components/workspaces/ProjectDashboardWorkspace').then(m => ({ default: m.ProjectDashboardWorkspace })));
@@ -90,6 +92,8 @@ export default function App() {
   // A failed contract means NOTHING was persisted, so the cell must not pretend
   // a prompt exists.
   const [shotPromptError, setShotPromptError] = useState<Record<string, string>>({});
+  const [isPipelineCarouselOpen, setIsPipelineCarouselOpen] = useState<boolean>(false);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
 
 
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -183,16 +187,19 @@ export default function App() {
       eventSourceRef.current.close();
     }
 
-    const sse = new EventSource(`/api/projects/${currentProject.id}/stream`);
+    const projectId = currentProject.id;
+    const sse = new EventSource(`/api/projects/${projectId}/stream`);
     eventSourceRef.current = sse;
 
     sse.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'init') {
-          if (data.logs) setLogs(data.logs);
+          if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
+            setLogs(data.logs);
+          }
           if (data.project) {
-            setCurrentProject(data.project);
+            setCurrentProject((prev) => (prev && prev.id === projectId ? { ...prev, ...data.project } : data.project));
           }
         } else if (data.type === 'progress') {
           setLogs((prev) => [
@@ -205,9 +212,18 @@ export default function App() {
               message: data.message,
             },
           ]);
-          setCurrentProject((prev) => (prev ? { ...prev, current_stage: data.stage } : null));
+          if (data.level === 'error' && data.message) {
+            setPipelineError(data.message);
+          }
+          setCurrentProject((prev) => (prev ? { ...prev, current_stage: data.stage, status: 'processing' } : null));
         } else if (data.type === 'finished') {
-          loadProjectDetails(currentProject.id, true);
+          if (data.success === false && data.error) {
+            setPipelineError(data.error);
+            setCurrentProject((prev) => (prev ? { ...prev, status: 'failed', error_message: data.error } : null));
+          } else {
+            setCurrentProject((prev) => (prev ? { ...prev, status: 'completed', current_stage: 8 } : null));
+          }
+          loadProjectDetails(projectId, true);
           fetchProjects();
         } else if (data.type === 'end') {
           // The server intentionally ended this stream (serverless-safe) — stop
@@ -221,12 +237,47 @@ export default function App() {
     };
 
     sse.onerror = () => {
-      // Reconnects automatically
+      // EventSource reconnects automatically on transient network drop
     };
 
     return () => {
       sse.close();
     };
+  }, [currentProject?.id, currentProject?.status, loadProjectDetails, fetchProjects]);
+
+  // Polling fallback during active processing to guarantee state updates even if SSE is delayed
+  useEffect(() => {
+    if (!currentProject || currentProject.status !== 'processing') return;
+
+    const projectId = currentProject.id;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}`);
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          if (data?.project) {
+            setCurrentProject((prev) => {
+              if (!prev || prev.id !== projectId) return prev;
+              return {
+                ...prev,
+                ...data.project,
+              };
+            });
+            if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
+              setLogs(data.logs);
+            }
+            if (data.project.status === 'completed' || data.project.status === 'failed') {
+              loadProjectDetails(projectId, true);
+              fetchProjects();
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Polling check encountered error:', err);
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
   }, [currentProject?.id, currentProject?.status, loadProjectDetails, fetchProjects]);
 
   // Initial load
@@ -250,6 +301,8 @@ export default function App() {
     scene_duration_sec?: number | null;
   }) => {
     setIsCreating(true);
+    setIsPipelineCarouselOpen(true);
+    setPipelineError(null);
     try {
       const createRes = await fetch('/api/projects', {
         method: 'POST',
@@ -263,25 +316,47 @@ export default function App() {
         throw new Error(createData?.error || 'Failed to create project');
       }
 
-      const newProject: Project = createData;
+      // Immediately set project with status 'processing' and current_stage 1 so SSE and visual carousel activate
+      const newProject: Project = {
+        ...createData,
+        status: 'processing',
+        current_stage: 1,
+      };
       setCurrentProject(newProject);
       setFoundation(null);
       setCharacters([]);
       setLocations([]);
       setObjects([]);
       setScenes([]);
-      setLogs([]);
+      setLogs([
+        {
+          timestamp: new Date().toISOString(),
+          stage: 1,
+          stage_name: 'Pipeline Orchestrator',
+          level: 'info',
+          message: 'Memulai eksekusi otomatis pipeline cetak biru sinematik...',
+        },
+      ]);
       setActiveTab('pipeline');
       setMainMode('studio');
 
-      await fetch(`/api/projects/${newProject.id}/generate`, {
+      const genRes = await fetch(`/api/projects/${newProject.id}/generate`, {
         method: 'POST',
       });
+      const genData = await genRes.json().catch(() => null);
+      if (!genRes.ok) {
+        throw new Error(genData?.error || 'Gagal memulai generate pipeline.');
+      }
+
+      if (genData?.project) {
+        setCurrentProject(genData.project);
+      }
 
       await fetchProjects();
     } catch (err: any) {
       console.error('Error in handleCreateProject:', err);
-      throw err;
+      setPipelineError(err?.message || 'Gagal memulai orkestrasi pipeline.');
+      setCurrentProject((prev) => (prev ? { ...prev, status: 'failed', error_message: err?.message } : null));
     } finally {
       setIsCreating(false);
     }
@@ -305,13 +380,16 @@ export default function App() {
     if (!currentProject) return;
     try {
       setLogs([]);
+      setPipelineError(null);
+      setIsPipelineCarouselOpen(true);
       setCurrentProject((prev) => (prev ? { ...prev, status: 'processing', current_stage: 1 } : null));
       setActiveTab('pipeline');
       await fetch(`/api/projects/${currentProject.id}/generate`, {
         method: 'POST',
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to retry pipeline:', err);
+      setPipelineError(err?.message || 'Gagal melanjutkan pipeline.');
     }
   };
 
@@ -331,6 +409,8 @@ export default function App() {
     if (!currentProject) return;
     try {
       setLogs([]);
+      setPipelineError(null);
+      setIsPipelineCarouselOpen(true);
       const res = await fetch(`/api/projects/${currentProject.id}/reset`, {
         method: 'POST',
       });
@@ -345,8 +425,9 @@ export default function App() {
         setCurrentProject((prev) => (prev ? { ...prev, status: 'processing', current_stage: 1 } : null));
         setActiveTab('pipeline');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to reset pipeline:', err);
+      setPipelineError(err?.message || 'Gagal mereset pipeline.');
     }
   };
 
@@ -679,6 +760,7 @@ export default function App() {
                 onDeleteProject={handleDeleteProject}
                 onCreateProject={handleCreateProject}
                 isCreating={isCreating}
+                onOpenPipelineModal={() => setIsPipelineCarouselOpen(true)}
               />
             </div>
           )}
@@ -696,6 +778,7 @@ export default function App() {
                   onDeleteProject={handleDeleteProject}
                   onCreateProject={handleCreateProject}
                   isCreating={isCreating}
+                  onOpenPipelineModal={() => setIsPipelineCarouselOpen(true)}
                 />
               </div>
             ) : (
@@ -817,6 +900,7 @@ export default function App() {
                     onStopPipeline={handleStopPipeline}
                     onResetPipeline={handleResetPipeline}
                     isGenerating={currentProject?.status === 'processing'}
+                    onOpenVisualCarousel={() => setIsPipelineCarouselOpen(true)}
                   />
                 )}
 
@@ -933,6 +1017,28 @@ export default function App() {
             onClose={() => setIsVersionModalOpen(false)}
           />
         )}
+
+        <PipelineCardCarouselModal
+          isOpen={isPipelineCarouselOpen}
+          project={currentProject}
+          logs={logs}
+          scenes={scenes}
+          shots={shots}
+          videoPrompts={videoPrompts}
+          isGenerating={currentProject?.status === 'processing' || isCreating}
+          error={pipelineError}
+          onClose={() => setIsPipelineCarouselOpen(false)}
+          onOpenPipelineDetails={() => {
+            setIsPipelineCarouselOpen(false);
+            setMainMode('studio');
+            setActiveTab('pipeline');
+          }}
+          onOpenStudio={() => {
+            setIsPipelineCarouselOpen(false);
+            setMainMode('studio');
+            setActiveTab('overview');
+          }}
+        />
       </Suspense>
     </div>
   );

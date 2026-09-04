@@ -14,15 +14,15 @@ export interface TaskProfile {
 }
 
 export const DEFAULT_TASK_PROFILES: Record<string, TaskProfile> = {
-  S1: { task: 'story_understanding', tier: 'deep_reasoning', historical_sensitivity: 'high', narrative_sensitivity: 'high' },
-  S2: { task: 'character_detection', tier: 'general_reasoning', continuity_sensitivity: 'high' },
-  S3: { task: 'location_object_detection', tier: 'general_reasoning', historical_sensitivity: 'high' },
-  S4: { task: 'narrative_structure', tier: 'deep_reasoning', narrative_sensitivity: 'high' },
-  S5: { task: 'scene_breakdown', tier: 'general_reasoning', duration_sensitivity: 'critical' },
-  S6: { task: 'shot_breakdown', tier: 'fast_structured', timeline_sensitivity: 'critical' },
-  S7: { task: 'master_frame_image_prompt', tier: 'general_reasoning', visual_consistency: 'high' },
-  S8: { task: 'video_prompt', tier: 'general_reasoning' },
-  S9: { task: 'continuity_historical_accuracy', tier: 'deep_reasoning' },
+  S1: { task: 'story_understanding', tier: 'deep_reasoning', default_model: 'gemini-2.5-pro', historical_sensitivity: 'high', narrative_sensitivity: 'high' },
+  S2: { task: 'character_detection', tier: 'general_reasoning', default_model: 'gemini-2.5-pro', continuity_sensitivity: 'high' },
+  S3: { task: 'location_object_detection', tier: 'general_reasoning', default_model: 'gemini-2.5-pro', historical_sensitivity: 'high' },
+  S4: { task: 'narrative_structure', tier: 'deep_reasoning', default_model: 'gemini-2.5-pro', narrative_sensitivity: 'high' },
+  S5: { task: 'scene_breakdown', tier: 'general_reasoning', default_model: 'gemini-2.5-pro', duration_sensitivity: 'critical' },
+  S6: { task: 'shot_breakdown', tier: 'deep_reasoning', default_model: 'gemini-2.5-pro', timeline_sensitivity: 'critical' },
+  S7: { task: 'master_frame_image_prompt', tier: 'deep_reasoning', default_model: 'gemini-2.5-pro', visual_consistency: 'high' },
+  S8: { task: 'video_prompt', tier: 'deep_reasoning', default_model: 'gemini-2.5-pro' },
+  S9: { task: 'continuity_historical_accuracy', tier: 'deep_reasoning', default_model: 'gemini-2.5-pro' },
 };
 
 export interface ModelCapabilities {
@@ -33,13 +33,14 @@ export interface ModelCapabilities {
 }
 
 const MODEL_CAPABILITIES_MAP: Record<string, ModelCapabilities> = {
+  'gemini-2.5-pro': { structured_output: true, json_schema: true, long_context: true, reasoning: true },
+  'gemini-2.5-flash': { structured_output: true, json_schema: true, long_context: true, reasoning: true },
   'gemini-3.8-flash': { structured_output: true, json_schema: true, long_context: true, reasoning: true },
   'gemini-flash-latest': { structured_output: true, json_schema: true, long_context: true, reasoning: true },
   'gemini-3.7-flash': { structured_output: true, json_schema: true, long_context: true, reasoning: true },
   'gemini-3.6-flash': { structured_output: true, json_schema: true, long_context: true, reasoning: true },
   'gemini-3.1-pro-preview': { structured_output: true, json_schema: true, long_context: true, reasoning: true },
   'gemini-3.1-flash-lite': { structured_output: true, json_schema: true, long_context: false, reasoning: false },
-  'gemini-2.5-pro': { structured_output: true, json_schema: true, long_context: true, reasoning: true },
   'ops-5': { structured_output: true, json_schema: false, long_context: true, reasoning: true },
 };
 
@@ -141,7 +142,7 @@ export function getDeterministicFallbacks(
 
   // Default Gemini family fallbacks if pool is empty or insufficient
   if (primary.provider === 'google' && candidates.length < maxFallbacks) {
-    const familyOrder = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite', 'gemini-3.6-flash', 'gemini-2.5-pro'];
+    const familyOrder = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.1-pro-preview', 'gemini-3.6-flash', 'gemini-2.5-pro'];
     for (const famModel of familyOrder) {
       if (famModel !== primary.model_id && !candidates.some(c => c.model_id === famModel)) {
         if (satisfiesTaskTier(famModel, taskTier)) {

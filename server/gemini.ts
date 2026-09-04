@@ -57,11 +57,29 @@ export interface GeminiModelInfo {
 
 export const AVAILABLE_MODELS: GeminiModelInfo[] = [
   {
+    id: 'gemini-2.5-pro',
+    name: 'Gemini 2.5 Pro',
+    badge: 'Cinematic Default',
+    description: 'Production default model for cinematic reasoning, complex narratives, and character bibles.',
+    isRecommended: true,
+    tier: 'pro',
+    capabilities: { text: true, image: true, video: true, audio: true, reasoning: true, realtime: false },
+  },
+  {
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    badge: 'Cinematic Fast',
+    description: 'High-speed cinematic fallback model with strong narrative continuity and structured framing.',
+    isRecommended: false,
+    tier: 'flash',
+    capabilities: { text: true, image: true, video: true, audio: true, reasoning: true, realtime: false },
+  },
+  {
     id: 'gemini-3.8-flash',
     name: 'Gemini 3.8 Flash',
     badge: 'Recommended',
     description: 'Generasi terbaru dengan kecepatan tinggi, batas kuota optimal & penalaran naskah sinematik.',
-    isRecommended: true,
+    isRecommended: false,
     tier: 'flash',
     capabilities: { text: true, image: true, video: true, audio: true, reasoning: true, realtime: false },
   },

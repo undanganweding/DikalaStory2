@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { getGeminiAI, AVAILABLE_MODELS, resolveGeminiModel } from './gemini';
 import { setProviderHealth } from './adaptive_router';
+import { globalAIQueue } from './ai_infrastructure/rate_limiter_queue';
 
 export type TaskType = 'historical_research' | 'story_writing' | 'scene_generation' | 'json_output' | 'research' | 'narrative' | 'scene' | 'general' | 'image' | 'tts';
 
@@ -384,19 +385,9 @@ export class GeminiProjectRouter {
   }
 
 
-  // QUEUE MANAGER
+  // QUEUE MANAGER - Single Chokepoint Global AI Queue
   public async queueRequest<T>(task: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      this.requestQueue.push(async () => {
-        try {
-          const result = await task();
-          resolve(result);
-        } catch (err) {
-          reject(err);
-        }
-      });
-      this.processQueue();
-    });
+    return globalAIQueue.enqueue(task);
   }
 
   private async processQueue() {

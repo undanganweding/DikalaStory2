@@ -989,11 +989,22 @@ apiRouter.post('/projects/:id/generate', async (req: Request, res: Response) => 
       concurrency,
     };
 
+    // Immediately persist processing state so client and SSE queries immediately see the active status
+    const updatedProject = await db.saveProject({
+      ...project,
+      status: 'processing',
+      current_stage: Math.max(1, project.current_stage || 1),
+      error_message: null,
+      active_run_id: runContext.runId,
+      latest_run_id: runContext.runId,
+    });
+
     res.json({
       status: 'started',
       message: 'Orchestrator pipeline dimulai.',
       projectId: id,
       runId: runContext.runId,
+      project: updatedProject,
     });
 
     runOrchestratedPipeline({

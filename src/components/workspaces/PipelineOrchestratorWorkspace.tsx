@@ -9,6 +9,7 @@ interface PipelineOrchestratorWorkspaceProps {
   onStopPipeline?: () => void;
   onResetPipeline?: () => void;
   isGenerating: boolean;
+  onOpenVisualCarousel?: () => void;
 }
 
 const STAGES_DETAIL = [
@@ -29,6 +30,7 @@ export const PipelineOrchestratorWorkspace: React.FC<PipelineOrchestratorWorkspa
   onStopPipeline,
   onResetPipeline,
   isGenerating,
+  onOpenVisualCarousel,
 }) => {
   const currentStage = project?.current_stage || 1;
   const [copiedAll, setCopiedAll] = useState(false);
@@ -69,6 +71,18 @@ export const PipelineOrchestratorWorkspace: React.FC<PipelineOrchestratorWorkspa
           </h1>
         </div>
         <div className="flex items-center flex-wrap gap-2.5">
+          {onOpenVisualCarousel && (
+            <button
+              id="btn-open-pipeline-carousel"
+              onClick={onOpenVisualCarousel}
+              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-lg shadow-indigo-600/25 transition cursor-pointer"
+              title="Buka Kartu Interaktif Animatif Tahap 1-8"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300 fill-amber-300" />
+              <span>Lihat Animasi Visual (Cards)</span>
+            </button>
+          )}
+
           {isGenerating ? (
             <button
               onClick={onStopPipeline}
