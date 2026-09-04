@@ -1,0 +1,23 @@
+{
+  "schema_version": "3.5",
+  "created_at": "2026-09-03T09:51:23.204Z",
+  "global_checksum": "84b16533f6326e64f1b19651623731141e6f35ecb094e222e97cfee148a8f965",
+  "tables": {
+    "projects": {
+      "count": 0,
+      "checksum": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ai_credentials": {
+      "count": 0,
+      "checksum": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ai_providers": {
+      "count": 0,
+      "checksum": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ai_usage": {
+      "count": 0,
+      "checksum": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  }
+}

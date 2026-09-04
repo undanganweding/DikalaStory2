@@ -1,0 +1,30 @@
+{
+  "current_schema_version": "3.5",
+  "database_driver": "supabase",
+  "fallback_driver": "firestore",
+  "ddl_schema_file": "/server/db/schema.sql",
+  "normalized_tables_count": 18,
+  "applied_migrations": [
+    {
+      "version": "1.0",
+      "description": "Initial Firestore Document Schemas",
+      "applied_at": "2026-08-01"
+    },
+    {
+      "version": "2.0",
+      "description": "Multi-Key AI Infrastructure & Telemetry",
+      "applied_at": "2026-08-15"
+    },
+    {
+      "version": "3.0",
+      "description": "Normalized PostgreSQL Supabase DDL",
+      "applied_at": "2026-08-28"
+    },
+    {
+      "version": "3.5",
+      "description": "Dual-Read Parity Cutover & Compound Index Hardening",
+      "applied_at": "2026-09-03"
+    }
+  ],
+  "verified_status": "PRODUCTION_LOCKED"
+}

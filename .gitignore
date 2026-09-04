@@ -1,0 +1,19 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Runtime data dir — contains real API keys/secrets (credentials_secrets.json)
+# and runtime state. Never commit. App recreates these on demand.
+data/
+
+.vercel
+.env*
+
+# Artefak workspace sync (file kosong 0-byte yang muncul otomatis)
+Dikalastory
+

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <script>
+      (function() {
+        // Prevent Vite HMR / WebSocket unhandled rejections from crashing the preview
+        window.addEventListener('unhandledrejection', function(e) {
+          if (!e) return;
+          var reason = e.reason;
+          var msg = String((reason && (reason.message || reason)) || '');
+          if (msg.includes('WebSocket') || msg.includes('vite') || msg.includes('websocket')) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }, true);
+
+        window.addEventListener('error', function(e) {
+          if (!e) return;
+          var msg = String(e.message || '');
+          if (msg.includes('WebSocket') || msg.includes('vite') || msg.includes('websocket')) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }, true);
+
+        try {
+          var target = typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : self);
+          if (target && target.fetch) {
+            var nativeFetch = target.fetch.bind(target);
+            var currentFetch = nativeFetch;
+            var desc = Object.getOwnPropertyDescriptor(target, 'fetch');
+            if (!desc || (!desc.set && desc.configurable)) {
+              Object.defineProperty(target, 'fetch', {
+                get: function() {
+                  return currentFetch;
+                },
+                set: function(fn) {
+                  currentFetch = typeof fn === 'function' ? fn.bind(target) : fn;
+                },
+                configurable: true,
+                enumerable: true
+              });
+            }
+          }
+        } catch (err) {
+          // ignore if environment prevents re-defining
+        }
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DikalaStories</title>
+    <meta name="description" content="AI film production planning tool turning raw scripts and storyboards into cinematic production blueprints across orchestrated pipeline stages." />
+    <meta property="og:title" content="DikalaStories" />
+    <meta property="og:description" content="AI film production planning tool turning raw scripts and storyboards into cinematic production blueprints across orchestrated pipeline stages." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+
