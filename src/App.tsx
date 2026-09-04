@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { TopBar } from './components/TopBar';
 import { Sidebar } from './components/Sidebar';
 import { MainDashboardView } from './components/MainDashboardView';
@@ -1040,6 +1041,9 @@ export default function App() {
           }}
         />
       </Suspense>
+
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 }
