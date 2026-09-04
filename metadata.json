@@ -1,6 +1,6 @@
 {
-  "name": "DikalaStory",
-  "description": "Imported from GitHub: syifaanjayfanny/Sinemaku",
+  "name": "DikalaStories",
+  "description": "AI film production planning tool turning raw scripts and storyboards into cinematic production blueprints across orchestrated pipeline stages.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -1,11 +1,6 @@
 import React, { useState } from 'react';
 import {
   Film,
-  Play,
-  Users,
-  MapPin,
-  Package,
-  Sparkles,
   Cpu,
   Clock,
   ArrowRight,
@@ -14,15 +9,14 @@ import {
   AlertTriangle,
   FolderOpen,
   Layers,
-  Zap,
-  BarChart2,
+  Database,
   Activity,
   ChevronRight,
-  Video,
   Trash2,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
-import { Project, PipelineLogEvent, StudioWorkspaceTab } from '../types';
+import { Project, PipelineLogEvent } from '../types';
 
 interface MainDashboardViewProps {
   projects: Project[];
@@ -72,71 +66,70 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
 
   const ongoingProjects = projects.filter((p) => p.status === 'processing');
   const completedProjects = projects.filter((p) => p.status === 'completed');
-  const draftProjects = projects.filter((p) => p.status === 'draft' || p.status === 'failed' || p.status === 'blocked');
 
-  const recentLogs = [...logs].reverse().slice(0, 6);
+  const recentLogs = [...logs].reverse().slice(0, 5);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
-      {/* SaaS Dashboard Title & Quick Action Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#181926] border border-[#2B2D44] p-6 rounded-3xl shadow-xl">
-        <div className="space-y-1">
+    <div className="p-3.5 sm:p-5 max-w-7xl mx-auto space-y-4 animate-in fade-in duration-150">
+      {/* SaaS Dashboard Title & Quick Action Header (Compact) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#141624] border border-[#23253A] px-4 py-3.5 sm:px-5 sm:py-4 rounded-2xl shadow-lg">
+        <div className="space-y-0.5">
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-              ORKESTRATOR STUDIO AI v3.0
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
+              Studio AI v3.0
             </span>
-            <span className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+            <span className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Sistem Aktif
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
             Dashboard Orkestrasi Sinematik
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 max-w-2xl">
-            Pusat kendali pipeline AI untuk naskah film, pembagian adegan, subdivisi kamera, dan ekstraksi prompt prompt visual sinematik.
+          <p className="text-xs text-slate-400 max-w-xl">
+            Pusat kendali pipeline AI untuk naskah film, pemisahan adegan, subdivisi kamera, dan prompt visual sinematik.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <button
             onClick={onOpenCreateModal}
-            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-5 py-3 rounded-2xl text-xs shadow-lg shadow-indigo-600/30 transition transform active:scale-95"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md shadow-indigo-600/25 transition transform active:scale-95 cursor-pointer"
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             Buat Proyek Baru
           </button>
           <button
             onClick={onOpenProductionPage}
-            className="flex items-center gap-2 bg-[#212335] hover:bg-[#282B42] border border-[#2F324D] text-slate-200 font-semibold px-4 py-3 rounded-2xl text-xs transition shadow-sm"
+            className="flex items-center gap-1.5 bg-[#1C1E30] hover:bg-[#24263D] border border-[#2A2D46] text-slate-200 font-semibold px-3.5 py-2 rounded-xl text-xs transition shadow-sm cursor-pointer"
           >
-            <FolderOpen className="w-4 h-4 text-indigo-400" />
+            <FolderOpen className="w-3.5 h-3.5 text-indigo-400" />
             Halaman Produksi ({projects.length})
           </button>
         </div>
       </div>
 
       {/* 4 Compact Metric Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Total Projects Card */}
         <div
           onClick={onOpenProductionPage}
-          className="bg-[#1B1C2E] border border-[#2B2D44] hover:border-indigo-500/40 rounded-3xl p-5 cursor-pointer transition group shadow-xl flex flex-col justify-between"
+          className="bg-[#141624] border border-[#23253A] hover:border-indigo-500/40 rounded-2xl p-3.5 sm:p-4 cursor-pointer transition group shadow-md flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <div className="p-2.5 rounded-2xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
-              <Film className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <Film className="w-4 h-4" />
             </div>
-            <span className="text-[10px] font-mono text-slate-500 uppercase font-bold">Total Proyek</span>
+            <span className="text-[10px] font-mono text-slate-400 uppercase font-bold">Total Proyek</span>
           </div>
-          <div className="mt-4">
-            <div className="text-3xl font-black text-white group-hover:text-indigo-300 transition">
+          <div className="mt-2.5">
+            <div className="text-2xl sm:text-3xl font-black text-white group-hover:text-indigo-300 transition leading-none">
               {projects.length}
             </div>
-            <div className="text-[11px] text-slate-400 font-medium mt-1 flex items-center gap-2">
-              <span className="text-emerald-400 font-bold">{completedProjects.length} Selesai</span>
+            <div className="text-[11px] text-slate-400 font-medium mt-1 flex items-center gap-1.5">
+              <span className="text-emerald-400 font-semibold">{completedProjects.length} Selesai</span>
               <span>•</span>
-              <span className="text-indigo-400 font-bold">{ongoingProjects.length} Berjalan</span>
+              <span className="text-indigo-400 font-semibold">{ongoingProjects.length} Berjalan</span>
             </div>
           </div>
         </div>
@@ -144,105 +137,107 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
         {/* Ongoing Pipeline Card */}
         <div
           onClick={onOpenProductionPage}
-          className="bg-[#1B1C2E] border border-[#2B2D44] hover:border-purple-500/40 rounded-3xl p-5 cursor-pointer transition group shadow-xl flex flex-col justify-between"
+          className="bg-[#141624] border border-[#23253A] hover:border-purple-500/40 rounded-2xl p-3.5 sm:p-4 cursor-pointer transition group shadow-md flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <div className="p-2.5 rounded-2xl bg-purple-500/15 text-purple-400 border border-purple-500/20">
-              <Activity className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              <Activity className="w-4 h-4" />
             </div>
-            <span className="text-[10px] font-mono text-slate-500 uppercase font-bold">Status Orkestrasi</span>
+            <span className="text-[10px] font-mono text-slate-400 uppercase font-bold">Status Orkestrasi</span>
           </div>
-          <div className="mt-4">
-            <div className="text-3xl font-black text-purple-300 group-hover:text-purple-200 transition">
+          <div className="mt-2.5">
+            <div className="text-2xl sm:text-3xl font-black text-purple-300 group-hover:text-purple-200 transition leading-none">
               {ongoingProjects.length > 0 ? `${ongoingProjects.length} Aktif` : 'Idle'}
             </div>
-            <div className="text-[11px] text-slate-400 font-medium mt-1">
+            <div className="text-[11px] text-slate-400 font-medium mt-1 truncate">
               {ongoingProjects.length > 0
-                ? 'Pipeline AI sedang memproses naskah'
-                : 'Tidak ada proses berjalan'}
+                ? 'Pipeline AI sedang memproses'
+                : 'Standby / Siap Digunakan'}
             </div>
           </div>
         </div>
 
         {/* Engine Model Card */}
-        <div className="bg-[#1B1C2E] border border-[#2B2D44] rounded-3xl p-5 shadow-xl flex flex-col justify-between">
+        <div className="bg-[#141624] border border-[#23253A] rounded-2xl p-3.5 sm:p-4 shadow-md flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <div className="p-2.5 rounded-2xl bg-amber-500/15 text-amber-400 border border-amber-500/20">
-              <Cpu className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              <Cpu className="w-4 h-4" />
             </div>
-            <span className="text-[10px] font-mono text-slate-500 uppercase font-bold">Engine Gemini</span>
+            <span className="text-[10px] font-mono text-slate-400 uppercase font-bold">Engine AI</span>
           </div>
-          <div className="mt-4">
-            <div className="text-lg font-black text-amber-300 truncate">
-              Gemini 3.7 Flash
+          <div className="mt-2.5">
+            <div className="text-base sm:text-lg font-black text-amber-300 truncate leading-none">
+              AI Director (Auto)
             </div>
-            <div className="text-[11px] text-slate-400 font-medium mt-1">
-              High-Speed Reasoning Agent
+            <div className="text-[11px] text-slate-400 font-medium mt-1 truncate">
+              Autonomous Router S1–S8
             </div>
           </div>
         </div>
 
-        {/* Storage / System Health */}
-        <div className="bg-[#1B1C2E] border border-[#2B2D44] rounded-3xl p-5 shadow-xl flex flex-col justify-between">
+        {/* Real Storage & Sync Health */}
+        <div className="bg-[#141624] border border-[#23253A] rounded-2xl p-3.5 sm:p-4 shadow-md flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <div className="p-2.5 rounded-2xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-              <Zap className="w-5 h-5" />
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <Database className="w-4 h-4" />
             </div>
-            <span className="text-[10px] font-mono text-slate-500 uppercase font-bold">Kapasitas Quota</span>
+            <span className="text-[10px] font-mono text-slate-400 uppercase font-bold">Database &amp; Sync</span>
           </div>
-          <div className="mt-4">
-            <div className="text-3xl font-black text-emerald-400">
-              100%
+          <div className="mt-2.5">
+            <div className="text-base sm:text-lg font-black text-emerald-400 truncate leading-none">
+              Tersimpan &amp; Sinkron
             </div>
-            <div className="text-[11px] text-slate-400 font-medium mt-1">
-              Rate-Limit &amp; Memory Optimal
+            <div className="text-[11px] text-slate-400 font-medium mt-1 truncate">
+              Real-time Firestore &amp; Storage
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Ongoing Projects + Quick Access + Log Terminal */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Main Grid: Ongoing Projects + Quick Access + Log Terminal (Compact) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left Column (2 Cols wide on LG): Proyek Berjalan & Proyek Terkini */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4">
           {/* Ongoing Projects Section */}
-          <div className="bg-[#1B1C2E] border border-[#2B2D44] rounded-3xl p-6 space-y-4 shadow-xl">
+          <div className="bg-[#141624] border border-[#23253A] rounded-2xl p-4 sm:p-5 space-y-3 shadow-md">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-3 h-3 rounded-full bg-indigo-500 animate-pulse" />
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono">
                   Proyek Sedang Berjalan (In Progress)
                 </h2>
               </div>
               <button
                 onClick={onOpenProductionPage}
-                className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1"
+                className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 cursor-pointer"
               >
-                Lihat Semua ({projects.length}) <ChevronRight className="w-4 h-4" />
+                Lihat Semua ({projects.length}) <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
             {ongoingProjects.length === 0 ? (
-              <div className="py-8 px-4 rounded-2xl bg-[#212335] border border-dashed border-[#2F324D] text-center space-y-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/20">
-                  <CheckCircle2 className="w-5 h-5 text-indigo-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-200">Tidak ada proyek yang sedang berjalan</h3>
-                  <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
-                    Semua naskah film Anda telah siap atau berada dalam draf. Mulai generasi proyek baru untuk melihat orchestrator beraksi!
-                  </p>
+              <div className="py-4 px-4 rounded-xl bg-[#1A1C2C] border border-dashed border-[#282B42] flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20">
+                    <CheckCircle2 className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-200">Tidak ada proses orkestrasi yang aktif</h3>
+                    <p className="text-[11px] text-slate-400">
+                      Semua naskah film Anda telah siap atau berada dalam draf.
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={onOpenCreateModal}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center gap-2"
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-sm inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  Mulai Produksi Baru
+                  <Plus className="w-3 h-3" />
+                  Mulai Produksi
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {ongoingProjects.map((proj, idx) => {
                   const stageNum = proj.current_stage || 1;
                   const progressPct = Math.round((stageNum / 8) * 100);
@@ -251,50 +246,50 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
                   return (
                     <div
                       key={proj.id ? `ongoing-${proj.id}` : `ongoing-${idx}`}
-                      className="p-5 rounded-2xl bg-[#212335] border border-indigo-500/40 space-y-3 shadow-md hover:border-indigo-500 transition"
+                      className="p-3.5 rounded-xl bg-[#1A1C2C] border border-indigo-500/40 space-y-2.5 shadow-sm hover:border-indigo-500 transition"
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <span className="text-[10px] font-mono font-bold uppercase text-indigo-400 bg-indigo-500/20 px-2.5 py-0.5 rounded-full border border-indigo-500/30">
+                        <div className="min-w-0">
+                          <span className="text-[9px] font-mono font-bold uppercase text-indigo-400 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30">
                             STAGE {stageNum}/8: {stageObj.name}
                           </span>
-                          <h3 className="text-base font-extrabold text-white mt-1">
+                          <h3 className="text-sm font-bold text-white mt-1 truncate">
                             {proj.title}
                           </h3>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           {onDeleteProject && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setProjectToDelete(proj);
                               }}
-                              className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition"
+                              className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
                               title="Hapus Proyek"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                           <button
                             onClick={() => onSelectProject(proj.id)}
-                            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-md transition"
+                            className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow-sm transition cursor-pointer"
                           >
                             Buka Studio
-                            <ArrowRight className="w-3.5 h-3.5" />
+                            <ArrowRight className="w-3 h-3" />
                           </button>
                         </div>
                       </div>
 
                       {/* Progress bar */}
                       <div className="space-y-1">
-                        <div className="flex justify-between text-xs font-semibold font-mono">
+                        <div className="flex justify-between text-[11px] font-semibold font-mono">
                           <span className="text-slate-400">{stageObj.name}</span>
                           <span className="text-indigo-400">{progressPct}%</span>
                         </div>
-                        <div className="w-full h-2 rounded-full bg-[#181926] overflow-hidden p-0.5 border border-[#2B2D44]">
+                        <div className="w-full h-1.5 rounded-full bg-[#121420] overflow-hidden border border-[#23253A]">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-500"
+                            className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-300"
                             style={{ width: `${progressPct}%` }}
                           />
                         </div>
@@ -306,40 +301,40 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
             )}
           </div>
 
-          {/* Recent Projects List / Grid */}
-          <div className="bg-[#1B1C2E] border border-[#2B2D44] rounded-3xl p-6 space-y-4 shadow-xl">
+          {/* Recent Projects List / Grid (Compact) */}
+          <div className="bg-[#141624] border border-[#23253A] rounded-2xl p-4 sm:p-5 space-y-3 shadow-md">
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono flex items-center gap-2">
-                <FolderOpen className="w-4 h-4 text-purple-400" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono flex items-center gap-1.5">
+                <FolderOpen className="w-3.5 h-3.5 text-purple-400" />
                 Daftar Proyek Sinematik Terkini
               </h2>
               <button
                 onClick={onOpenProductionPage}
-                className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold"
+                className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
               >
                 Ke Halaman Produksi →
               </button>
             </div>
 
             {projects.length === 0 ? (
-              <div className="py-8 text-center text-slate-500 text-xs">
+              <div className="py-6 text-center text-slate-500 text-xs">
                 Belum ada proyek yang dibuat.
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {projects.slice(0, 4).map((proj, idx) => (
                   <div
                     key={proj.id ? `recent-${proj.id}` : `recent-${idx}`}
                     onClick={() => onSelectProject(proj.id)}
-                    className="p-4 rounded-2xl bg-[#212335] hover:bg-[#282B42] border border-[#2F324D] hover:border-indigo-500/50 cursor-pointer transition group shadow-sm flex flex-col justify-between space-y-3"
+                    className="p-3.5 rounded-xl bg-[#1A1C2C] hover:bg-[#202337] border border-[#282B42] hover:border-indigo-500/50 cursor-pointer transition group shadow-sm flex flex-col justify-between space-y-2.5"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-[#181926] text-slate-300 border border-[#2F324D]">
+                      <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#121420] text-slate-300 border border-[#282B42]">
                         Target: {proj.total_duration_target_sec}s
                       </span>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         <span
-                          className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
+                          className={`text-[9px] font-mono px-2 py-0.5 rounded-full font-bold ${
                             proj.status === 'completed'
                               ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                               : proj.status === 'processing'
@@ -355,27 +350,27 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
                               e.stopPropagation();
                               setProjectToDelete(proj);
                             }}
-                            className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                            className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition cursor-pointer"
                             title="Hapus Proyek"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         )}
                       </div>
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-bold text-white group-hover:text-indigo-300 transition line-clamp-1">
+                      <h4 className="text-xs font-bold text-white group-hover:text-indigo-300 transition line-clamp-1">
                         {proj.title}
                       </h4>
-                      <p className="text-xs text-slate-400 line-clamp-2 mt-1">
+                      <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
                         {proj.raw_script}
                       </p>
                     </div>
 
-                    <div className="pt-2 border-t border-[#2B2D44] flex items-center justify-between text-xs text-indigo-400 font-semibold">
-                      <span>Masuk ke Studio Proyek</span>
-                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+                    <div className="pt-2 border-t border-[#23253A] flex items-center justify-between text-[11px] text-indigo-400 font-semibold">
+                      <span>Buka Studio Proyek</span>
+                      <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition" />
                     </div>
                   </div>
                 ))}
@@ -384,14 +379,14 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Terminal Activity Stream & Roadmap */}
-        <div className="space-y-6">
+        {/* Right Column: Terminal Activity Stream & Roadmap (Compact) */}
+        <div className="space-y-4">
           {/* Real-time Activity Stream */}
-          <div className="bg-[#1B1C2E] border border-[#2B2D44] rounded-3xl p-6 space-y-4 shadow-xl flex flex-col justify-between min-h-[320px]">
-            <div className="space-y-4">
+          <div className="bg-[#141624] border border-[#23253A] rounded-2xl p-4 space-y-3 shadow-md flex flex-col justify-between">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-purple-400" />
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-purple-400" />
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono">
                     Aktivitas &amp; Stream Orkestrator
                   </h3>
@@ -399,22 +394,22 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {recentLogs.length === 0 ? (
-                  <div className="py-12 text-center text-slate-500 text-xs">
+                  <div className="py-6 text-center text-slate-500 text-xs">
                     Belum ada aktivitas orkestrasi tercatat.
                   </div>
                 ) : (
                   recentLogs.map((item, idx) => (
                     <div
                       key={`${item.timestamp}-${idx}`}
-                      className="p-3 rounded-2xl bg-[#212335] border border-[#2F324D] text-xs space-y-1"
+                      className="p-2.5 rounded-xl bg-[#1A1C2C] border border-[#282B42] text-xs space-y-0.5"
                     >
-                      <div className="flex items-center justify-between text-[11px]">
+                      <div className="flex items-center justify-between text-[10px]">
                         <span className="font-bold text-indigo-300 truncate">
                           {item.stage_name || `Stage ${item.stage}`}
                         </span>
-                        <span className="text-[10px] font-mono text-slate-400">
+                        <span className="font-mono text-slate-400">
                           {item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : ''}
                         </span>
                       </div>
@@ -427,26 +422,26 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
               </div>
             </div>
 
-            <div className="pt-3 border-t border-[#2F324D] text-center text-[11px] text-slate-400 font-mono">
-              Terhubung ke Gemini SSE Event Bus
+            <div className="pt-2 border-t border-[#23253A] text-center text-[10px] text-slate-400 font-mono">
+              Terhubung ke Gemini Event Bus
             </div>
           </div>
 
-          {/* 8-Stage Architecture Roadmap Overview */}
-          <div className="bg-[#1B1C2E] border border-[#2B2D44] rounded-3xl p-6 space-y-3 shadow-xl">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono flex items-center gap-2">
-              <Layers className="w-4 h-4 text-indigo-400" />
+          {/* 8-Stage Architecture Roadmap Overview (Compact Grid/List) */}
+          <div className="bg-[#141624] border border-[#23253A] rounded-2xl p-4 space-y-2.5 shadow-md">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-indigo-400" />
               Tahapan Pipeline (1 – 8)
             </h3>
-            <div className="space-y-1.5 text-xs font-mono">
+            <div className="grid grid-cols-2 gap-1.5 text-xs font-mono">
               {STAGES.map((st) => (
                 <div
                   key={st.stage}
-                  className="p-2 rounded-xl bg-[#212335] border border-[#2F324D] flex items-center justify-between text-slate-300"
+                  className="p-1.5 px-2 rounded-lg bg-[#1A1C2C] border border-[#282B42] flex items-center justify-between text-slate-300 text-[10px]"
                 >
                   <span className="font-bold text-indigo-400">0{st.stage}</span>
-                  <span className="truncate px-2 text-[11px]">{st.name}</span>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="truncate px-1">{st.name}</span>
+                  <CheckCircle2 className="w-3 h-3 text-slate-500 shrink-0" />
                 </div>
               ))}
             </div>
@@ -457,29 +452,29 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
       {/* Delete Confirmation Modal Overlay */}
       {projectToDelete && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <div className="bg-[#181926] border border-rose-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 text-rose-400">
+          <div className="bg-[#141624] border border-rose-500/30 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-3.5">
+            <div className="flex items-center gap-2.5 text-rose-400">
               <div className="p-2 rounded-xl bg-rose-500/15 border border-rose-500/30">
-                <AlertTriangle className="w-6 h-6" />
+                <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="text-base font-bold text-white">Hapus Proyek?</h4>
+                <h4 className="text-sm font-bold text-white">Hapus Proyek?</h4>
                 <p className="text-xs text-slate-400">Tindakan ini tidak dapat dibatalkan.</p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed bg-[#212335] p-3.5 rounded-2xl border border-[#2B2D44]">
+            <p className="text-xs text-slate-300 leading-relaxed bg-[#1A1C2C] p-3 rounded-xl border border-[#282B42]">
               Anda yakin ingin menghapus proyek{' '}
               <strong className="text-white font-bold">"{projectToDelete.title}"</strong>?
               Seluruh data cerita, karakter, lokasi, adegan, shot, dan prompt terkait akan dihapus secara permanen.
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex items-center justify-end gap-2.5 pt-1">
               <button
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setProjectToDelete(null)}
-                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-[#212335] hover:bg-[#282B42] border border-[#2B2D44] transition disabled:opacity-50"
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-[#1A1C2C] hover:bg-[#202337] border border-[#282B42] transition disabled:opacity-50 cursor-pointer"
               >
                 Batal
               </button>
@@ -487,7 +482,7 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
                 type="button"
                 disabled={isDeleting}
                 onClick={handleDeleteConfirm}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 shadow-lg shadow-rose-600/30 transition flex items-center gap-2 disabled:opacity-50"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 shadow-md shadow-rose-600/30 transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 {isDeleting ? (
                   <>
@@ -508,3 +503,4 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
     </div>
   );
 };
+
