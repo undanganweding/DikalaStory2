@@ -160,17 +160,28 @@ export const openaiCompatibleDriver = {
       if (!response.ok) {
         let errBodyText = '';
         try {
-          const errJson = await response.json();
-          errBodyText = errJson.error?.message || JSON.stringify(errJson);
-        } catch {
-          errBodyText = await response.text();
+          const rawText = await response.text();
+          try {
+            const errJson = JSON.parse(rawText);
+            errBodyText = errJson.error?.message || JSON.stringify(errJson);
+          } catch {
+            errBodyText = rawText;
+          }
+        } catch (readErr: any) {
+          errBodyText = `(failed to read response: ${readErr?.message || String(readErr)})`;
         }
 
         const sanitizedStatus = this.mapHttpStatus(response.status, errBodyText);
         throw new Error(`OpenAI-compatible provider error (${response.status}): ${sanitizedStatus}`);
       }
 
-      const json = await response.json();
+      let json: any;
+      try {
+        const rawText = await response.text();
+        json = JSON.parse(rawText);
+      } catch (parseErr: any) {
+        throw new Error(`OpenAI-compatible provider returned invalid JSON: ${parseErr?.message || String(parseErr)}`);
+      }
       const text = json.choices?.[0]?.message?.content || json.choices?.[0]?.text || '';
 
       // Extract or estimate tokens
@@ -220,15 +231,26 @@ export const openaiCompatibleDriver = {
       if (!response.ok) {
         let errText = '';
         try {
-          const errJson = await response.json();
-          errText = errJson.error?.message || JSON.stringify(errJson);
-        } catch {
-          errText = await response.text();
+          const rawText = await response.text();
+          try {
+            const errJson = JSON.parse(rawText);
+            errText = errJson.error?.message || JSON.stringify(errJson);
+          } catch {
+            errText = rawText;
+          }
+        } catch (readErr: any) {
+          errText = `(failed to read response: ${readErr?.message || String(readErr)})`;
         }
         throw new Error(`Model discovery failed (${response.status}): ${errText}`);
       }
 
-      const json = await response.json();
+      let json: any;
+      try {
+        const rawText = await response.text();
+        json = JSON.parse(rawText);
+      } catch (parseErr: any) {
+        throw new Error(`Model discovery returned invalid JSON: ${parseErr?.message || String(parseErr)}`);
+      }
       const rawList = Array.isArray(json.data) ? json.data : Array.isArray(json.models) ? json.models : [];
 
       return rawList
