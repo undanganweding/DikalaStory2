@@ -730,3 +730,20 @@ BEGIN
   ALTER TABLE shots ADD COLUMN IF NOT EXISTS master_image_prompt TEXT;
   ALTER TABLE shots ADD COLUMN IF NOT EXISTS cinematic_grammar JSONB;
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- AI Infrastructure Baseline Seeding
+-- ---------------------------------------------------------------------------
+INSERT INTO ai_providers (id, name, type, enabled, capabilities)
+VALUES ('google', 'Google Gemini', 'gemini', true, '{"text": true, "vision": true, "image": true, "video": true}'::jsonb)
+ON CONFLICT (id) DO UPDATE SET enabled = true;
+
+INSERT INTO ai_models (id, provider_id, display_name, tier, capabilities, enabled, context_window)
+VALUES
+  ('gemini-2.5-pro', 'google', 'Gemini 2.5 Pro', 'pro', '["text", "vision", "multimodal", "reasoning", "structured_output", "code", "fast", "creative", "analysis"]'::jsonb, true, 2097152),
+  ('gemini-3.7-flash', 'google', 'Gemini 3.7 Flash', 'flash', '["text", "vision", "multimodal", "reasoning", "structured_output", "creative", "image", "video", "fast"]'::jsonb, true, 1048576),
+  ('gemini-3.5-flash-lite', 'google', 'Gemini 3.5 Flash Lite', 'lite', '["text", "fast", "vision", "multimodal", "structured_output", "creative"]'::jsonb, true, 1048576)
+ON CONFLICT (provider_id, id) DO UPDATE SET
+  capabilities = EXCLUDED.capabilities,
+  context_window = EXCLUDED.context_window,
+  enabled = EXCLUDED.enabled;

@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 import { apiRouter } from './routes';
+import { providerService } from './ai_infrastructure/provider_service';
+import { modelRegistryService } from './ai_infrastructure/model_registry_service';
 
 dotenv.config();
 
@@ -10,6 +12,10 @@ if (!process.env.AI_SECRET_MASTER_KEY) {
 
 export function createApp() {
   const app = express();
+
+  // Asynchronously prime baseline provider & model registry in production
+  providerService.initializeDefaults().catch(err => console.warn('[AppInit] Provider defaults warning:', err?.message || err));
+  modelRegistryService.initializeDefaults().catch(err => console.warn('[AppInit] Model registry defaults warning:', err?.message || err));
 
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));

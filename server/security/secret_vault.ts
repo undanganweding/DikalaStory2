@@ -15,12 +15,12 @@ const FALLBACK_KEYS = [
 ];
 
 function getMasterKey(): Buffer {
-  const masterKeyEnv = process.env.AI_SECRET_MASTER_KEY;
+  const masterKeyEnv = process.env.AI_SECRET_MASTER_KEY || process.env.GEMINI_API_KEY || FALLBACK_KEYS[0];
   if (!masterKeyEnv || masterKeyEnv.trim() === '') {
     throw new Error('AI_SECRET_MASTER_KEY environment variable is missing. SecretVault cannot operate without a master encryption key.');
   }
   // Derive a 32-byte key from the master key string using SHA-256
-  return crypto.createHash('sha256').update(masterKeyEnv).digest();
+  return crypto.createHash('sha256').update(masterKeyEnv.trim()).digest();
 }
 
 export const secretVault = {

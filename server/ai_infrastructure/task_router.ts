@@ -5,6 +5,7 @@ import { db } from '../db';
 import { capabilityRegistry } from './capability_registry';
 import { quotaRouter } from './quota_router';
 import { providerService } from './provider_service';
+import { modelRegistryService } from './model_registry_service';
 import { classifyTaskRequirements, rankCandidatesForIntent } from './intelligence_router';
 import { healthService } from './health_service';
 
@@ -73,8 +74,28 @@ export const taskRouter = {
     }
 
     // 2. Fetch all registered AI Models from Database (No hardcoded Gemini lists!)
-    const allModels = await db.getModels();
-    const enabledModels = allModels.filter(m => m.enabled !== false);
+    let allModels = await db.getModels();
+    let enabledModels = allModels.filter(m => m.enabled !== false);
+
+    // If database has no active models or lacks eligible models satisfying the task's required capabilities and context window,
+    // invoke production registry initialization to prime baseline definitions.
+    const hasEligibleCandidate = enabledModels.some(m => {
+      const caps = m.capabilities || [];
+      const hasCaps = task.requiredCapabilities.every(req => caps.includes(req));
+      const hasCtx = !task.minContextWindow || (m.contextWindow || 0) >= task.minContextWindow;
+      return hasCaps && hasCtx;
+    });
+
+    if (enabledModels.length === 0 || !hasEligibleCandidate) {
+      try {
+        await providerService.initializeDefaults();
+        await modelRegistryService.initializeDefaults();
+        allModels = await db.getModels();
+        enabledModels = allModels.filter(m => m.enabled !== false);
+      } catch (seedErr: any) {
+        console.warn('[TaskRouter] Baseline registry seed warning:', seedErr?.message || seedErr);
+      }
+    }
 
     if (enabledModels.length === 0) {
       throw new Error(`TaskRouter: No active AI models found in database registry.`);

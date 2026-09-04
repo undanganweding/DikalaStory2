@@ -6,11 +6,38 @@ const inMemoryCredentials: AICredential[] = [];
 
 export const credentialService = {
   async listCredentials(): Promise<AICredential[]> {
+    let creds: AICredential[] = [];
     try {
-      const creds = await db.getCredentials();
-      if (creds && creds.length > 0) return creds;
+      const dbCreds = await db.getCredentials();
+      if (dbCreds && dbCreds.length > 0) creds = [...dbCreds];
     } catch {}
-    return inMemoryCredentials;
+
+    if (creds.length === 0 && inMemoryCredentials.length > 0) {
+      creds = [...inMemoryCredentials];
+    }
+
+    // Production Environment Fallback: If no Google credentials exist in DB/memory,
+    // automatically provide active fallback credential from GEMINI_API_KEY / GOOGLE_AI_API_KEY
+    const googleKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+    if (googleKey && googleKey.trim().length > 0) {
+      const hasGoogle = creds.some(c => c.providerId === 'google' && c.status === 'active');
+      if (!hasGoogle) {
+        creds.push({
+          id: 'env_gemini_default',
+          providerId: 'google',
+          name: 'Environment GEMINI_API_KEY',
+          maskedKey: secretVault.maskSecret(googleKey.trim()),
+          encryptedSecret: secretVault.encryptSecret(googleKey.trim()),
+          status: 'active',
+          priority: 1,
+          weight: 100,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }
+    }
+
+    return creds;
   },
 
   async getCredential(id: string): Promise<AICredential | null> {
@@ -18,15 +45,32 @@ export const credentialService = {
       const cred = await db.getCredential(id);
       if (cred) return cred;
     } catch {}
-    return inMemoryCredentials.find(c => c.id === id) || null;
+    const mem = inMemoryCredentials.find(c => c.id === id);
+    if (mem) return mem;
+
+    if (id === 'env_gemini_default') {
+      const googleKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+      if (googleKey && googleKey.trim().length > 0) {
+        return {
+          id: 'env_gemini_default',
+          providerId: 'google',
+          name: 'Environment GEMINI_API_KEY',
+          maskedKey: secretVault.maskSecret(googleKey.trim()),
+          encryptedSecret: secretVault.encryptSecret(googleKey.trim()),
+          status: 'active',
+          priority: 1,
+          weight: 100,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+      }
+    }
+    return null;
   },
 
   async getActiveCredentials(): Promise<AICredential[]> {
-    try {
-      const creds = await db.getCredentials();
-      if (creds && creds.length > 0) return creds.filter(c => c.status === 'active');
-    } catch {}
-    return inMemoryCredentials.filter(c => c.status === 'active');
+    const creds = await this.listCredentials();
+    return creds.filter(c => c.status === 'active');
   },
 
   async addCredential(data: Partial<Pick<AICredential, 'encryptedSecret'>> & Omit<AICredential, 'id' | 'createdAt' | 'updatedAt' | 'maskedKey' | 'encryptedSecret'> & { secret?: string }): Promise<AICredential> {

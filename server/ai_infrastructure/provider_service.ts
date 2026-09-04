@@ -9,7 +9,12 @@ export const providerService = {
   },
 
   async getProvider(id: string): Promise<AIProvider | null> {
-    return db.getProvider(id);
+    let provider = await db.getProvider(id);
+    if (!provider && id === 'google') {
+      await this.initializeDefaults();
+      provider = await db.getProvider(id);
+    }
+    return provider;
   },
 
   async addProvider(data: Omit<AIProvider, 'createdAt' | 'updatedAt'>): Promise<AIProvider> {
@@ -63,6 +68,8 @@ export const providerService = {
         enabled: true,
         capabilities: { text: true, vision: true, image: true, video: true },
       });
+    } else if (!google.enabled) {
+      await this.updateProvider('google', { enabled: true });
     }
   },
 };
