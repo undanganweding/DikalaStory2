@@ -72,7 +72,13 @@ export const healthService = {
       successRate: 100,
       updatedAt: Date.now(),
     };
-    await db.saveHealth(defaultHealth);
+    
+    const cred = await db.getCredential(credentialId);
+    if (cred) {
+      await db.saveHealth(defaultHealth);
+    } else {
+      console.warn(`[healthService] Skipping persistent saveHealth for credential_id "${credentialId}" (not found in ai_credentials).`);
+    }
     return defaultHealth;
   },
 

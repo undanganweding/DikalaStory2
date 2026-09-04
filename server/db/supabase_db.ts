@@ -1440,6 +1440,23 @@ export const supabaseDb = {
 
   async saveHealth(health: AIHealth): Promise<AIHealth> {
     const supabase = getSupabaseClient();
+    if (!health || !health.credentialId) {
+      console.warn('[saveHealth Guard] Rejected saveHealth call with empty credential_id.');
+      return health;
+    }
+
+    // Validation Guard: Verify credential_id exists in ai_credentials table to prevent ai_health_credential_id_fkey violation
+    const { data: validCred, error: credCheckErr } = await supabase
+      .from('ai_credentials')
+      .select('id')
+      .eq('id', health.credentialId)
+      .maybeSingle();
+
+    if (credCheckErr || !validCred) {
+      console.warn(`[saveHealth Guard] Rejected writing to ai_health for invalid credential_id "${health.credentialId}" (not found in ai_credentials table). Preventing FK violation.`);
+      return health;
+    }
+
     const now = Date.now();
     const cleanData = sanitizeRowForTable('ai_health', {
       credential_id: health.credentialId,

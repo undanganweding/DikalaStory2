@@ -1483,7 +1483,21 @@ export const firestoreDb = {
   async saveUsage(value: AIUsage): Promise<AIUsage> { if (!USE_FIRESTORE) { jsonState.ai_usage[value.id] = value; saveJsonState(jsonState); return value; } await docRef(getFirestore(), 'ai_usage', value.id).set(sanitizeForFirestore(value)); return value; },
   async clearUsages(): Promise<boolean> { if (!USE_FIRESTORE) { jsonState.ai_usage = {}; saveJsonState(jsonState); return true; } const snap = await colRef(getFirestore(), 'ai_usage').get(); const batch = getFirestore().batch(); snap.docs.forEach((d: any) => batch.delete(d.ref)); await batch.commit(); return true; },
   async getHealth(id: string): Promise<AIHealth | null> { return USE_FIRESTORE ? getDocData<AIHealth>(getFirestore(), 'ai_health', id) : jsonState.ai_health?.[id] || null; },
-  async saveHealth(value: AIHealth): Promise<AIHealth> { if (!USE_FIRESTORE) { jsonState.ai_health[value.credentialId] = value; saveJsonState(jsonState); return value; } await docRef(getFirestore(), 'ai_health', value.credentialId).set(sanitizeForFirestore(value)); return value; },
+  async saveHealth(value: AIHealth): Promise<AIHealth> {
+    if (!value || !value.credentialId) {
+      console.warn('[saveHealth Guard] Rejected saveHealth call with empty credential_id.');
+      return value;
+    }
+    const creds = await this.getCredentials();
+    const exists = creds.some(c => c.id === value.credentialId);
+    if (!exists) {
+      console.warn(`[saveHealth Guard] Rejected writing to ai_health for invalid credential_id "${value.credentialId}" (not found in ai_credentials).`);
+      return value;
+    }
+    if (!USE_FIRESTORE) { jsonState.ai_health[value.credentialId] = value; saveJsonState(jsonState); return value; }
+    await docRef(getFirestore(), 'ai_health', value.credentialId).set(sanitizeForFirestore(value));
+    return value;
+  },
   async getRoutingPolicies(): Promise<AIRoutingPolicy[]> { if (!USE_FIRESTORE) return Object.values(jsonState.ai_routing_policies || {}); const snap = await colRef(getFirestore(), 'ai_routing_policies').get(); return snap.docs.map((d: any) => ({ ...(d.data() as AIRoutingPolicy), id: d.id })); },
   async saveRoutingPolicy(value: AIRoutingPolicy): Promise<AIRoutingPolicy> { if (!USE_FIRESTORE) { jsonState.ai_routing_policies[value.id] = value; saveJsonState(jsonState); return value; } await docRef(getFirestore(), 'ai_routing_policies', value.id).set(sanitizeForFirestore(value)); return value; },
 };
