@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Analytics } from '@vercel/analytics/react';
 import App from './App';
 import './index.css';
 import { WindowManagerProvider } from './context/WindowManagerContext';
@@ -12,6 +13,7 @@ if (rootElement) {
       <ErrorBoundary>
         <WindowManagerProvider>
           <App />
+          <Analytics />
         </WindowManagerProvider>
       </ErrorBoundary>
     </StrictMode>
