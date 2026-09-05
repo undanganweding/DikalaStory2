@@ -72,8 +72,11 @@ export const quotaRouter = {
   },
 
   // Determine Credential State Machine (for backward compatibility / legacy tests)
-  async getCredentialState(credentialId: string): Promise<CredentialState> {
-    const cred = await credentialService.getCredential(credentialId);
+  async getCredentialState(credentialId: string, snapshot?: any): Promise<CredentialState> {
+    const cred = snapshot
+      ? snapshot.allCredentials.find((c: any) => c.id === credentialId)
+      : await credentialService.getCredential(credentialId);
+
     if (!cred || cred.status === 'disabled') {
       return 'DISABLED';
     }
@@ -81,7 +84,10 @@ export const quotaRouter = {
       return 'FAILED';
     }
 
-    const health = await healthService.getHealth(credentialId);
+    const health = snapshot
+      ? (snapshot.allHealth.get(credentialId) || { status: 'healthy', cooldownUntil: 0, successRate: 100 })
+      : await healthService.getHealth(credentialId);
+
     if (health.cooldownUntil && health.cooldownUntil > Date.now()) {
       return 'RATE_LIMITED';
     }
@@ -96,8 +102,11 @@ export const quotaRouter = {
   },
 
   // Evolve into a detailed state-aware eligibility evaluation
-  async getCredentialOperationalState(credentialId: string): Promise<CredentialOperationalState> {
-    const cred = await credentialService.getCredential(credentialId);
+  async getCredentialOperationalState(credentialId: string, snapshot?: any): Promise<CredentialOperationalState> {
+    const cred = snapshot
+      ? snapshot.allCredentials.find((c: any) => c.id === credentialId)
+      : await credentialService.getCredential(credentialId);
+
     if (!cred) {
       return {
         healthState: 'UNKNOWN',
@@ -109,7 +118,9 @@ export const quotaRouter = {
       };
     }
 
-    const health = await healthService.getHealth(credentialId);
+    const health = snapshot
+      ? (snapshot.allHealth.get(credentialId) || { status: 'healthy', consecutiveFailures: 0, cooldownUntil: 0 })
+      : await healthService.getHealth(credentialId);
     
     // 1. Health State
     let healthState: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE' | 'UNKNOWN' = 'HEALTHY';
@@ -126,11 +137,16 @@ export const quotaRouter = {
     if (cred.status === 'exhausted') {
       quotaState = 'QUOTA_EXHAUSTED';
     } else if (cred.status === 'active') {
-      // If there are recorded successes in usages, we consider it QUOTA_AVAILABLE, else QUOTA_UNKNOWN
-      const usages = await usageService.listUsage(100);
-      const credUsages = usages.filter(u => u.credentialId === credentialId);
-      if (credUsages.some(u => u.success)) {
+      if (snapshot) {
+        // Bypass expensive DB query (usageService.listUsage) in preflight
         quotaState = 'QUOTA_AVAILABLE';
+      } else {
+        // If there are recorded successes in usages, we consider it QUOTA_AVAILABLE, else QUOTA_UNKNOWN
+        const usages = await usageService.listUsage(100);
+        const credUsages = usages.filter(u => u.credentialId === credentialId);
+        if (credUsages.some(u => u.success)) {
+          quotaState = 'QUOTA_AVAILABLE';
+        }
       }
     }
 
@@ -185,8 +201,11 @@ export const quotaRouter = {
   },
 
   // Evolve into provider-level eligibility evaluation
-  async getProviderOperationalState(providerId: string): Promise<ProviderOperationalState> {
-    const provider = await providerService.getProvider(providerId);
+  async getProviderOperationalState(providerId: string, snapshot?: any): Promise<ProviderOperationalState> {
+    const provider = snapshot
+      ? snapshot.providers.get(providerId)
+      : await providerService.getProvider(providerId);
+
     if (!provider || !provider.enabled) {
       return {
         healthState: 'UNAVAILABLE',
@@ -227,8 +246,10 @@ export const quotaRouter = {
       }
     }
 
-    const allCreds = await credentialService.listCredentials();
-    const creds = allCreds.filter(c => c.providerId === providerId);
+    const allCreds = snapshot
+      ? snapshot.allCredentials
+      : await credentialService.listCredentials();
+    const creds = allCreds.filter((c: any) => c.providerId === providerId);
 
     if (creds.length === 0) {
       return {
@@ -249,7 +270,7 @@ export const quotaRouter = {
     let someEligible = false;
 
     for (const c of creds) {
-      const state = await this.getCredentialOperationalState(c.id);
+      const state = await this.getCredentialOperationalState(c.id, snapshot);
       if (state.healthState === 'HEALTHY') someHealthy = true;
       if (state.healthState === 'DEGRADED') someDegraded = true;
       if (state.quotaState !== 'QUOTA_EXHAUSTED') allExhausted = false;
@@ -274,20 +295,22 @@ export const quotaRouter = {
   },
 
   // Score all available credentials for smart rotation
-  async scoreCredentials(providerId: string): Promise<ScoredCredential[]> {
+  async scoreCredentials(providerId: string, snapshot?: any): Promise<ScoredCredential[]> {
     // 1. Verify Provider-level Eligibility first!
-    const providerState = await this.getProviderOperationalState(providerId);
+    const providerState = await this.getProviderOperationalState(providerId, snapshot);
     if (!providerState.eligibility) {
       return [];
     }
 
-    const allCreds = await credentialService.listCredentials();
+    const allCreds = snapshot
+      ? snapshot.allCredentials
+      : await credentialService.listCredentials();
     const scored: ScoredCredential[] = [];
 
     for (const cred of allCreds) {
       if (cred.providerId !== providerId) continue;
 
-      const opState = await this.getCredentialOperationalState(cred.id);
+      const opState = await this.getCredentialOperationalState(cred.id, snapshot);
       
       // Skip ineligible credentials in router selection
       if (!opState.eligibility) {
@@ -295,7 +318,7 @@ export const quotaRouter = {
       }
 
       // Keep getCredentialState for backwards-compatibility of return type "state"
-      const state = await this.getCredentialState(cred.id);
+      const state = await this.getCredentialState(cred.id, snapshot);
 
       // Score strictly by priority (cred.priority: lower number = higher priority)
       const priority = cred.priority || 1;

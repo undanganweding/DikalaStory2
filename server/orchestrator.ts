@@ -14,6 +14,7 @@ import {
   validateSceneDurations,
   validateSceneAssetNames,
   DetectedScene,
+  allocateAndNormalizeSceneDurations,
 } from './stages/stage5_scene_breakdown';
 import {
   runStage6ShotBreakdownAttempt,
@@ -835,11 +836,21 @@ async function runProjectInitializationImplInner(
     }
 
     // ==========================================
-    // STAGE 2: Character Detection Agent (S2)
+    // STAGE 2 & STAGE 3: Concurrent Detection Pool
     // ==========================================
     if (stoppedProjects.has(projectId)) throw new PipelineStoppedError();
     await db.saveProject({ ...(await db.getProject(projectId))!, current_stage: 2 });
+    
     let savedCharacters = resumeCharacters;
+    let savedLocations = resumeLocations;
+    let savedObjects = resumeObjects;
+
+    let s2Result: any = null;
+    let s3Result: any = null;
+
+    const parallelPool: Promise<any>[] = [];
+
+    // Stage 2 worker
     if (haveS2) {
       log(
         2,
@@ -851,7 +862,6 @@ async function runProjectInitializationImplInner(
     } else {
       const s2Start = new Date().toISOString();
       const s2StartTime = Date.now();
-      // Dynamically resolve model with TaskProfile authority
       const selectedModelId = await resolveStageModel('S2', 'narrative', 'MEDIUM');
       log(2, 'Character Detection', `Mendeteksi profil karakter (Character Bible) & membaca database karakter yang ada [Model: ${selectedModelId}]...`, 'info', 'S2');
       recordTelemetry(projectId, {
@@ -863,64 +873,59 @@ async function runProjectInitializationImplInner(
         status: 'started',
       });
 
-      try {
-        const stage2Result = await runStage2CharacterDetection({
-          rawScript: project.raw_script,
-          foundation: foundationData,
-          contextPackage: project.contextPackage || null,
-          language: project.prompt_language,
-          model: selectedModelId, // Use dynamically resolved model
-          reasoningConfig: project.reasoning_config,
-        });
-        await enforceStageConsistency(projectId, 'S2', stage2Result, consistencyState);
-        continuityState = await advanceContinuity(projectId, 'S2', { id: `project_${projectId}`, scene_number: 2, event: 'Stage 2', character_names: stage2Result.map((character) => character.name) }, stage2Result, continuityState);
-        savedCharacters = await db.saveAndMergeCharacters(projectId, stage2Result);
-        const s2Duration = Date.now() - s2StartTime;
-        recordTelemetry(projectId, {
-          stage: 2,
-          stage_code: 'S2',
-          scope: 'project',
-          attempt: 1,
-          started_at: s2Start,
-          completed_at: new Date().toISOString(),
-          duration_ms: s2Duration,
-          status: 'completed',
-        });
-      } catch (err: any) {
-        const s2Duration = Date.now() - s2StartTime;
-        const errType = classifyError(err);
-        recordTelemetry(projectId, {
-          stage: 2,
-          stage_code: 'S2',
-          scope: 'project',
-          attempt: 1,
-          started_at: s2Start,
-          completed_at: new Date().toISOString(),
-          duration_ms: s2Duration,
-          status: 'failed',
-          error_type: errType,
-          error_message: err.message,
-        });
-        throw err;
-      }
-
-      log(
-        2,
-        'Character Detection',
-        `Selesai. ${savedCharacters.length} karakter berhasil dipetakan dan disimpan ke collection 'characters' (merge verified).`,
-        'success',
-        'S2',
-        Date.now() - s2StartTime
+      parallelPool.push(
+        (async () => {
+          try {
+            s2Result = await runStage2CharacterDetection({
+              rawScript: project.raw_script,
+              foundation: foundationData,
+              contextPackage: project.contextPackage || null,
+              language: project.prompt_language,
+              model: selectedModelId,
+              reasoningConfig: project.reasoning_config,
+            });
+            savedCharacters = await db.saveAndMergeCharacters(projectId, s2Result);
+            const s2Duration = Date.now() - s2StartTime;
+            recordTelemetry(projectId, {
+              stage: 2,
+              stage_code: 'S2',
+              scope: 'project',
+              attempt: 1,
+              started_at: s2Start,
+              completed_at: new Date().toISOString(),
+              duration_ms: s2Duration,
+              status: 'completed',
+            });
+            log(
+              2,
+              'Character Detection',
+              `Selesai. ${savedCharacters.length} karakter berhasil dipetakan dan disimpan ke collection 'characters' (merge verified).`,
+              'success',
+              'S2',
+              s2Duration
+            );
+          } catch (err: any) {
+            const s2Duration = Date.now() - s2StartTime;
+            const errType = classifyError(err);
+            recordTelemetry(projectId, {
+              stage: 2,
+              stage_code: 'S2',
+              scope: 'project',
+              attempt: 1,
+              started_at: s2Start,
+              completed_at: new Date().toISOString(),
+              duration_ms: s2Duration,
+              status: 'failed',
+              error_type: errType,
+              error_message: err.message,
+            });
+            throw err;
+          }
+        })()
       );
     }
 
-    // ==========================================
-    // STAGE 3: Location & Object Detection Agent (S3)
-    // ==========================================
-    if (stoppedProjects.has(projectId)) throw new PipelineStoppedError();
-    await db.saveProject({ ...(await db.getProject(projectId))!, current_stage: 3 });
-    let savedLocations = resumeLocations;
-    let savedObjects = resumeObjects;
+    // Stage 3 worker
     if (haveS3) {
       log(
         3,
@@ -932,7 +937,6 @@ async function runProjectInitializationImplInner(
     } else {
       const s3Start = new Date().toISOString();
       const s3StartTime = Date.now();
-      // Dynamically resolve model with TaskProfile authority
       const selectedModelId = await resolveStageModel('S3', 'scene', 'MEDIUM');
       log(3, 'Location & Object Detection', `Mendeteksi set sinematik (Location Bible) dan properti kunci (Object Bible) [Model: ${selectedModelId}]...`, 'info', 'S3');
       recordTelemetry(projectId, {
@@ -944,56 +948,99 @@ async function runProjectInitializationImplInner(
         status: 'started',
       });
 
-      try {
-        const stage3Result = await runStage3LocationObjectDetection({
-          rawScript: project.raw_script,
-          foundation: foundationData,
-          contextPackage: project.contextPackage || null,
-          language: project.prompt_language,
-          model: selectedModelId, // Use dynamically resolved model
-          reasoningConfig: project.reasoning_config,
-        });
-        await enforceStageConsistency(projectId, 'S3', stage3Result, consistencyState);
-        continuityState = await advanceContinuity(projectId, 'S3', { id: `project_${projectId}`, scene_number: 3, event: 'Stage 3' }, stage3Result, continuityState);
-        savedLocations = await db.saveAndMergeLocations(projectId, stage3Result.locations);
-        savedObjects = await db.saveAndMergeObjects(projectId, stage3Result.objects);
-        const s3Duration = Date.now() - s3StartTime;
-        recordTelemetry(projectId, {
-          stage: 3,
-          stage_code: 'S3',
-          scope: 'project',
-          attempt: 1,
-          started_at: s3Start,
-          completed_at: new Date().toISOString(),
-          duration_ms: s3Duration,
-          status: 'completed',
-        });
-      } catch (err: any) {
-        const s3Duration = Date.now() - s3StartTime;
-        const errType = classifyError(err);
-        recordTelemetry(projectId, {
-          stage: 3,
-          stage_code: 'S3',
-          scope: 'project',
-          attempt: 1,
-          started_at: s3Start,
-          completed_at: new Date().toISOString(),
-          duration_ms: s3Duration,
-          status: 'failed',
-          error_type: errType,
-          error_message: err.message,
-        });
-        throw err;
-      }
-
-      log(
-        3,
-        'Location & Object Detection',
-        `Selesai. ${savedLocations.length} lokasi dan ${savedObjects.length} objek kunci tersimpan di collection 'locations' & 'objects'.`,
-        'success',
-        'S3',
-        Date.now() - s3StartTime
+      parallelPool.push(
+        (async () => {
+          try {
+            s3Result = await runStage3LocationObjectDetection({
+              rawScript: project.raw_script,
+              foundation: foundationData,
+              contextPackage: project.contextPackage || null,
+              language: project.prompt_language,
+              model: selectedModelId,
+              reasoningConfig: project.reasoning_config,
+            });
+            savedLocations = await db.saveAndMergeLocations(projectId, s3Result.locations);
+            savedObjects = await db.saveAndMergeObjects(projectId, s3Result.objects);
+            const s3Duration = Date.now() - s3StartTime;
+            recordTelemetry(projectId, {
+              stage: 3,
+              stage_code: 'S3',
+              scope: 'project',
+              attempt: 1,
+              started_at: s3Start,
+              completed_at: new Date().toISOString(),
+              duration_ms: s3Duration,
+              status: 'completed',
+            });
+            log(
+              3,
+              'Location & Object Detection',
+              `Selesai. ${savedLocations.length} lokasi dan ${savedObjects.length} objek kunci tersimpan di collection 'locations' & 'objects'.`,
+              'success',
+              'S3',
+              s3Duration
+            );
+          } catch (err: any) {
+            const s3Duration = Date.now() - s3StartTime;
+            const errType = classifyError(err);
+            recordTelemetry(projectId, {
+              stage: 3,
+              stage_code: 'S3',
+              scope: 'project',
+              attempt: 1,
+              started_at: s3Start,
+              completed_at: new Date().toISOString(),
+              duration_ms: s3Duration,
+              status: 'failed',
+              error_type: errType,
+              error_message: err.message,
+            });
+            throw err;
+          }
+        })()
       );
+    }
+
+    // Run workers concurrently
+    if (parallelPool.length > 0) {
+      await Promise.all(parallelPool);
+    }
+
+    // Safe sequential post-processing for consistency and continuity
+    if (s2Result) {
+      await enforceStageConsistency(projectId, 'S2', s2Result, consistencyState);
+      continuityState = await advanceContinuity(
+        projectId,
+        'S2',
+        { id: `project_${projectId}`, scene_number: 2, event: 'Stage 2', character_names: s2Result.map((character: any) => character.name) },
+        s2Result,
+        continuityState,
+        'within-scene',
+        false
+      );
+    }
+
+    if (s3Result) {
+      await enforceStageConsistency(projectId, 'S3', s3Result, consistencyState);
+      continuityState = await advanceContinuity(
+        projectId,
+        'S3',
+        { id: `project_${projectId}`, scene_number: 3, event: 'Stage 3' },
+        s3Result,
+        continuityState,
+        'within-scene',
+        false
+      );
+    }
+
+    // Persist final aggregated continuityState and advance project current_stage to S4
+    const finalProjectState = await db.getProject(projectId);
+    if (finalProjectState) {
+      await db.saveProject({
+        ...finalProjectState,
+        current_stage: 4,
+        continuityState: continuityState
+      });
     }
 
     // ==========================================
@@ -1171,7 +1218,7 @@ async function runProjectInitializationImplInner(
         continuityState = await advanceContinuity(projectId, 'S5', { id: `project_${projectId}`, scene_number: 5, event: 'Stage 5' }, scenesAttempt, continuityState);
 
         // Backend Validation
-        const validation = validateSceneDurations(
+        let validation = validateSceneDurations(
           scenesAttempt,
           targetTotalSec,
           maxSceneSec,
@@ -1184,12 +1231,109 @@ async function runProjectInitializationImplInner(
         // outside the Bible would be BLOCKED by the S6 asset integrity gate
         // after the full run, so it is caught here where the retry loop can
         // still regenerate against the exact roster.
-        const assetNameValidation = validateSceneAssetNames(
+        let assetNameValidation = validateSceneAssetNames(
           scenesAttempt,
           characterRoster,
           locationRoster,
           project.prompt_language
         );
+
+        if (!validation.valid || !assetNameValidation.valid) {
+          log(
+            5,
+            'Scene Breakdown & Duration',
+            `Mendeteksi isu validasi pada Stage 5. Mencoba melakukan perbaikan deterministik lokal...`,
+            'info',
+            'S5'
+          );
+
+          try {
+            // Repair asset names deterministically by forcing fallbacks if completely unresolvable
+            const repairedScenes = scenesAttempt.map((scene) => {
+              let repairedLoc = scene.location_name;
+              if (locationRoster.length > 0) {
+                if (!locationRoster.some((entry) => entry.toLowerCase() === (repairedLoc || '').toLowerCase())) {
+                  // Fallback to the first canonical location if unresolvable
+                  repairedLoc = locationRoster[0];
+                }
+              }
+
+              let repairedChars = (scene.character_names || []).map((char) => {
+                if (characterRoster.length > 0) {
+                  if (!characterRoster.some((entry) => entry.toLowerCase() === char.toLowerCase())) {
+                    // Fallback to the first canonical character if unresolvable
+                    return characterRoster[0];
+                  }
+                }
+                return char;
+              });
+
+              return {
+                ...scene,
+                location_name: repairedLoc,
+                character_names: repairedChars,
+              };
+            });
+
+            // Re-normalize durations deterministically
+            const fullyRepairedScenes = allocateAndNormalizeSceneDurations(
+              repairedScenes,
+              targetTotalSec,
+              maxSceneSec,
+              fixedSceneSec,
+              project.allow_final_scene_override,
+              project.prompt_language
+            );
+
+            // Re-validate the fully repaired scenes
+            const repairedValidation = validateSceneDurations(
+              fullyRepairedScenes,
+              targetTotalSec,
+              maxSceneSec,
+              project.prompt_language,
+              fixedSceneSec,
+              project.allow_final_scene_override
+            );
+
+            const repairedAssetValidation = validateSceneAssetNames(
+              fullyRepairedScenes,
+              characterRoster,
+              locationRoster,
+              project.prompt_language
+            );
+
+            if (repairedValidation.valid && repairedAssetValidation.valid) {
+              log(
+                5,
+                'Scene Breakdown & Duration',
+                `Perbaikan lokal deterministik BERHASIL! Melewati retry AI.`,
+                'success',
+                'S5'
+              );
+              // Update scenesAttempt with the repaired ones
+              scenesAttempt.length = 0;
+              scenesAttempt.push(...fullyRepairedScenes);
+              validation = repairedValidation;
+              assetNameValidation = repairedAssetValidation;
+            } else {
+              log(
+                5,
+                'Scene Breakdown & Duration',
+                `Perbaikan lokal deterministik tidak memenuhi kriteria validasi. Melanjutkan ke alur retry normal.`,
+                'warn',
+                'S5'
+              );
+            }
+          } catch (repairErr: any) {
+            log(
+              5,
+              'Scene Breakdown & Duration',
+              `Gagal menjalankan perbaikan lokal deterministik: ${repairErr.message}. Melanjutkan ke alur retry normal.`,
+              'warn',
+              'S5'
+            );
+          }
+        }
 
         if (validation.valid && assetNameValidation.valid) {
           validatedScenes = scenesAttempt;

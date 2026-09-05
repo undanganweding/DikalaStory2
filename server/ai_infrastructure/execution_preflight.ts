@@ -5,6 +5,7 @@ import { providerService } from './provider_service';
 import { capabilityRegistry } from './capability_registry';
 import { isForbiddenCinemaModel } from './ai_gateway';
 import { dailyExhaustedRegistry } from './ai_gateway';
+import { healthService } from './health_service';
 import { AITaskDefinition, AICredential } from '../../src/types';
 
 export interface PreflightCandidatePath {
@@ -36,12 +37,46 @@ export const executionPreflight = {
     const exhaustedPaths: PreflightCandidatePath[] = [];
     const blockedStages: string[] = [];
 
-    // Fetch all registered models once
-    const allModels = await db.getModels();
-    const enabledModels = allModels.filter(m => m.enabled !== false);
+    // 1. Bulk pre-fetch snapshot data to solve N+1 DB reads
+    const [allModels, allCredentials] = await Promise.all([
+      db.getModels(),
+      db.getCredentials ? db.getCredentials() : (db as any).listCredentials() as Promise<any[]>,
+    ]);
 
-    // Caches to prevent redundant DB calls within the same run
-    const providerDbCache = new Map<string, any>();
+    const enabledModels = allModels.filter(m => m.enabled !== false);
+    const providerIds = Array.from(new Set(enabledModels.map(m => m.providerId)));
+
+    const [healthResults, providerResults] = await Promise.all([
+      Promise.all(allCredentials.map(async (c: any) => {
+        const h = await healthService.getHealth(c.id);
+        return { id: c.id, health: h };
+      })),
+      Promise.all(providerIds.map(async (pid) => {
+        const prov = await db.getProvider(pid);
+        return { id: pid, provider: prov };
+      }))
+    ]);
+
+    const allHealth = new Map<string, any>();
+    for (const res of healthResults) {
+      allHealth.set(res.id, res.health);
+    }
+
+    const providers = new Map<string, any>();
+    for (const res of providerResults) {
+      if (res.provider) {
+        providers.set(res.id, res.provider);
+      }
+    }
+
+    const snapshot = {
+      allModels,
+      allCredentials,
+      allHealth,
+      providers
+    };
+
+    // Caches to prevent redundant scoring calculations within the same run
     const providerScoredCredsCache = new Map<string, any[]>();
 
     for (const stage of stages) {
@@ -78,20 +113,16 @@ export const executionPreflight = {
           continue;
         }
 
-        // Verify provider exists and is enabled
-        let provider = providerDbCache.get(model.providerId);
-        if (provider === undefined) {
-          provider = await db.getProvider(model.providerId);
-          providerDbCache.set(model.providerId, provider);
-        }
+        // Verify provider exists and is enabled in snapshot
+        const provider = snapshot.providers.get(model.providerId);
         if (!provider || provider.enabled === false || (provider as any).status === 'inactive') {
           continue;
         }
 
-        // Fetch scored active credentials for this provider
+        // Fetch scored active credentials for this provider from snapshot
         let availableCreds = providerScoredCredsCache.get(model.providerId);
         if (!availableCreds) {
-          availableCreds = await quotaRouter.scoreCredentials(model.providerId);
+          availableCreds = await quotaRouter.scoreCredentials(model.providerId, snapshot);
           providerScoredCredsCache.set(model.providerId, availableCreds);
         }
         const activeCreds = availableCreds.filter(
