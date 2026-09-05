@@ -120,6 +120,11 @@ export const taskRouter = {
       'video_prompt',
     ].includes(task.id) || ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'].includes(task.stageCode || '');
 
+    // Per-resolution memoization caches to prevent redundant O(N) database calls across models sharing the same provider
+    const providerStateCache = new Map<string, any>();
+    const providerDbCache = new Map<string, any>();
+    const providerScoredCredsCache = new Map<string, any[]>();
+
     for (const model of enabledModels) {
       // (a) Exclude test providers from production routing unless explicitly pinned by test harness
       const isTestProvider = model.providerId.startsWith('prov_pin_test_') ||
@@ -130,14 +135,22 @@ export const taskRouter = {
         continue;
       }
 
-      // (b) Provider-level health check, status & eligibility
-      const providerState = await quotaRouter.getProviderOperationalState(model.providerId);
+      // (b) Provider-level health check, status & eligibility (memoized per provider)
+      let providerState = providerStateCache.get(model.providerId);
+      if (!providerState) {
+        providerState = await quotaRouter.getProviderOperationalState(model.providerId);
+        providerStateCache.set(model.providerId, providerState);
+      }
       if (!providerState.eligibility) {
         // Skip models whose provider is down / circuit open / quota exhausted
         continue;
       }
 
-      const provider = await db.getProvider(model.providerId);
+      let provider = providerDbCache.get(model.providerId);
+      if (provider === undefined) {
+        provider = await db.getProvider(model.providerId);
+        providerDbCache.set(model.providerId, provider);
+      }
       if (!provider || provider.enabled === false) {
         continue;
       }
@@ -145,8 +158,12 @@ export const taskRouter = {
         continue;
       }
 
-      // (c) Verify active credentials exist and are scored for this provider (credential.status === 'active')
-      const availableCreds = await quotaRouter.scoreCredentials(model.providerId);
+      // (c) Verify active credentials exist and are scored for this provider (memoized per provider)
+      let availableCreds = providerScoredCredsCache.get(model.providerId);
+      if (!availableCreds) {
+        availableCreds = await quotaRouter.scoreCredentials(model.providerId);
+        providerScoredCredsCache.set(model.providerId, availableCreds);
+      }
       const activeCreds = availableCreds.filter(
         c => c.credential.status === 'active' && c.state === 'ACTIVE'
       );
@@ -350,7 +367,8 @@ export const taskRouter = {
     const chosen = candidates[0];
 
     // 5. Select Best Credential for the chosen model's provider via Credential Router
-    const credSelection = await quotaRouter.selectCredential(chosen.model.providerId);
+    const memoizedCreds = providerScoredCredsCache.get(chosen.model.providerId);
+    const credSelection = await quotaRouter.selectCredential(chosen.model.providerId, memoizedCreds);
     chosen.reasons.push(`Credential Router assigned key: '${credSelection.credentialId}' (score: ${credSelection.score})`);
 
     const executionPlan: TaskExecutionPlan = {

@@ -73,11 +73,13 @@ export const healthService = {
       updatedAt: Date.now(),
     };
     
+    if (credentialId === 'env_gemini_default') {
+      return defaultHealth;
+    }
+
     const cred = await db.getCredential(credentialId);
     if (cred) {
       await db.saveHealth(defaultHealth);
-    } else {
-      console.warn(`[healthService] Skipping persistent saveHealth for credential_id "${credentialId}" (not found in ai_credentials).`);
     }
     return defaultHealth;
   },

@@ -340,8 +340,8 @@ export const quotaRouter = {
   },
 
   // Select best credential with smart fallback chain
-  async selectCredential(providerId: string): Promise<RouterSelectionResult> {
-    const scored = await this.scoreCredentials(providerId);
+  async selectCredential(providerId: string, preScored?: ScoredCredential[]): Promise<RouterSelectionResult> {
+    const scored = (preScored && preScored.length > 0) ? preScored : await this.scoreCredentials(providerId);
     if (scored.length === 0) {
       throw new Error(`QuotaRouter: No available healthy credentials for provider: ${providerId}`);
     }

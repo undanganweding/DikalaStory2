@@ -73,7 +73,7 @@ export const credentialService = {
     return creds.filter(c => c.status === 'active');
   },
 
-  async addCredential(data: Partial<Pick<AICredential, 'encryptedSecret'>> & Omit<AICredential, 'id' | 'createdAt' | 'updatedAt' | 'maskedKey' | 'encryptedSecret'> & { secret?: string }): Promise<AICredential> {
+  async addCredential(data: Partial<Pick<AICredential, 'id' | 'encryptedSecret'>> & Omit<AICredential, 'id' | 'createdAt' | 'updatedAt' | 'maskedKey' | 'encryptedSecret'> & { secret?: string }): Promise<AICredential> {
     // Check referential integrity: provider must exist
     let provider = null;
     try {
@@ -84,7 +84,7 @@ export const credentialService = {
       throw new Error(`Cannot add credential for nonexistent provider "${data.providerId}".`);
     }
 
-    const id = `cred_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const id = (data as any).id || `cred_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const now = Date.now();
 
     // If 'secret' (plaintext) is provided, encrypt it. If 'encryptedSecret' is provided directly, use it or encrypt it.

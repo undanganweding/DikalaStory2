@@ -85,10 +85,47 @@ export class GeminiProjectRouter {
     }
   }
 
-  private syncProjects() {
+  private async syncProjects() {
     this.projects.clear();
 
-    // Use dynamic import at runtime to avoid circular initialization
+    // 1. In production with Supabase enabled, load canonically from database ai_credentials
+    if (process.env.SUPABASE_ENABLED === 'true') {
+      try {
+        const { credentialService } = await import('./ai_infrastructure/credential_service');
+        const { secretVault } = await import('./security/secret_vault');
+        const creds = await credentialService.listCredentials();
+        const googleCreds = creds.filter(c => c.providerId === 'google');
+        for (const cred of googleCreds) {
+          let rawKey = '';
+          try {
+            rawKey = secretVault.decryptSecret(cred.encryptedSecret);
+          } catch {
+            rawKey = (cred as any).secret || cred.maskedKey;
+          }
+          this.projects.set(cred.id, {
+            project_id: cred.id,
+            api_key: rawKey || cred.maskedKey,
+            provider: 'google_gemini',
+            models_available: (cred as any).models || AVAILABLE_MODELS.map(m => m.id),
+            quota: (cred as any).quota || { rpm: 100, tpm: 100000, rpd: 1500 },
+            usage: (cred as any).usage || { rpm_used: 0, tokens_used: 0, requests_today: 0 },
+            health: {
+              status: (cred.status === 'active' ? 'healthy' : (cred.status as any)) || 'healthy',
+              error_rate: 0,
+              success_rate: 100,
+              latency: 100,
+            },
+            priority: cred.priority || 1,
+            enabled: cred.status === 'active',
+          });
+        }
+        return;
+      } catch (err) {
+        console.error('[GeminiProjectRouter] Error syncing from Supabase credentials:', err);
+      }
+    }
+
+    // 2. Local fallback when Supabase is disabled
     import('./credential_manager').then(({ credentialManager }) => {
         const pool = credentialManager.listCredentials().filter((c: any) => c.provider === 'google' && c.status === 'active');
         
@@ -109,8 +146,8 @@ export class GeminiProjectRouter {
           }
         }
 
-        // 2. Fallback to legacy JSON if no projects loaded
-        if (this.projects.size === 0 && fs.existsSync(PROJECT_CREDENTIALS_FILE)) {
+        // Fallback to legacy JSON ONLY if Supabase is disabled and no projects loaded
+        if (process.env.SUPABASE_ENABLED !== 'true' && this.projects.size === 0 && fs.existsSync(PROJECT_CREDENTIALS_FILE)) {
           try {
             const raw = fs.readFileSync(PROJECT_CREDENTIALS_FILE, 'utf-8');
             const parsed = JSON.parse(raw);
@@ -130,6 +167,11 @@ export class GeminiProjectRouter {
   }
 
   private saveProjects() {
+    // When Supabase is enabled, canonical persistence is strictly Supabase database.
+    // Never write credentials to local JSON or /tmp in production.
+    if (process.env.SUPABASE_ENABLED === 'true') {
+      return;
+    }
     try {
       const list = Array.from(this.projects.values());
       fs.writeFileSync(PROJECT_CREDENTIALS_FILE, JSON.stringify(list, null, 2), 'utf-8');
@@ -160,24 +202,70 @@ export class GeminiProjectRouter {
     }
   }
 
-  public addProject(project: GeminiProjectCredential) {
+  public async addProject(project: GeminiProjectCredential) {
     this.projects.set(project.project_id, project);
+    if (process.env.SUPABASE_ENABLED === 'true') {
+      try {
+        const { credentialService } = await import('./ai_infrastructure/credential_service');
+        await credentialService.addCredential({
+          id: project.project_id,
+          providerId: 'google',
+          name: project.project_id,
+          secret: project.api_key,
+          status: project.enabled ? 'active' : 'disabled',
+          priority: project.priority || 1,
+          weight: 100,
+        });
+      } catch (err) {
+        console.error('[GeminiProjectRouter] Error saving to Supabase ai_credentials:', err);
+      }
+      return;
+    }
     this.saveProjects();
   }
 
-  public updateProject(projectId: string, updates: Partial<GeminiProjectCredential>) {
+  public async updateProject(projectId: string, updates: Partial<GeminiProjectCredential>) {
     const existing = this.projects.get(projectId);
     if (existing) {
       this.projects.set(projectId, { ...existing, ...updates });
+      if (process.env.SUPABASE_ENABLED === 'true') {
+        try {
+          const { credentialService } = await import('./ai_infrastructure/credential_service');
+          await credentialService.updateCredential(projectId, {
+            ...(updates.api_key ? { secret: updates.api_key } : {}),
+            ...(updates.enabled !== undefined ? { status: updates.enabled ? 'active' : 'disabled' } : {}),
+            ...(updates.priority !== undefined ? { priority: updates.priority } : {}),
+          });
+        } catch (err) {
+          console.error('[GeminiProjectRouter] Error updating in Supabase ai_credentials:', err);
+        }
+        return;
+      }
       this.saveProjects();
     } else {
       throw new Error(`Project ${projectId} not found`);
     }
   }
 
-  public removeProject(projectId: string) {
+  public async removeProject(projectId: string) {
     this.projects.delete(projectId);
+    if (process.env.SUPABASE_ENABLED === 'true') {
+      try {
+        const { db } = await import('./db');
+        await db.deleteCredential(projectId);
+      } catch (err) {
+        console.error('[GeminiProjectRouter] Error deleting from Supabase ai_credentials:', err);
+      }
+      return;
+    }
     this.saveProjects();
+  }
+
+  public async listProjectsAsync(): Promise<GeminiProjectCredential[]> {
+    if (process.env.SUPABASE_ENABLED === 'true') {
+      await this.syncProjects();
+    }
+    return Array.from(this.projects.values());
   }
 
   public clearProjects() {

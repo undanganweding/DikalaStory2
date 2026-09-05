@@ -408,9 +408,9 @@ apiRouter.post('/router/resolve-model', (req: Request, res: Response) => {
 // Get router decision logs
 
 // Gemini Project Router Dashboard
-apiRouter.get('/router/gemini-projects', (req: Request, res: Response) => {
+apiRouter.get('/router/gemini-projects', async (req: Request, res: Response) => {
   try {
-    const projects = geminiProjectRouter.listProjects();
+    const projects = await geminiProjectRouter.listProjectsAsync();
     const logs = geminiProjectRouter.getLogs();
     
     // MASK API KEYS before sending to client
@@ -425,12 +425,12 @@ apiRouter.get('/router/gemini-projects', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/router/gemini-projects', (req: Request, res: Response) => {
+apiRouter.post('/router/gemini-projects', async (req: Request, res: Response) => {
   try {
     const { project_id, api_key, priority, models_available, quota } = req.body;
     if (!project_id || !api_key) return res.status(400).json({ error: 'Missing project_id or api_key' });
     
-    geminiProjectRouter.addProject({
+    await geminiProjectRouter.addProject({
       project_id,
       api_key,
       provider: 'google_gemini',
@@ -447,7 +447,7 @@ apiRouter.post('/router/gemini-projects', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.put('/router/gemini-projects/:id', (req: Request, res: Response) => {
+apiRouter.put('/router/gemini-projects/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -455,16 +455,16 @@ apiRouter.put('/router/gemini-projects/:id', (req: Request, res: Response) => {
     if (updates.api_key && updates.api_key.includes('••••')) {
        delete updates.api_key;
     }
-    geminiProjectRouter.updateProject(id, updates);
+    await geminiProjectRouter.updateProject(id, updates);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-apiRouter.delete('/router/gemini-projects/:id', (req: Request, res: Response) => {
+apiRouter.delete('/router/gemini-projects/:id', async (req: Request, res: Response) => {
   try {
-    geminiProjectRouter.removeProject(req.params.id);
+    await geminiProjectRouter.removeProject(req.params.id);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

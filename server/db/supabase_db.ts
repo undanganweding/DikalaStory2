@@ -63,7 +63,7 @@ const FALLBACK_COLUMNS: Record<string, Set<string>> = {
     'is_historical_religious_biography', 'research_basic_facts', 'research_timeline',
     'research_era_context', 'research_sources', 'act_1_world_setup', 'act_2_human_element',
     'act_3_rising_conflict', 'act_4_climax_breath', 'act_5_legacy_meaning', 'narrative_style_mode',
-    'islamic_validation_safeguard', 'updated_at', 'premise', 'core_conflict', 'world_rules', 'tone'
+    'islamic_validation_safeguard', 'updated_at'
   ]),
   characters: new Set([
     'id', 'project_id', 'name', 'age', 'gender', 'physical_appearance', 'physical_description',
@@ -271,24 +271,40 @@ export const supabaseDb = {
       ai_model: p.reasoning_config?.model_id || (p.reasoning_config?.execution_policy?.mode === 'auto' ? 'auto' : 'gemini-3.7-flash'),
 
       research_package: res.research_package,
+      researchPackage: res.research_package,
       research_dossier: res.research_dossier,
+      researchDossier: res.research_dossier,
       source_registry: res.source_registry,
+      sourceRegistry: res.source_registry,
       context_package: res.context_package,
+      contextPackage: res.context_package,
 
       narrative_blueprint: nar.narrative_blueprint,
+      narrativeBlueprint: nar.narrative_blueprint,
       full_story: nar.full_story,
+      fullStory: nar.full_story,
       narrative_style_config: nar.narrative_style_config,
+      narrativeStyleConfig: nar.narrative_style_config,
 
       generation_plan: prod.generation_plan,
+      generationPlan: prod.generation_plan,
       quota_profiles: prod.quota_profiles,
+      quotaProfiles: prod.quota_profiles,
       ai_call_budget: prod.ai_call_budget,
+      aiCallBudget: prod.ai_call_budget,
       production_readiness: prod.production_readiness,
+      productionReadiness: prod.production_readiness,
       finalization_report: prod.finalization_report,
+      finalizationReport: prod.finalization_report,
       asset_integrity_reports: prod.asset_integrity_reports,
+      assetIntegrityReports: prod.asset_integrity_reports,
 
       asset_graph: asset.asset_graph,
+      assetGraph: asset.asset_graph,
       validation_result: asset.validation_result,
+      validationResult: asset.validation_result,
       consistency_reports: asset.consistency_reports,
+      consistencyReports: asset.consistency_reports,
     } as Project);
   },
 
@@ -431,25 +447,25 @@ export const supabaseDb = {
     if (pErr) throw new Error(`[Supabase Error saveProject]: ${pErr.message}`);
 
     // 3. Persist domain packages to their normalized tables (supporting both camelCase and snake_case)
-    const resPkg = pAny.research_package || pAny.researchPackage;
-    const resDos = pAny.research_dossier || pAny.researchDossier;
-    const srcReg = pAny.source_registry || pAny.sourceRegistry;
-    const ctxPkg = pAny.context_package || pAny.contextPackage;
+    const resPkg = pAny.researchPackage !== undefined ? pAny.researchPackage : pAny.research_package;
+    const resDos = pAny.researchDossier !== undefined ? pAny.researchDossier : pAny.research_dossier;
+    const srcReg = pAny.sourceRegistry !== undefined ? pAny.sourceRegistry : pAny.source_registry;
+    const ctxPkg = pAny.contextPackage !== undefined ? pAny.contextPackage : pAny.context_package;
 
-    const narBp = pAny.narrative_blueprint || pAny.narrativeBlueprint;
-    const fStory = pAny.full_story || pAny.fullStory;
-    const narSty = pAny.narrative_style_config || pAny.narrativeStyleConfig;
+    const narBp = pAny.narrativeBlueprint !== undefined ? pAny.narrativeBlueprint : pAny.narrative_blueprint;
+    const fStory = pAny.fullStory !== undefined ? pAny.fullStory : pAny.full_story;
+    const narSty = pAny.narrativeStyleConfig !== undefined ? pAny.narrativeStyleConfig : pAny.narrative_style_config;
 
-    const genPlan = pAny.generation_plan || pAny.generationPlan;
-    const qProf = pAny.quota_profiles || pAny.quotaProfiles;
-    const aiBud = pAny.ai_call_budget || pAny.aiCallBudget;
-    const prodRead = pAny.production_readiness || pAny.productionReadiness;
-    const finRep = pAny.finalization_report || pAny.finalizationReport;
-    const astRep = pAny.asset_integrity_reports || pAny.assetIntegrityReports;
+    const genPlan = pAny.generationPlan !== undefined ? pAny.generationPlan : pAny.generation_plan;
+    const qProf = pAny.quotaProfiles !== undefined ? pAny.quotaProfiles : pAny.quota_profiles;
+    const aiBud = pAny.aiCallBudget !== undefined ? pAny.aiCallBudget : pAny.ai_call_budget;
+    const prodRead = pAny.productionReadiness !== undefined ? pAny.productionReadiness : pAny.production_readiness;
+    const finRep = pAny.finalizationReport !== undefined ? pAny.finalizationReport : pAny.finalization_report;
+    const astRep = pAny.assetIntegrityReports !== undefined ? pAny.assetIntegrityReports : pAny.asset_integrity_reports;
 
-    const astGrph = pAny.asset_graph || pAny.assetGraph;
-    const valRes = pAny.validation_result || pAny.validationResult;
-    const conRep = pAny.consistency_reports || pAny.consistencyReports;
+    const astGrph = pAny.assetGraph !== undefined ? pAny.assetGraph : pAny.asset_graph;
+    const valRes = pAny.validationResult !== undefined ? pAny.validationResult : pAny.validation_result;
+    const conRep = pAny.consistencyReports !== undefined ? pAny.consistencyReports : pAny.consistency_reports;
 
     await Promise.all([
       supabase.from('project_research_packages').upsert(sanitizeRowForTable('project_research_packages', {

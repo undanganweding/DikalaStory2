@@ -2,9 +2,11 @@ import { AIUsage } from '../../src/types';
 import { db } from '../db';
 
 const inMemoryUsages: AIUsage[] = [];
+let cachedDbUsages: { list: AIUsage[]; timestamp: number } | null = null;
 
 export const usageService = {
   async recordUsage(data: Omit<AIUsage, 'id' | 'timestamp'>): Promise<AIUsage> {
+    cachedDbUsages = null; // Invalidate cache
     const id = `usage_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const usage: AIUsage = {
       ...data,
@@ -19,14 +21,21 @@ export const usageService = {
   },
 
   async listUsage(limitCount: number = 100): Promise<AIUsage[]> {
+    if (cachedDbUsages && Date.now() - cachedDbUsages.timestamp < 30000) {
+      return cachedDbUsages.list.slice(0, limitCount);
+    }
     try {
       const dbUsages = await db.getUsages(limitCount);
-      if (dbUsages && dbUsages.length > 0) return dbUsages;
+      if (dbUsages && dbUsages.length > 0) {
+        cachedDbUsages = { list: dbUsages, timestamp: Date.now() };
+        return dbUsages;
+      }
     } catch {}
     return inMemoryUsages.slice(-limitCount);
   },
 
   async clearUsage(): Promise<boolean> {
+    cachedDbUsages = null;
     inMemoryUsages.length = 0;
     try {
       await db.clearUsages();
