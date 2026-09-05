@@ -21,6 +21,7 @@ export interface ExecuteTaskOptions {
   reasoningConfig?: ReasoningConfig | null;
   onProgress?: (message: string) => void;
   entityId?: string;
+  projectId?: string;
 }
 
 export interface ExecuteTaskResult {
@@ -91,6 +92,7 @@ export const taskExecutor = {
       responseSchema: options.responseSchema,
       temperature: options.temperature ?? 0.3,
       maxTokens: options.maxOutputTokens,
+      projectId: options.projectId,
     });
 
     const latencyMs = Date.now() - startTime;

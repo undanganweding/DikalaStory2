@@ -33,14 +33,25 @@ export const healthService = {
       return { errorType: 'AUTHENTICATION_ERROR', setDown: true };
     }
     
-    // 4. Rate Limit Error
-    if (statusCode === 429 || msg.includes('rate limit') || msg.includes('too many requests') || msg.includes('rate_limited')) {
-      return { errorType: 'RATE_LIMIT_ERROR', cooldownMs: 60 * 1000 };
+    // 3b. Quota Exhausted / Hard Daily Quota Error (must be evaluated BEFORE generic 429 rate limit check)
+    const isHardDailyQuota =
+      msg.includes('generaterequestsperday') ||
+      msg.includes('generatecontentinputtokenspermodelperday') ||
+      msg.includes('perdayperprojectpermodel') ||
+      (msg.includes('freetier') && (msg.includes('day') || msg.includes('daily') || msg.includes('perday'))) ||
+      msg.includes('quota exceeded') ||
+      msg.includes('quota_exhausted') ||
+      msg.includes('out of quota') ||
+      msg.includes('exhausted quota') ||
+      msg.includes('exhausted');
+
+    if (isHardDailyQuota) {
+      return { errorType: 'QUOTA_EXHAUSTED_ERROR' };
     }
     
-    // 5. Quota Exhausted Error
-    if (msg.includes('quota exceeded') || msg.includes('quota_exhausted') || msg.includes('out of quota') || msg.includes('exhausted quota') || msg.includes('exhausted')) {
-      return { errorType: 'QUOTA_EXHAUSTED_ERROR' };
+    // 4. Rate Limit Error (transient RPM/TPM rate limits)
+    if (statusCode === 429 || msg.includes('rate limit') || msg.includes('too many requests') || msg.includes('rate_limited')) {
+      return { errorType: 'RATE_LIMIT_ERROR', cooldownMs: 60 * 1000 };
     }
     
     // 6. Connection & Timeout & DNS Errors
@@ -121,14 +132,11 @@ export const healthService = {
       } else if (classification.errorType === 'RATE_LIMIT_ERROR') {
         cred.status = 'rate_limited';
         await db.saveCredential(cred);
-      } else if (classification.errorType === 'QUOTA_EXHAUSTED_ERROR') {
-        cred.status = 'exhausted';
-        await db.saveCredential(cred);
       }
     }
 
-    // Do NOT treat model not found or bad request as network/connectivity failure (circuit breaker shouldn't open for invalid requests)
-    if (classification.errorType === 'MODEL_NOT_FOUND_ERROR' || classification.errorType === 'BAD_REQUEST_ERROR') {
+    // Do NOT treat model not found, bad request, or daily model quota exhaustion as network/connectivity failure (circuit breaker shouldn't open for resource/model limits)
+    if (classification.errorType === 'MODEL_NOT_FOUND_ERROR' || classification.errorType === 'BAD_REQUEST_ERROR' || classification.errorType === 'QUOTA_EXHAUSTED_ERROR') {
       const updated: AIHealth = {
         ...health,
         lastError: `[${classification.errorType}] ${error}`,

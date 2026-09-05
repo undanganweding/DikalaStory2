@@ -13,6 +13,7 @@ import { classifyTaskRequirements, rankCandidatesForIntent, TaskIntentRecommenda
 import { costIntelligenceService } from './cost_intelligence';
 import { costMonitor } from './cost_monitor';
 import { db } from '../db';
+import { aiBudgetRegistry, AIBudgetExhaustedError } from './ai_budget_registry';
 
 export const dailyExhaustedRegistry = new Set<string>();
 
@@ -201,6 +202,7 @@ export interface AIGatewayRequest {
   timeoutMs?: number;
   responseSchema?: any;
   simulateQuotaErrorOnModel?: string;
+  projectId?: string;
 }
 
 export interface AIGatewayResponse {
@@ -728,7 +730,7 @@ export const aiGateway = {
             let executionSuccess = false;
             let lastExecutionError: any = null;
 
-            for (let mIdx = 0; mIdx < fallbackChain.length; mIdx++) {
+             for (let mIdx = 0; mIdx < fallbackChain.length; mIdx++) {
               const tryModel = fallbackChain[mIdx];
               const cacheKey1 = `${credName}:${tryModel}`;
               const cacheKey2 = `${credentialId}:${tryModel}`;
@@ -743,6 +745,11 @@ export const aiGateway = {
               console.log(
                 `\n[MODEL RESOLUTION TRACE]\nTask: ${displayTask}\nConfigured Model: ${req.model}\nResolved Model:   ${activeModelId}\nWire Model:       ${tryModel}\nProvider:         ${currentProvider.id}\nCredential:       ${credName}\n`
               );
+
+              let attemptTimeoutMs = 12000;
+              let enqueuedAt = 0;
+              let dequeuedAt = 0;
+
               try {
                 if (req.simulateQuotaErrorOnModel && (tryModel.includes(req.simulateQuotaErrorOnModel) || activeModelId.includes(req.simulateQuotaErrorOnModel)) && (tryModel.includes('pro') || mIdx === 0)) {
                   throw new Error('429 RESOURCE_EXHAUSTED: Rate limit reached for pro tier (Quota simulation test)');
@@ -751,11 +758,15 @@ export const aiGateway = {
                 // Unpause queue when trying a new fallback model candidate or rotated credential
                 globalAIQueue.resetPause();
 
-                // Candidate timeout cap: max 12s per model attempt to prevent 30s hangs on stuck candidates
-                const attemptTimeoutMs = mIdx > 0 ? Math.min(timeoutMs, 12000) : timeoutMs;
-                const timeoutPromise = new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error(`AI Request Timeout (${attemptTimeoutMs}ms limit)`)), attemptTimeoutMs)
-                );
+                // Candidate timeout cap: task-aware timeouts
+                // character_analysis, location_object_analysis, scene_breakdown (and scene-breakdown) get 25s, others get 12s.
+                const isStructuredTask =
+                  displayTask === 'character_analysis' ||
+                  displayTask === 'location_object_analysis' ||
+                  displayTask === 'scene_breakdown' ||
+                  displayTask === 'scene-breakdown';
+                const baseLimitMs = isStructuredTask ? 25000 : 12000;
+                attemptTimeoutMs = mIdx > 0 ? Math.min(timeoutMs, baseLimitMs) : baseLimitMs;
 
                 const config: any = {
                   systemInstruction: req.systemInstruction,
@@ -768,18 +779,52 @@ export const aiGateway = {
                   config.responseSchema = req.responseSchema;
                 }
 
-                // Dispatch via Concurrency 2 + Queue + Rate Limiter to protect RPM quota
+                // Move candidate timeout clock so it starts AFTER request is dequeued / execution begins.
+                // Queue wait must NOT consume candidate execution timeout.
+                enqueuedAt = Date.now();
+
                 const generatePromise = globalAIQueue.enqueue(
-                  () =>
-                    ai.models.generateContent({
+                  async () => {
+                    dequeuedAt = Date.now();
+                    const upstreamStart = dequeuedAt;
+
+                    const activeProjId = aiBudgetRegistry.getCurrentProjectId() || req.projectId;
+                    if (activeProjId) {
+                      aiBudgetRegistry.checkAndIncrement(
+                        activeProjId,
+                        req.agentName || req.task || 'cinematic_task',
+                        tryModel,
+                        credName
+                      );
+                    }
+
+                    const innerTimeoutPromise = new Promise((_, reject) => {
+                      setTimeout(() => reject(new Error(`AI Request Timeout (${attemptTimeoutMs}ms limit)`)), attemptTimeoutMs);
+                    });
+
+                    const apiCallPromise = ai.models.generateContent({
                       model: tryModel,
                       contents: req.prompt,
                       config,
-                    }),
+                    });
+
+                    return Promise.race([apiCallPromise, innerTimeoutPromise]);
+                  },
                   `task_${req.task || req.agentName || 'gen'}`
                 );
 
-                const response: any = await Promise.race([generatePromise, timeoutPromise]);
+                const response: any = await generatePromise;
+                const upstreamEnd = Date.now();
+
+                const queueWaitMs = dequeuedAt > 0 ? dequeuedAt - enqueuedAt : 0;
+                const upstreamExecutionMs = dequeuedAt > 0 ? upstreamEnd - dequeuedAt : 0;
+                const totalAttemptMs = upstreamEnd - enqueuedAt;
+
+                // Log precise telemetry on success
+                console.log(
+                  `[AI GATEWAY TELEMETRY] attempt_model=${tryModel} | queue_wait_ms=${queueWaitMs} | upstream_execution_ms=${upstreamExecutionMs} | total_attempt_ms=${totalAttemptMs} | timeout_limit_ms=${attemptTimeoutMs}`
+                );
+
                 latencyMs = Date.now() - startTime;
 
                 text = response.text || '';
@@ -801,8 +846,23 @@ export const aiGateway = {
                 executionSuccess = true;
                 break;
               } catch (googleErr: any) {
+                if (googleErr instanceof AIBudgetExhaustedError || googleErr?.name === 'AIBudgetExhaustedError' || (googleErr?.message && googleErr.message.includes('AI Provider Call Budget Exhausted'))) {
+                  throw googleErr;
+                }
                 lastExecutionError = googleErr;
                 console.warn(`[AI Gateway] Model ${tryModel} execution failed: ${googleErr?.message || googleErr}`);
+
+                const now = Date.now();
+                const actualEnqueued = enqueuedAt > 0 ? enqueuedAt : now;
+                const actualDequeued = dequeuedAt > 0 ? dequeuedAt : now;
+                const queueWaitMs = actualDequeued - actualEnqueued;
+                const upstreamExecutionMs = now - actualDequeued;
+                const totalAttemptMs = now - actualEnqueued;
+
+                // Log precise telemetry on failure
+                console.log(
+                  `[AI GATEWAY TELEMETRY] [FAILED] attempt_model=${tryModel} | queue_wait_ms=${queueWaitMs} | upstream_execution_ms=${upstreamExecutionMs} | total_attempt_ms=${totalAttemptMs} | timeout_limit_ms=${attemptTimeoutMs}`
+                );
 
                 const errMsg = (googleErr?.message || JSON.stringify(googleErr) || '').toLowerCase();
                 if (errMsg.includes('401') || errMsg.includes('unauthorized') || errMsg.includes('invalid api key') || errMsg.includes('key_invalid')) {
@@ -922,6 +982,9 @@ export const aiGateway = {
             tokens: { prompt: promptTokens, completion: completionTokens, total: totalTokens },
           };
         } catch (err: any) {
+          if (err instanceof AIBudgetExhaustedError || err?.name === 'AIBudgetExhaustedError' || (err?.message && err.message.includes('AI Provider Call Budget Exhausted'))) {
+            throw err;
+          }
           lastError = err;
           const latencyMs = Date.now() - startTime;
           const errorMsg = err.message || 'Unknown generation error';

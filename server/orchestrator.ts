@@ -1,4 +1,6 @@
 import { db } from './db';
+import { aiBudgetRegistry } from './ai_infrastructure/ai_budget_registry';
+import { executionPreflight } from './ai_infrastructure/execution_preflight';
 import { modelRouter } from './model_router';
 import { DEFAULT_TASK_PROFILES } from './adaptive_router';
 import { taskRouter } from './ai_infrastructure/task_router';
@@ -507,6 +509,26 @@ async function runProjectInitializationImpl(
   ) => void,
   dependencies: ProjectInitializationDependencies = {}
 ): Promise<{ success: boolean; error?: string }> {
+  aiBudgetRegistry.initializeBudget(projectId, 15);
+  try {
+    return await aiBudgetRegistry.runWithProjectId(projectId, async () => {
+      return await runProjectInitializationImplInner(projectId, onProgress, dependencies);
+    });
+  } finally {
+    aiBudgetRegistry.cleanupBudget(projectId);
+  }
+}
+
+async function runProjectInitializationImplInner(
+  projectId: string,
+  onProgress?: (
+    stage: number,
+    stageName: string,
+    message: string,
+    level?: 'info' | 'success' | 'warn' | 'error'
+  ) => void,
+  dependencies: ProjectInitializationDependencies = {}
+): Promise<{ success: boolean; error?: string }> {
   const project = await db.getProject(projectId);
   if (!project) {
     throw new Error(`Project dengan ID ${projectId} tidak ditemukan.`);
@@ -660,6 +682,40 @@ async function runProjectInitializationImpl(
         'S5'
       );
       return { success: true };
+    }
+
+    // ==========================================
+    // EXECUTION PREFLIGHT V1
+    // ==========================================
+    const stagesToCheck: StageCode[] = [];
+    if (!haveS1) stagesToCheck.push('S1');
+    if (!haveS2) stagesToCheck.push('S2');
+    if (!haveS3) stagesToCheck.push('S3');
+    if (!haveS4) stagesToCheck.push('S4');
+    if (!haveS5) stagesToCheck.push('S5');
+
+    if (stagesToCheck.length > 0) {
+      log(0, 'Execution Preflight', 'Menjalankan pra-pemeriksaan eksekusi (Execution Preflight v1)...', 'info', 'S1');
+      const preflightResult = await executionPreflight.checkExecutionPreflight(stagesToCheck);
+      
+      log(
+        0,
+        'Execution Preflight',
+        `Preflight: ${preflightResult.viable ? 'Ada execution path yang saat ini belum diketahui exhausted.' : 'Pipeline diblokir sebelum AI request.'}`,
+        preflightResult.viable ? 'info' : 'error',
+        'S1'
+      );
+
+      if (!preflightResult.viable) {
+        log(
+          0,
+          'Execution Preflight',
+          `Pipeline dihentikan lebih awal: ${preflightResult.reason}`,
+          'error',
+          'S1'
+        );
+        throw new Error(`Pipeline dihentikan lebih awal (Execution Preflight): ${preflightResult.reason}`);
+      }
     }
 
     // ==========================================
@@ -2133,6 +2189,32 @@ async function generateAllScenesImpl(
     safeAddLog(projectId, { stage, stage_name: stageName, message, level, run_id: activeRunContext?.runId });
     if (onProgress) onProgress(stage, stageName, message, level);
   };
+
+  // ==========================================
+  // EXECUTION PREFLIGHT V1 (S6-S8)
+  // ==========================================
+  const pendingScenes = scenes.filter((s) => !(s.pipeline_status === 'READY' || s.status === 'ready'));
+  if (pendingScenes.length > 0) {
+    log(6, 'Execution Preflight', 'Menjalankan pra-pemeriksaan eksekusi (Execution Preflight v1) untuk Tahap S6-S8...', 'info');
+    const preflightResult = await executionPreflight.checkExecutionPreflight(['S6', 'S7', 'S8']);
+    
+    log(
+      6,
+      'Execution Preflight',
+      `Preflight: ${preflightResult.viable ? 'Ada execution path yang saat ini belum diketahui exhausted.' : 'Pipeline diblokir sebelum AI request.'}`,
+      preflightResult.viable ? 'info' : 'error'
+    );
+
+    if (!preflightResult.viable) {
+      log(
+        6,
+        'Execution Preflight',
+        `Pipeline dihentikan lebih awal: ${preflightResult.reason}`,
+        'error'
+      );
+      throw new Error(`Pipeline dihentikan lebih awal (Execution Preflight): ${preflightResult.reason}`);
+    }
+  }
 
   log(
     6,
