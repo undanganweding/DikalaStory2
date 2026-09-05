@@ -1493,9 +1493,13 @@ apiRouter.post('/scenes/:id/smart-regenerate', async (req: Request, res: Respons
     const isStill = isStillPromptTarget(promptTarget);
     const effectiveDuration = requestedDuration !== undefined
       ? requestedDuration
-      : (shot.duration_sec && PROMPT_TARGET_SUPPORTED_DURATIONS[promptTarget]?.includes(shot.duration_sec)
-          ? shot.duration_sec
-          : (PROMPT_TARGET_SUPPORTED_DURATIONS[promptTarget]?.[0] ?? 10));
+      : (promptTarget === 'seedance_30'
+          ? 30
+          : promptTarget === 'seedance_10'
+          ? 10
+          : (shot.duration_sec && PROMPT_TARGET_SUPPORTED_DURATIONS[promptTarget]?.includes(shot.duration_sec)
+              ? shot.duration_sec
+              : 10));
     const resolvedDuration = resolveOutputDurationStrict(promptTarget, effectiveDuration);
 
     let generatedPromptText = '';

@@ -260,11 +260,22 @@ export function resolvePromptTargets(args: {
  * one code path that can produce a duration.
  */
 export function contractDurationFor(target: PromptTarget): number {
+  const defaults: Record<PromptTarget, number> = {
+    seedance_30: 30,
+    seedance_10: 10,
+    veo: 10,
+    omni: 10,
+    banana_master_frame: 10,
+    banana_image: 10,
+  };
+  if (target in defaults) {
+    return defaults[target];
+  }
   const supported = PROMPT_TARGET_SUPPORTED_DURATIONS[target];
   if (!supported || supported.length === 0) {
     throw new InvalidPromptTargetError(target);
   }
-  return supported[0];
+  return supported[supported.length - 1];
 }
 
 // Validation helper for runaway text / excessive length / repetition

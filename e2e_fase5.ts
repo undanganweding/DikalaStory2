@@ -19,7 +19,7 @@ import { db } from './server/db';
 import { getPersistedPrompt, PROMPT_EMPTY_MESSAGE, resolveRowTarget } from './src/lib/prompt_targets';
 import { PromptTarget, Shot, VideoPrompt } from './src/types';
 
-const PORT = 3123;
+const PORT = 3120 + Math.floor(Math.random() * 800);
 const BASE = `http://127.0.0.1:${PORT}`;
 const STORE = path.join(process.cwd(), 'data', 'firestore_store.json');
 const BACKUP = `${STORE}.e2ebak`;
@@ -173,7 +173,7 @@ async function main() {
       check(
         `DOD1-${target}`,
         status === 200 && json?.success === true && json?.target === target,
-        `HTTP ${status}, echoed target=${json?.target}, resolved=${json?.resolved_duration_sec}s`
+        `HTTP ${status}, echoed target=${json?.target}, resolved=${json?.resolved_duration_sec}s, error=${json?.error || JSON.stringify(json)}`
       );
 
       if (target === 'seedance_30') {
@@ -366,6 +366,10 @@ async function main() {
   }
 
   const failed = results.filter((r) => !r.ok);
+  if (failed.length > 0) {
+    console.error('\n=== FAILED TESTS ===');
+    failed.forEach((f) => console.error(`FAIL: ${f.id} => ${f.detail}`));
+  }
   console.log(`\nTOTAL=${results.length} PASSED=${results.length - failed.length} FAILED=${failed.length}`);
   process.exit(failed.length === 0 ? 0 : 1);
 }

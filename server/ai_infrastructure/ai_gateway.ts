@@ -17,87 +17,102 @@ import { db } from '../db';
 export const CINEMA_FALLBACK_POLICY: Record<string, string[]> = {
   // S1
   story_analysis: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
     'gemini-3.7-flash',
   ],
   story_understanding: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
     'gemini-3.7-flash',
   ],
   // S2
   character_analysis: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   character_detection: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   // S3
   location_analysis: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   location_detection: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   location_object_analysis: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   location_object_detection: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   // S4
   narrative_structure: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
     'gemini-3.7-flash',
   ],
   // S5
   scene_breakdown: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   // S6
   shot_breakdown: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   // S7
   master_frame: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   master_frame_generation: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   master_frame_image_prompt: [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   // S8
   video_prompt: [
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
+    'gemini-3.6-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.7-flash',
   ],
   video_prompt_generation: [
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
+    'gemini-3.6-flash',
+    'gemini-3.1-pro-preview',
+    'gemini-3.7-flash',
   ],
   // General
   general_reasoning: [
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
   creative_generation: [
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
+    'gemini-3.1-pro-preview',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
   ],
 };
 
@@ -105,9 +120,6 @@ export function isForbiddenCinemaModel(model: string): boolean {
   if (!model) return false;
   const blocked = [
     /lite/i,
-    /preview/i,
-    /experimental/i,
-    /latest/i,
     /flash-lite/i,
   ];
   return blocked.some(regex => regex.test(model));
@@ -116,10 +128,8 @@ export function isForbiddenCinemaModel(model: string): boolean {
 export const FORBIDDEN_CINEMA_MODELS = [
   'gemini-3.1-flash-lite',
   'gemini-flash-lite',
-  'gemini-pro-preview',
-  'unknown-preview-models',
-  'experimental-models',
-  'latest-alias-models',
+  'gemini-2.0-flash-lite',
+  'unknown-lite-models',
 ];
 
 export interface AIGatewayRequest {
@@ -283,8 +293,8 @@ export const aiGateway = {
       });
     } else {
       capableAndEligibleProviders.sort((a, b) => {
-        if (a.id === 'google' && b.id !== 'google') return 1;
-        if (a.id !== 'google' && b.id === 'google') return -1;
+        if (a.id === 'google' && b.id !== 'google') return -1;
+        if (a.id !== 'google' && b.id === 'google') return 1;
         return 0;
       });
     }
@@ -352,7 +362,8 @@ export const aiGateway = {
             }
           }
 
-          const isOpneAICompatible = currentProvider.type === 'openai-compatible' || Boolean(currentProvider.baseUrl);
+          const isGoogle = currentProvider.id === 'google' || currentProvider.type === 'gemini' || currentProvider.type === 'google-generative-ai' || currentProvider.type === 'google';
+          const isOpneAICompatible = !isGoogle && (currentProvider.type === 'openai-compatible' || Boolean(currentProvider.baseUrl));
 
           // Update last used timestamp
           try {
@@ -654,94 +665,82 @@ export const aiGateway = {
 
             for (let mIdx = 0; mIdx < fallbackChain.length; mIdx++) {
               const tryModel = fallbackChain[mIdx];
-
-              for (let attemptNum = 1; attemptNum <= 2; attemptNum++) {
-                try {
-                  if (req.simulateQuotaErrorOnModel && (tryModel.includes(req.simulateQuotaErrorOnModel) || activeModelId.includes(req.simulateQuotaErrorOnModel)) && (tryModel.includes('pro') || mIdx === 0)) {
-                    throw new Error('429 RESOURCE_EXHAUSTED: Rate limit reached for pro tier (Quota simulation test)');
-                  }
-
-                  const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('AI Request Timeout')), timeoutMs)
-                  );
-
-                  const config: any = {
-                    systemInstruction: req.systemInstruction,
-                    temperature: req.temperature ?? 0.7,
-                    maxOutputTokens: req.maxTokens ?? 2048,
-                  };
-
-                  if (req.responseSchema) {
-                    config.responseMimeType = 'application/json';
-                    config.responseSchema = req.responseSchema;
-                  }
-
-                  // Dispatch via Concurrency 2 + Queue + Rate Limiter to protect RPM quota
-                  const generatePromise = globalAIQueue.enqueue(
-                    () =>
-                      ai.models.generateContent({
-                        model: tryModel,
-                        contents: req.prompt,
-                        config,
-                      }),
-                    `task_${req.task || req.agentName || 'gen'}`
-                  );
-
-                  const response: any = await Promise.race([generatePromise, timeoutPromise]);
-                  latencyMs = Date.now() - startTime;
-
-                  text = response.text || '';
-                  const promptStr = typeof req.prompt === 'string' ? req.prompt : (req.prompt ? JSON.stringify(req.prompt) : '');
-                  promptTokens = Math.round(promptStr.length / 4);
-                  completionTokens = Math.round((text || '').length / 4);
-                  totalTokens = promptTokens + completionTokens;
-
-                  if (tryModel !== activeModelId) {
-                    fallbackReason = `High demand / 503 / 429 on ${activeModelId}; cascaded to fallback model ${tryModel}`;
-                    activeModelId = tryModel;
-                  }
-
-                  // Log Successful Execution
-                  console.log(
-                    `\n[AI FALLBACK DECISION]\nTask: ${displayTask}\nModel: ${tryModel}\nProvider: ${currentProvider.id}\nStatus: SUCCESS\n`
-                  );
-
-                  executionSuccess = true;
-                  break;
-                } catch (googleErr: any) {
-                  lastExecutionError = googleErr;
-                  const isTransient = isTransientError(googleErr);
-                  console.warn(`[AI Gateway] Model ${tryModel} attempt ${attemptNum} failed: ${googleErr?.message || googleErr}`);
-
-                  const errMsg = (googleErr?.message || JSON.stringify(googleErr) || '').toLowerCase();
-                  if (errMsg.includes('429') || errMsg.includes('resource_exhausted') || errMsg.includes('quota')) {
-                    globalAIQueue.notifyRateLimitEncountered(2500);
-                  }
-
-                  // PATCH C: On 429 or quota limit on Pro, do NOT burn attempts on Pro variants; immediately drop to next model in fallbackChain (Flash)
-                  if (
-                    !isTransient ||
-                    errMsg.includes('429') ||
-                    errMsg.includes('resource_exhausted') ||
-                    errMsg.includes('quota') ||
-                    errMsg.includes('requestsperday') ||
-                    errMsg.includes('limit: 0') ||
-                    errMsg.includes('tokensperday') ||
-                    errMsg.includes('not available to new users') ||
-                    errMsg.includes('not_found')
-                  ) {
-                    break;
-                  }
-
-                  if (attemptNum < 2) {
-                    const jitter = Math.floor(Math.random() * 500) + 500;
-                    await new Promise(resolve => setTimeout(resolve, jitter));
-                  }
+              console.log(
+                `\n[MODEL RESOLUTION TRACE]\nTask: ${displayTask}\nConfigured Model: ${req.model}\nResolved Model:   ${activeModelId}\nWire Model:       ${tryModel}\nProvider:         ${currentProvider.id}\nCredential:       ${credName}\n`
+              );
+              try {
+                if (req.simulateQuotaErrorOnModel && (tryModel.includes(req.simulateQuotaErrorOnModel) || activeModelId.includes(req.simulateQuotaErrorOnModel)) && (tryModel.includes('pro') || mIdx === 0)) {
+                  throw new Error('429 RESOURCE_EXHAUSTED: Rate limit reached for pro tier (Quota simulation test)');
                 }
-              }
 
-              if (executionSuccess) {
+                // Unpause queue when trying a new fallback model candidate or rotated credential
+                globalAIQueue.resetPause();
+
+                // Candidate timeout cap: max 12s per model attempt to prevent 30s hangs on stuck candidates
+                const attemptTimeoutMs = mIdx > 0 ? Math.min(timeoutMs, 12000) : timeoutMs;
+                const timeoutPromise = new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error(`AI Request Timeout (${attemptTimeoutMs}ms limit)`)), attemptTimeoutMs)
+                );
+
+                const config: any = {
+                  systemInstruction: req.systemInstruction,
+                  temperature: req.temperature ?? 0.7,
+                  maxOutputTokens: req.maxTokens ?? 2048,
+                };
+
+                if (req.responseSchema) {
+                  config.responseMimeType = 'application/json';
+                  config.responseSchema = req.responseSchema;
+                }
+
+                // Dispatch via Concurrency 2 + Queue + Rate Limiter to protect RPM quota
+                const generatePromise = globalAIQueue.enqueue(
+                  () =>
+                    ai.models.generateContent({
+                      model: tryModel,
+                      contents: req.prompt,
+                      config,
+                    }),
+                  `task_${req.task || req.agentName || 'gen'}`
+                );
+
+                const response: any = await Promise.race([generatePromise, timeoutPromise]);
+                latencyMs = Date.now() - startTime;
+
+                text = response.text || '';
+                const promptStr = typeof req.prompt === 'string' ? req.prompt : (req.prompt ? JSON.stringify(req.prompt) : '');
+                promptTokens = Math.round(promptStr.length / 4);
+                completionTokens = Math.round((text || '').length / 4);
+                totalTokens = promptTokens + completionTokens;
+
+                if (tryModel !== activeModelId) {
+                  fallbackReason = `High demand / 503 / 429 on ${activeModelId}; cascaded to fallback model ${tryModel}`;
+                  activeModelId = tryModel;
+                }
+
+                // Log Successful Execution
+                console.log(
+                  `\n[AI FALLBACK DECISION]\nTask: ${displayTask}\nModel: ${tryModel}\nProvider: ${currentProvider.id}\nStatus: SUCCESS\n`
+                );
+
+                executionSuccess = true;
                 break;
+              } catch (googleErr: any) {
+                lastExecutionError = googleErr;
+                console.warn(`[AI Gateway] Model ${tryModel} execution failed: ${googleErr?.message || googleErr}`);
+
+                const errMsg = (googleErr?.message || JSON.stringify(googleErr) || '').toLowerCase();
+                if (errMsg.includes('401') || errMsg.includes('unauthorized') || errMsg.includes('invalid api key') || errMsg.includes('key_invalid')) {
+                  // Auth / Credential failure -> break model loop to rotate credential
+                  break;
+                }
+
+                if (errMsg.includes('429') || errMsg.includes('resource_exhausted') || errMsg.includes('quota')) {
+                  globalAIQueue.notifyRateLimitEncountered(2500);
+                }
+
+                // 429, 503, 404, or timeout -> continue to next candidate model in fallbackChain
+                continue;
               }
             }
 

@@ -234,75 +234,41 @@ Output in English/Indonesian as appropriate with high narrative dignity.`;
     throw new Error('Stage 1 failed: LLM provider returned an empty response.');
   }
 
-  // Safe JSON extraction & validation layer for S1
-  let parsed = extractAndValidateS1JSON(response.text);
-
-  // If initial parsing or validation failed, retry once with a JSON repair instruction
-  if (!parsed.valid || !parsed.data) {
-    console.warn(`[S1 Story Understanding] Initial JSON parse/validation issue (${parsed.validationError || 'Invalid JSON'}). Initiating single repair retry...`);
-    try {
-      const repairPrompt = `You are an expert JSON recovery system. The previous response produced invalid or malformed JSON.
-Fix the syntax errors, unescaped quotes, trailing commas, or truncated brackets, and output strictly the valid JSON object conforming to the schema:
-
-=== CORRUPT / MALFORMED OUTPUT ===
-${response.text}
-==================================`;
-
-      const repairResponse = await executeTask({
-        taskId: 'story_analysis',
-        stageCode: 'S1',
-        prompt: repairPrompt,
-        systemInstruction: 'Output only valid, strictly formed JSON without markdown formatting or commentary.',
-        temperature: 0.1,
-        responseSchema,
-        projectPolicy: {
-          mode: input.model ? 'pin' : 'auto',
-          quality: 'high',
-          priority: 'quality',
-          pinnedModelId: input.model,
-          pinnedProviderId: input.reasoningConfig?.provider_name || input.reasoningConfig?.provider_type,
-        },
-      });
-
-      if (repairResponse.text) {
-        const repaired = extractAndValidateS1JSON(repairResponse.text, true);
-        if (repaired.valid && repaired.data) {
-          parsed = repaired;
-        }
-      }
-    } catch (repairErr: any) {
-      console.error('[S1 Story Understanding] JSON repair retry failed:', repairErr.message);
-    }
-  }
-
+  // Safe JSON extraction & validation layer for S1 (100% local & deterministic)
+  const parsed = extractAndValidateS1JSON(response.text);
   const data = parsed.data || {};
 
+  return constructStage1Output(data);
+}
+
+export function constructStage1Output(data: any): Stage1Output {
+  const d = data || {};
   return {
-    era: data.era || 'Unknown Era',
-    theme: data.theme || 'General Theme',
-    genre: data.genre || 'Cinematic Drama',
-    timeline: data.timeline || 'Linear Timeline',
-    main_characters: Array.isArray(data.main_characters) && data.main_characters.length > 0 ? data.main_characters : ['Protagonist'],
-    supporting_characters: Array.isArray(data.supporting_characters) ? data.supporting_characters : [],
-    locations: Array.isArray(data.locations) && data.locations.length > 0 ? data.locations : ['Main Location'],
-    main_conflict: data.main_conflict || 'Dramatic conflict',
-    emotional_arc: data.emotional_arc || 'Transformation and growth',
-    narrative_arc: data.narrative_arc || 'Inciting incident, rising action, climax, resolution',
-    visual_tone: data.visual_tone || 'Cinematic panavision 35mm film grain',
+    era: d.era || 'Unknown Era',
+    theme: d.theme || 'General Theme',
+    genre: d.genre || 'Cinematic Drama',
+    timeline: d.timeline || 'Linear Timeline',
+    main_characters: Array.isArray(d.main_characters) && d.main_characters.length > 0 ? d.main_characters : ['Protagonist'],
+    supporting_characters: Array.isArray(d.supporting_characters) ? d.supporting_characters : [],
+    locations: Array.isArray(d.locations) && d.locations.length > 0 ? d.locations : ['Main Location'],
+    main_conflict: d.main_conflict || 'Dramatic conflict',
+    emotional_arc: d.emotional_arc || 'Transformation and growth',
+    narrative_arc: d.narrative_arc || 'Inciting incident, rising action, climax, resolution',
+    visual_tone: d.visual_tone || 'Cinematic panavision 35mm film grain',
     
-    is_historical_religious_biography: Boolean(data.is_historical_religious_biography),
-    research_basic_facts: data.research_basic_facts,
-    research_timeline: data.research_timeline,
-    research_era_context: data.research_era_context,
-    research_sources: data.research_sources,
+    is_historical_religious_biography: Boolean(d.is_historical_religious_biography),
+    research_basic_facts: d.research_basic_facts,
+    research_timeline: d.research_timeline,
+    research_era_context: d.research_era_context,
+    research_sources: d.research_sources,
     
-    act_1_world_setup: data.act_1_world_setup,
-    act_2_human_element: data.act_2_human_element,
-    act_3_rising_conflict: data.act_3_rising_conflict,
-    act_4_climax_breath: data.act_4_climax_breath,
-    act_5_legacy_meaning: data.act_5_legacy_meaning,
-    narrative_style_mode: data.narrative_style_mode,
-    islamic_validation_safeguard: data.islamic_validation_safeguard,
+    act_1_world_setup: d.act_1_world_setup,
+    act_2_human_element: d.act_2_human_element,
+    act_3_rising_conflict: d.act_3_rising_conflict,
+    act_4_climax_breath: d.act_4_climax_breath,
+    act_5_legacy_meaning: d.act_5_legacy_meaning,
+    narrative_style_mode: d.narrative_style_mode,
+    islamic_validation_safeguard: d.islamic_validation_safeguard,
   };
 }
 

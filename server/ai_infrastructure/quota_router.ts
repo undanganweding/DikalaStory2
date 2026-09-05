@@ -341,8 +341,21 @@ export const quotaRouter = {
 
   // Select best credential with smart fallback chain
   async selectCredential(providerId: string, preScored?: ScoredCredential[]): Promise<RouterSelectionResult> {
-    const scored = (preScored && preScored.length > 0) ? preScored : await this.scoreCredentials(providerId);
+    let scored = (preScored && preScored.length > 0) ? preScored : await this.scoreCredentials(providerId);
+    if (scored.length === 0 && providerId !== 'google') {
+      scored = await this.scoreCredentials('google');
+    }
     if (scored.length === 0) {
+      if (process.env.GEMINI_API_KEY) {
+        return {
+          credentialId: 'env_gemini_default',
+          providerId: 'google',
+          apiKey: process.env.GEMINI_API_KEY,
+          state: 'ACTIVE',
+          score: 990,
+          fallbackChain: ['env_gemini_default'],
+        };
+      }
       throw new Error(`QuotaRouter: No available healthy credentials for provider: ${providerId}`);
     }
 

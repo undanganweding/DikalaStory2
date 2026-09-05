@@ -37,7 +37,7 @@ export const modelsRegistry: Record<string, ModelDefinition> = {
     providers: {
       'google': {
         supported: true,
-        nativeModelName: 'gemini-2.5-flash',
+        nativeModelName: 'gemini-3.7-flash',
       },
       // Any custom provider id will support ops-5 by default (native exact match)
       'custom_gate_provider': {
@@ -52,7 +52,7 @@ export const modelsRegistry: Record<string, ModelDefinition> = {
     providers: {
       'google': {
         supported: true,
-        nativeModelName: 'gemini-2.5-flash',
+        nativeModelName: 'gemini-3.7-flash',
       },
     },
   },
@@ -62,7 +62,7 @@ export const modelsRegistry: Record<string, ModelDefinition> = {
     providers: {
       'google': {
         supported: true,
-        nativeModelName: 'gemini-2.5-pro',
+        nativeModelName: 'gemini-3.7-flash',
       },
     },
   },
@@ -73,6 +73,26 @@ export const modelsRegistry: Record<string, ModelDefinition> = {
       'google': {
         supported: true,
         nativeModelName: 'gemini-3.7-flash',
+      },
+    },
+  },
+  'gemini-3.6-flash': {
+    id: 'gemini-3.6-flash',
+    requiredCapability: 'text',
+    providers: {
+      'google': {
+        supported: true,
+        nativeModelName: 'gemini-3.6-flash',
+      },
+    },
+  },
+  'gemini-3.8-flash': {
+    id: 'gemini-3.8-flash',
+    requiredCapability: 'text',
+    providers: {
+      'google': {
+        supported: true,
+        nativeModelName: 'gemini-3.8-flash',
       },
     },
   },
@@ -295,7 +315,8 @@ export const capabilityRegistry = {
     }
 
     // 2. Google provider natively supports all Gemini & Veo models
-    if (providerId === 'google' && (modelId.startsWith('gemini') || modelId.startsWith('veo') || modelId === 'ops-5')) {
+    const isGoogle = providerId === 'google' || provider?.type === 'gemini' || provider?.type === 'google-generative-ai' || provider?.type === 'google';
+    if (isGoogle && (modelId.startsWith('gemini') || modelId.startsWith('veo') || modelId === 'ops-5')) {
       return { capable: true };
     }
 
@@ -356,12 +377,23 @@ export const capabilityRegistry = {
 
   // Resolve native model name for a provider
   resolveNativeModel(providerId: string, modelId: string): string {
-    if (providerId === 'google') {
-      if (modelId === 'gemini-2.5-flash' || modelId === 'gemini-2.0-flash' || modelId === 'gemini-1.5-flash' || modelId === 'gemini-3.6-flash') {
-        return 'gemini-3.8-flash';
-      }
-      if (modelId === 'gemini-2.5-pro' || modelId === 'gemini-2.0-pro' || modelId === 'gemini-1.5-pro') {
+    const isGoogle = providerId === 'google' || providerId?.startsWith('sifa') || providerId?.startsWith('nupres') || modelId?.startsWith('gemini');
+    if (isGoogle) {
+      if (modelId === 'gemini-2.5-pro') {
         return 'gemini-3.1-pro-preview';
+      }
+      if (modelId === 'gemini-2.5-flash') {
+        return 'gemini-3.6-flash';
+      }
+      if (
+        modelId === 'gemini-3.1-pro-preview' ||
+        modelId === 'gemini-3.6-flash' ||
+        modelId === 'gemini-3.7-flash' ||
+        modelId === 'gemini-2.0-flash' ||
+        modelId === 'gemini-1.5-pro' ||
+        modelId === 'gemini-1.5-flash'
+      ) {
+        return modelId;
       }
     }
     const modelDef = modelsRegistry[modelId];

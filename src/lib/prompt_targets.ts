@@ -221,8 +221,7 @@ export function getPersistedPrompt(
         return { state: 'ready', text, hasPrompt: true, resolvedDurationSec: 10, row: stillRow };
       }
     }
-    const fallbackText = buildTargetPromptFallback(shot, target);
-    return { state: 'ready', text: fallbackText, hasPrompt: true, resolvedDurationSec: 10, row: null };
+    return emptyResult('idle');
   }
 
   const row = prompts.find((p) => p.shot_id === shot.id && resolveRowTarget(p) === target);
@@ -233,21 +232,16 @@ export function getPersistedPrompt(
         state: 'ready',
         text,
         hasPrompt: true,
-        resolvedDurationSec: row.timeline_json?.resolved_duration_sec ?? null,
+        resolvedDurationSec:
+          row.timeline_json?.resolved_duration_sec ??
+          row.timeline_json?.clip_duration_sec ??
+          (target === 'seedance_30' ? 30 : 10),
         row,
       };
     }
   }
 
-  const fallbackText = buildTargetPromptFallback(shot, target);
-  const resolvedDurationSec = target === 'seedance_30' ? 30 : (shot.duration_sec || 10);
-  return {
-    state: 'ready',
-    text: fallbackText,
-    hasPrompt: true,
-    resolvedDurationSec,
-    row: null,
-  };
+  return emptyResult('idle');
 }
 
 /**
