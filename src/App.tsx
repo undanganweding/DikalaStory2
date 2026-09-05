@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { TopBar } from './components/TopBar';
 import { Sidebar } from './components/Sidebar';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -1081,6 +1082,7 @@ export default function App() {
           isGenerating={currentProject?.status === 'processing'}
         />
       </Suspense>
+      <SpeedInsights />
     </div>
   );
 }
