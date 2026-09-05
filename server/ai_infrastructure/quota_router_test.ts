@@ -13,7 +13,7 @@ async function runQuotaRouterTests() {
   // Cleanup old test credentials
   const existing = await credentialService.listCredentials();
   for (const c of existing) {
-    if (c.id.startsWith('router_test_')) {
+    if (c.id.startsWith('router_test_' ) || (c.name && c.name.includes('Router Key'))) {
       await credentialService.removeCredential(c.id);
     }
   }

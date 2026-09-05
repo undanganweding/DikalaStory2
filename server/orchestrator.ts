@@ -1366,7 +1366,7 @@ async function runProjectInitializationImplInner(
           break;
         } else {
           const combinedError = [validation.errorMessage, assetNameValidation.errorMessage, semanticValidation.errorMessage].filter(Boolean).join(' ');
-          const combinedCorrective = [validation.correctivePrompt, assetNameValidation.correctivePrompt, semanticValidation.errorMessage ? `Fix semantic error: ${semanticValidation.errorMessage}` : ''].filter(Boolean).join(' ');
+          const combinedCorrective = [validation.correctivePrompt, assetNameValidation.correctivePrompt, semanticValidation.correctivePrompt || (semanticValidation.errorMessage ? `Fix semantic error: ${semanticValidation.errorMessage}` : '')].filter(Boolean).join(' ');
           lastValidationError = combinedError;
           const s5Duration = Date.now() - s5AttemptStartTime;
           recordTelemetry(projectId, {

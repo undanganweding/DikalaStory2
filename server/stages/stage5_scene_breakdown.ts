@@ -868,6 +868,7 @@ CORRECTIVE STRUCTURAL & DURATION GUIDELINES:
 export interface SemanticValidationResult {
   valid: boolean;
   errorMessage?: string;
+  correctivePrompt?: string;
 }
 
 export function validateSceneSemanticPayload(
@@ -876,27 +877,34 @@ export function validateSceneSemanticPayload(
 ): SemanticValidationResult {
   const isIndo = language === 'id';
   if (!scenes || !Array.isArray(scenes) || scenes.length === 0) {
-    return { valid: false, errorMessage: isIndo ? 'Daftar scene kosong' : 'Scene list is empty' };
+    return { 
+      valid: false, 
+      errorMessage: isIndo ? 'Daftar scene kosong' : 'Scene list is empty',
+      correctivePrompt: 'Scene list is empty. Generate a complete sequence of cinematic scenes.'
+    };
   }
 
   for (const scene of scenes) {
-    // 1. Check for (Continuation) in title
-    if (scene.title && /\(continuation\)/i.test(scene.title)) {
+    // 1. Check for continuation markers in title: (Continuation), (Part X), (Bagian X), (Lanjutan)
+    if (scene.title && (/\(continuation\)/i.test(scene.title) || /\(part\s*\d+\)/i.test(scene.title) || /\(bagian\s*\d+\)/i.test(scene.title) || /\(lanjutan\)/i.test(scene.title))) {
       return {
         valid: false,
         errorMessage: isIndo
-          ? `Scene #${scene.scene_number} memiliki judul tidak valid yang mengandung "(Continuation)": "${scene.title}"`
-          : `Scene #${scene.scene_number} has invalid title containing "(Continuation)": "${scene.title}"`,
+          ? `Scene #${scene.scene_number} memiliki judul tidak valid yang mengandung penanda continuation: "${scene.title}"`
+          : `Scene #${scene.scene_number} has invalid title containing continuation marker: "${scene.title}"`,
+        correctivePrompt: `Scene #${scene.scene_number} ("${scene.title}") uses a forbidden continuation marker like (Continuation) or (Part). Give every scene a distinct, unique narrative title without continuation tags.`
       };
     }
 
-    // 2. Check for empty or missing event
-    if (!scene.event || typeof scene.event !== 'string' || scene.event.trim() === '' || scene.event.trim() === '-') {
+    // 2. Check for empty, missing, dash, or placeholder event
+    const trimmedEvent = typeof scene.event === 'string' ? scene.event.trim() : '';
+    if (!trimmedEvent || trimmedEvent === '-' || trimmedEvent === '--' || trimmedEvent === '---' || trimmedEvent.toLowerCase() === 'n/a' || trimmedEvent.toLowerCase() === 'none') {
       return {
         valid: false,
         errorMessage: isIndo
           ? `Scene #${scene.scene_number} memiliki field 'event' kosong atau dash.`
           : `Scene #${scene.scene_number} has empty or dash 'event' field.`,
+        correctivePrompt: `Scene #${scene.scene_number} has an empty, dash, or placeholder event. Provide a descriptive, meaningful dramatic action and event taking place for this scene.`
       };
     }
 
@@ -907,6 +915,7 @@ export function validateSceneSemanticPayload(
         errorMessage: isIndo
           ? `Scene #${scene.scene_number} memiliki 'story_purpose' kosong.`
           : `Scene #${scene.scene_number} has empty 'story_purpose'.`,
+        correctivePrompt: `Scene #${scene.scene_number} has empty story_purpose. Provide the narrative purpose for this scene.`
       };
     }
 
@@ -917,6 +926,7 @@ export function validateSceneSemanticPayload(
         errorMessage: isIndo
           ? `Scene #${scene.scene_number} memiliki 'character_names' bukan array.`
           : `Scene #${scene.scene_number} has non-array 'character_names'.`,
+        correctivePrompt: `Scene #${scene.scene_number} has invalid character_names. Provide an array of character names.`
       };
     }
   }

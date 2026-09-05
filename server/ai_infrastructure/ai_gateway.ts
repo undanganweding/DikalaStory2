@@ -865,19 +865,45 @@ export const aiGateway = {
                 );
 
                 const errMsg = (googleErr?.message || JSON.stringify(googleErr) || '').toLowerCase();
-                if (errMsg.includes('401') || errMsg.includes('unauthorized') || errMsg.includes('invalid api key') || errMsg.includes('key_invalid')) {
-                  // Auth / Credential failure -> break model loop to rotate credential
-                  break;
-                }
-
                 const isDailyExhausted = isDailyQuotaExhaustedError(googleErr);
+                const quotaStateVal = isDailyExhausted ? 'QUOTA_EXHAUSTED' : 'QUOTA_AVAILABLE';
+
+                // IMMUTABLE ROUTING TRACE
+                console.log(
+                  `\n[IMMUTABLE ROUTING TRACE]\n` +
+                  `  requestedModel: ${req.model || req.task || 'default'}\n` +
+                  `  selectedModel:  ${modelId}\n` +
+                  `  resolvedModel:  ${activeModelId}\n` +
+                  `  wireModel:      ${tryModel}\n` +
+                  `  providerId:     ${currentProviderId}\n` +
+                  `  credentialId:   ${credentialId} (${credName})\n` +
+                  `  attempt:        ${totalAttempts}\n` +
+                  `  fallbackReason: ${fallbackReason || 'None'}\n` +
+                  `  quotaState:     ${quotaStateVal}\n`
+                );
+
                 if (isDailyExhausted) {
                   console.warn(
-                    `[AI Gateway] [CLASSIFICATION] HARD DAILY QUOTA EXHAUSTED for model ${tryModel} on credential ${credName}. Marking candidate as hard exhausted; skipping rate limiter pause.`
+                    `[AI Gateway] [CLASSIFICATION] HARD DAILY QUOTA EXHAUSTED for model ${tryModel} on credential ${credName}. Marking credential as EXHAUSTED and rotating to next credential.`
                   );
                   dailyExhaustedRegistry.add(cacheKey1);
                   dailyExhaustedRegistry.add(cacheKey2);
+                  try {
+                    await credentialService.updateCredential(credentialId, {
+                      status: 'exhausted',
+                    });
+                  } catch {}
                   globalAIQueue.resetPause();
+                  // Break model loop to rotate credential immediately
+                  break;
+                } else if (errMsg.includes('401') || errMsg.includes('unauthorized') || errMsg.includes('invalid api key') || errMsg.includes('key_invalid')) {
+                  // Auth / Credential failure -> break model loop to rotate credential
+                  try {
+                    await credentialService.updateCredential(credentialId, {
+                      status: 'invalid_auth',
+                    });
+                  } catch {}
+                  break;
                 } else if (errMsg.includes('429') || errMsg.includes('resource_exhausted') || errMsg.includes('quota')) {
                   console.log(
                     `[AI Gateway] [CLASSIFICATION] TRANSIENT RPM RATE LIMIT for model ${tryModel} on credential ${credName}. Applying 2.5s queue pause.`
