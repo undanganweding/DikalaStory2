@@ -130,6 +130,26 @@ ${input.rawScript}
     throw new Error('Stage 3 failed: LLM provider returned an empty response.');
   }
 
-  const parsed = safeParseJSON(response.text) as Stage3Output;
-  return parsed;
+  const rawParsed = safeParseJSON(response.text);
+  if (!rawParsed || typeof rawParsed !== 'object') {
+    throw new Error('Stage 3 failed: LLM provider returned an invalid JSON structure.');
+  }
+
+  const locations = Array.isArray(rawParsed.locations) ? rawParsed.locations : [];
+
+  let objects: Stage3Output['objects'] = [];
+  if (Array.isArray(rawParsed.objects)) {
+    objects = rawParsed.objects;
+  } else if (rawParsed.objects === undefined || rawParsed.objects === null) {
+    objects = [];
+  } else {
+    throw new Error(
+      `Stage 3 failed: Contract violation - 'objects' field must be an array, received ${typeof rawParsed.objects}.`
+    );
+  }
+
+  return {
+    locations,
+    objects,
+  };
 }

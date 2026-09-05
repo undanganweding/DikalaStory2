@@ -664,8 +664,9 @@ export const supabaseDb = {
     const existingByName = new Map<string, LocationBible>();
     for (const item of existing) existingByName.set(item.name.trim().toLowerCase(), item);
 
+    const safeLocations = Array.isArray(newLocations) ? newLocations : [];
     const results: LocationBible[] = [];
-    for (const loc of newLocations) {
+    for (const loc of safeLocations) {
       const nameKey = loc.name.trim().toLowerCase();
       const match = existingByName.get(nameKey);
       if (match) {
@@ -715,8 +716,9 @@ export const supabaseDb = {
     const existingByName = new Map<string, ObjectBible>();
     for (const item of existing) existingByName.set(item.name.trim().toLowerCase(), item);
 
+    const safeObjects = Array.isArray(newObjects) ? newObjects : [];
     const results: ObjectBible[] = [];
-    for (const obj of newObjects) {
+    for (const obj of safeObjects) {
       const nameKey = obj.name.trim().toLowerCase();
       const match = existingByName.get(nameKey);
       if (match) {

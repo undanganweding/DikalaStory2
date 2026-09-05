@@ -99,18 +99,7 @@ export class RateLimiterQueue {
       const result = await task.fn();
       task.resolve(result);
     } catch (err: any) {
-      // Check if error is rate limit / resource exhausted
-      const msg = (err?.message || JSON.stringify(err) || '').toLowerCase();
-      const status = err?.status || err?.code || err?.statusCode;
-      if (
-        status === 429 ||
-        msg.includes('429') ||
-        msg.includes('resource_exhausted') ||
-        msg.includes('quota') ||
-        msg.includes('rate limit')
-      ) {
-        this.notifyRateLimitEncountered(2500);
-      }
+      // Reject task and let caller (ai_gateway) handle rate limit classification
       task.reject(err);
     } finally {
       this.activeCount--;

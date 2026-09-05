@@ -14,6 +14,63 @@ import { costIntelligenceService } from './cost_intelligence';
 import { costMonitor } from './cost_monitor';
 import { db } from '../db';
 
+export const dailyExhaustedRegistry = new Set<string>();
+
+export function resetDailyExhaustedRegistry(): void {
+  dailyExhaustedRegistry.clear();
+}
+
+export function isDailyQuotaExhaustedError(err: any): boolean {
+  if (!err) return false;
+  const str = (err?.message || JSON.stringify(err) || '').toLowerCase();
+
+  // 1. Check for explicit daily tokens / requests quota identifiers or messages
+  if (
+    str.includes('generaterequestsperday') ||
+    str.includes('generatecontentinputtokenspermodelperday') ||
+    str.includes('perday') ||
+    str.includes('per_day') ||
+    str.includes('per day') ||
+    str.includes('daily') ||
+    str.includes('limit: 0') ||
+    str.includes('limit: 20')
+  ) {
+    return true;
+  }
+
+  // 2. Inspect Google RPC details array for daily violations or large retryDelay (> 10s)
+  const details = err?.details || err?.error?.details;
+  if (Array.isArray(details)) {
+    for (const d of details) {
+      if (Array.isArray(d?.violations)) {
+        for (const v of d.violations) {
+          const qId = (v?.quotaId || '').toLowerCase();
+          const qMetric = (v?.quotaMetric || '').toLowerCase();
+          const qVal = String(v?.quotaValue || '');
+          if (qId.includes('day') || qMetric.includes('day') || qVal === '20' || qVal === '0') {
+            return true;
+          }
+        }
+      }
+      if (d?.['@type']?.includes('RetryInfo')) {
+        const retryDelayStr = String(d.retryDelay || '');
+        const match = retryDelayStr.match(/(\d+)s/);
+        if (match && parseInt(match[1], 10) > 10) {
+          return true;
+        }
+      }
+    }
+  }
+
+  // 3. Check for text match retryDelay > 10s (e.g. "retry in 37s", "retry in 53s", "retry in 19s", "retry in 38s")
+  const match = str.match(/retry in (\d+\.?\d*)s/);
+  if (match && parseFloat(match[1]) > 10) {
+    return true;
+  }
+
+  return false;
+}
+
 export const CINEMA_FALLBACK_POLICY: Record<string, string[]> = {
   // S1
   story_analysis: [
@@ -394,11 +451,15 @@ export const aiGateway = {
           }
 
           const policyCandidates = CINEMA_FALLBACK_POLICY[taskKey] || [
-            activeModelId || 'gemini-2.5-pro',
-            'gemini-2.5-flash',
+            'gemini-3.6-flash',
+            'gemini-3.1-pro-preview',
           ];
 
-          let fallbackChain = [...policyCandidates];
+          const primaryModelCandidate = activeModelId || 'gemini-3.7-flash';
+          let fallbackChain = [
+            primaryModelCandidate,
+            ...policyCandidates.filter(m => m !== primaryModelCandidate),
+          ];
 
           // Strictly filter out any forbidden models (lite, preview leaks) using regex predicate
           fallbackChain = fallbackChain.filter(m => !isForbiddenCinemaModel(m));
@@ -642,11 +703,15 @@ export const aiGateway = {
             }
 
             const policyCandidates = CINEMA_FALLBACK_POLICY[taskKey] || [
-              activeModelId || 'gemini-2.5-pro',
-              'gemini-2.5-flash',
+              'gemini-3.6-flash',
+              'gemini-3.1-pro-preview',
             ];
 
-            let fallbackChain = [...policyCandidates];
+            const primaryModelCandidate = activeModelId || 'gemini-3.7-flash';
+            let fallbackChain = [
+              primaryModelCandidate,
+              ...policyCandidates.filter(m => m !== primaryModelCandidate),
+            ];
 
             // Strictly filter out any forbidden models (lite, preview leaks) using regex predicate
             fallbackChain = fallbackChain.filter(m => !isForbiddenCinemaModel(m));
@@ -665,6 +730,16 @@ export const aiGateway = {
 
             for (let mIdx = 0; mIdx < fallbackChain.length; mIdx++) {
               const tryModel = fallbackChain[mIdx];
+              const cacheKey1 = `${credName}:${tryModel}`;
+              const cacheKey2 = `${credentialId}:${tryModel}`;
+
+              if (dailyExhaustedRegistry.has(cacheKey1) || dailyExhaustedRegistry.has(cacheKey2)) {
+                console.log(
+                  `[AI Gateway] [QUOTA CANDIDATE SUPPRESSION] Skipping candidate ${tryModel} on credential ${credName} — HARD DAILY QUOTA EXHAUSTED.`
+                );
+                continue;
+              }
+
               console.log(
                 `\n[MODEL RESOLUTION TRACE]\nTask: ${displayTask}\nConfigured Model: ${req.model}\nResolved Model:   ${activeModelId}\nWire Model:       ${tryModel}\nProvider:         ${currentProvider.id}\nCredential:       ${credName}\n`
               );
@@ -735,7 +810,18 @@ export const aiGateway = {
                   break;
                 }
 
-                if (errMsg.includes('429') || errMsg.includes('resource_exhausted') || errMsg.includes('quota')) {
+                const isDailyExhausted = isDailyQuotaExhaustedError(googleErr);
+                if (isDailyExhausted) {
+                  console.warn(
+                    `[AI Gateway] [CLASSIFICATION] HARD DAILY QUOTA EXHAUSTED for model ${tryModel} on credential ${credName}. Marking candidate as hard exhausted; skipping rate limiter pause.`
+                  );
+                  dailyExhaustedRegistry.add(cacheKey1);
+                  dailyExhaustedRegistry.add(cacheKey2);
+                  globalAIQueue.resetPause();
+                } else if (errMsg.includes('429') || errMsg.includes('resource_exhausted') || errMsg.includes('quota')) {
+                  console.log(
+                    `[AI Gateway] [CLASSIFICATION] TRANSIENT RPM RATE LIMIT for model ${tryModel} on credential ${credName}. Applying 2.5s queue pause.`
+                  );
                   globalAIQueue.notifyRateLimitEncountered(2500);
                 }
 

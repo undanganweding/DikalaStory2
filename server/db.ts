@@ -866,12 +866,13 @@ export const firestoreDb = {
     projectId: string,
     newObjects: Omit<ObjectBible, 'id' | 'project_id' | 'version' | 'created_at' | 'updated_at'>[]
   ): Promise<ObjectBible[]> {
+    const safeObjects = Array.isArray(newObjects) ? newObjects : [];
     if (!USE_FIRESTORE) {
       const existing = Object.values(jsonState.objects).filter((o) => o.project_id === projectId);
       const existingByName = new Map<string, ObjectBible>();
       for (const item of existing) existingByName.set(item.name.trim().toLowerCase(), item);
       const results: ObjectBible[] = [];
-      for (const obj of newObjects) {
+      for (const obj of safeObjects) {
         const normalizedName = obj.name.trim().toLowerCase();
         const existingMatch = existingByName.get(normalizedName);
         if (existingMatch) {
@@ -908,7 +909,7 @@ export const firestoreDb = {
     for (const item of existing) existingByName.set(item.name.trim().toLowerCase(), item);
     const results: ObjectBible[] = [];
     const batch = fsdb.batch();
-    for (const obj of newObjects) {
+    for (const obj of safeObjects) {
       const normalizedName = obj.name.trim().toLowerCase();
       const existingMatch = existingByName.get(normalizedName);
       if (existingMatch) {
