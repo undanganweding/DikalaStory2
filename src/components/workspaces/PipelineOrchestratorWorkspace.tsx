@@ -10,6 +10,7 @@ interface PipelineOrchestratorWorkspaceProps {
   onResetPipeline?: () => void;
   isGenerating: boolean;
   onOpenVisualCarousel?: () => void;
+  onOpenPipelineDetails?: () => void;
 }
 
 const STAGES_DETAIL = [
@@ -31,6 +32,7 @@ export const PipelineOrchestratorWorkspace: React.FC<PipelineOrchestratorWorkspa
   onResetPipeline,
   isGenerating,
   onOpenVisualCarousel,
+  onOpenPipelineDetails,
 }) => {
   const currentStage = project?.current_stage || 1;
   const [copiedAll, setCopiedAll] = useState(false);
@@ -71,6 +73,18 @@ export const PipelineOrchestratorWorkspace: React.FC<PipelineOrchestratorWorkspa
           </h1>
         </div>
         <div className="flex items-center flex-wrap gap-2.5">
+          {onOpenPipelineDetails && (
+            <button
+              id="btn-workspace-open-detailed-terminal"
+              onClick={onOpenPipelineDetails}
+              className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-indigo-300 border border-indigo-500/30 font-bold px-4 py-2.5 rounded-xl text-xs shadow-lg transition cursor-pointer"
+              title="Buka AI-Studio Style Detailed Execution Log Terminal"
+            >
+              <Terminal className="w-4 h-4 text-indigo-400" />
+              <span>Detail Log Terminal</span>
+            </button>
+          )}
+
           {onOpenVisualCarousel && (
             <button
               id="btn-open-pipeline-carousel"

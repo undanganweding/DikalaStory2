@@ -2137,6 +2137,31 @@ export interface TaskRouterRequest {
   };
 }
 
+export interface ExecutionEvent {
+  id: string;
+  timestamp: string;
+  projectId: string;
+  executionId?: string;
+  stage: string | number;
+  stageName?: string;
+  level: 'info' | 'success' | 'warn' | 'error';
+  category: 'ai' | 'router' | 'quota' | 'error' | 'system' | 'persistence';
+  message: string;
+  task?: string;
+  model?: string;
+  resolvedModel?: string;
+  wireModel?: string;
+  provider?: string;
+  credential?: string;
+  attempt?: number;
+  callNumber?: number;
+  durationMs?: number;
+  status?: string;
+  metadata?: Record<string, any>;
+  rawError?: string;
+}
+
+
 
 
 

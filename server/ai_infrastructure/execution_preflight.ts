@@ -126,7 +126,7 @@ export const executionPreflight = {
           providerScoredCredsCache.set(model.providerId, availableCreds);
         }
         const activeCreds = availableCreds.filter(
-          c => c.credential.status === 'active' && c.state === 'ACTIVE'
+          c => c.credential.status === 'active' && (c.state === 'ACTIVE' || c.state === 'WARNING')
         );
         if (activeCreds.length === 0) {
           continue;

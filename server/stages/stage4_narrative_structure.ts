@@ -111,5 +111,38 @@ ${input.rawScript}
   }
 
   const parsed = safeParseJSON(response.text) as NarrativeBeats;
-  return parsed;
+  return normalizeNarrativeBeats(parsed);
 }
+
+export function normalizeNarrativeBeats(beats: NarrativeBeats): NarrativeBeats {
+  const cleanField = (text: string): string => {
+    if (!text || typeof text !== 'string') return '';
+    let cleaned = text.trim();
+    // Remove duplicated parentheticals e.g. "(Bagian 1: Pengantar) (Bagian 1: Pengantar)" -> "(Bagian 1: Pengantar)"
+    cleaned = cleaned.replace(/\s*\(([^)]+)\)\s*\(\1\)/g, ' ($1)');
+    cleaned = cleaned.replace(/\s*\b(Bagian\s+\d+[:\s\w-]+)\b\s*\(\1\)/gi, ' $1');
+    // De-duplicate repeated sentences
+    const sentences = cleaned.split(/(?<=[.!?])\s+/);
+    const uniqueSentences: string[] = [];
+    for (const s of sentences) {
+      const trimmedS = s.trim();
+      if (trimmedS && !uniqueSentences.includes(trimmedS)) {
+        uniqueSentences.push(trimmedS);
+      }
+    }
+    return uniqueSentences.join(' ');
+  };
+
+  if (!beats) {
+    return { beginning: '', development: '', climax: '', consequence: '', ending: '' };
+  }
+
+  return {
+    beginning: cleanField(beats.beginning),
+    development: cleanField(beats.development),
+    climax: cleanField(beats.climax),
+    consequence: cleanField(beats.consequence),
+    ending: cleanField(beats.ending),
+  };
+}
+

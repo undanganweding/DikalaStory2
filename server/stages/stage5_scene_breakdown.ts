@@ -857,5 +857,70 @@ CORRECTIVE STRUCTURAL & DURATION GUIDELINES:
     input.language
   );
 
+  const semanticCheck = validateSceneSemanticPayload(normalizedScenes, input.language);
+  if (!semanticCheck.valid) {
+    throw new Error(`S5 Semantic Payload Validation Failed: ${semanticCheck.errorMessage}`);
+  }
+
   return normalizedScenes;
 }
+
+export interface SemanticValidationResult {
+  valid: boolean;
+  errorMessage?: string;
+}
+
+export function validateSceneSemanticPayload(
+  scenes: DetectedScene[],
+  language: 'id' | 'en' = 'id'
+): SemanticValidationResult {
+  const isIndo = language === 'id';
+  if (!scenes || !Array.isArray(scenes) || scenes.length === 0) {
+    return { valid: false, errorMessage: isIndo ? 'Daftar scene kosong' : 'Scene list is empty' };
+  }
+
+  for (const scene of scenes) {
+    // 1. Check for (Continuation) in title
+    if (scene.title && /\(continuation\)/i.test(scene.title)) {
+      return {
+        valid: false,
+        errorMessage: isIndo
+          ? `Scene #${scene.scene_number} memiliki judul tidak valid yang mengandung "(Continuation)": "${scene.title}"`
+          : `Scene #${scene.scene_number} has invalid title containing "(Continuation)": "${scene.title}"`,
+      };
+    }
+
+    // 2. Check for empty or missing event
+    if (!scene.event || typeof scene.event !== 'string' || scene.event.trim() === '' || scene.event.trim() === '-') {
+      return {
+        valid: false,
+        errorMessage: isIndo
+          ? `Scene #${scene.scene_number} memiliki field 'event' kosong atau dash.`
+          : `Scene #${scene.scene_number} has empty or dash 'event' field.`,
+      };
+    }
+
+    // 3. Check for empty or missing story_purpose
+    if (!scene.story_purpose || typeof scene.story_purpose !== 'string' || scene.story_purpose.trim() === '') {
+      return {
+        valid: false,
+        errorMessage: isIndo
+          ? `Scene #${scene.scene_number} memiliki 'story_purpose' kosong.`
+          : `Scene #${scene.scene_number} has empty 'story_purpose'.`,
+      };
+    }
+
+    // 4. Check for empty character_names
+    if (!scene.character_names || !Array.isArray(scene.character_names)) {
+      return {
+        valid: false,
+        errorMessage: isIndo
+          ? `Scene #${scene.scene_number} memiliki 'character_names' bukan array.`
+          : `Scene #${scene.scene_number} has non-array 'character_names'.`,
+      };
+    }
+  }
+
+  return { valid: true };
+}
+

@@ -21,6 +21,7 @@ const NotificationCenter = React.lazy(() => import('./components/NotificationCen
 const VersionHistoryModal = React.lazy(() => import('./components/VersionHistoryModal').then(m => ({ default: m.VersionHistoryModal })));
 
 import { PipelineCardCarouselModal } from './components/pipeline/PipelineCardCarouselModal';
+import { ExecutionObservabilityModal } from './components/pipeline/ExecutionObservabilityModal';
 
 // Lazy-loaded Studio & Workspaces
 const UnifiedStudioLayout = React.lazy(() => import('./components/studio/UnifiedStudioLayout').then(m => ({ default: m.UnifiedStudioLayout })));
@@ -97,6 +98,7 @@ export default function App() {
   const [isPipelineCarouselOpen, setIsPipelineCarouselOpen] = useState<boolean>(false);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
+  const [isObservabilityModalOpen, setIsObservabilityModalOpen] = useState<boolean>(false);
 
 
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -905,6 +907,7 @@ export default function App() {
                     onResetPipeline={handleResetPipeline}
                     isGenerating={currentProject?.status === 'processing'}
                     onOpenVisualCarousel={() => setIsPipelineCarouselOpen(true)}
+                    onOpenPipelineDetails={() => setIsObservabilityModalOpen(true)}
                   />
                 )}
 
@@ -1034,14 +1037,21 @@ export default function App() {
           onClose={() => setIsPipelineCarouselOpen(false)}
           onOpenPipelineDetails={() => {
             setIsPipelineCarouselOpen(false);
-            setMainMode('studio');
-            setActiveTab('pipeline');
+            setIsObservabilityModalOpen(true);
           }}
           onOpenStudio={() => {
             setIsPipelineCarouselOpen(false);
             setMainMode('studio');
             setActiveTab('overview');
           }}
+        />
+
+        <ExecutionObservabilityModal
+          isOpen={isObservabilityModalOpen}
+          onClose={() => setIsObservabilityModalOpen(false)}
+          projectName={currentProject?.title}
+          logs={logs}
+          currentStage={currentProject?.current_stage || 1}
         />
 
         {/* Mobile Navigation Components (<=768px) */}

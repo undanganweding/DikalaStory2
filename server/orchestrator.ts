@@ -13,6 +13,7 @@ import {
   runStage5SceneBreakdownAttempt,
   validateSceneDurations,
   validateSceneAssetNames,
+  validateSceneSemanticPayload,
   DetectedScene,
   allocateAndNormalizeSceneDurations,
 } from './stages/stage5_scene_breakdown';
@@ -1238,11 +1239,16 @@ async function runProjectInitializationImplInner(
           project.prompt_language
         );
 
-        if (!validation.valid || !assetNameValidation.valid) {
+        let semanticValidation = validateSceneSemanticPayload(
+          scenesAttempt,
+          project.prompt_language
+        );
+
+        if (!validation.valid || !assetNameValidation.valid || !semanticValidation.valid) {
           log(
             5,
             'Scene Breakdown & Duration',
-            `Mendeteksi isu validasi pada Stage 5. Mencoba melakukan perbaikan deterministik lokal...`,
+            `Mendeteksi isu validasi pada Stage 5 (${!semanticValidation.valid ? 'Semantic Payload / Continuation Error' : 'Duration/Asset Error'}). Mencoba melakukan perbaikan deterministik lokal...`,
             'info',
             'S5'
           );
@@ -1335,7 +1341,7 @@ async function runProjectInitializationImplInner(
           }
         }
 
-        if (validation.valid && assetNameValidation.valid) {
+        if (validation.valid && assetNameValidation.valid && semanticValidation.valid) {
           validatedScenes = scenesAttempt;
           const s5Duration = Date.now() - s5AttemptStartTime;
           recordTelemetry(projectId, {
@@ -1359,8 +1365,8 @@ async function runProjectInitializationImplInner(
           );
           break;
         } else {
-          const combinedError = [validation.errorMessage, assetNameValidation.errorMessage].filter(Boolean).join(' ');
-          const combinedCorrective = [validation.correctivePrompt, assetNameValidation.correctivePrompt].filter(Boolean).join(' ');
+          const combinedError = [validation.errorMessage, assetNameValidation.errorMessage, semanticValidation.errorMessage].filter(Boolean).join(' ');
+          const combinedCorrective = [validation.correctivePrompt, assetNameValidation.correctivePrompt, semanticValidation.errorMessage ? `Fix semantic error: ${semanticValidation.errorMessage}` : ''].filter(Boolean).join(' ');
           lastValidationError = combinedError;
           const s5Duration = Date.now() - s5AttemptStartTime;
           recordTelemetry(projectId, {
