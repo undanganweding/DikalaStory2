@@ -390,15 +390,10 @@ export const aiGateway = {
         continue;
       }
 
+      // Fail-closed: no usable credential for this provider -> skip provider entirely.
+      // Never synthesize credentials here; preflight and task router are fail-closed too.
       if (scoredCredentials.length === 0) {
-        scoredCredentials = [{
-          credential: { id: 'mock_test_cred', providerId: currentProviderId, encryptedSecret: 'mock_secret' } as any,
-          healthStatus: 'HEALTHY',
-          successRate: 100,
-          avgLatencyMs: 150,
-          score: 100,
-          state: 'ACTIVE' as const,
-        }];
+        continue;
       }
 
       // 5. Execute through existing provider driver
@@ -411,14 +406,14 @@ export const aiGateway = {
 
         try {
           let apiKey = '';
-          if (scored.credential.encryptedSecret === 'mock_secret') {
-            apiKey = 'mock_api_key_test';
-          } else {
-            try {
-              apiKey = secretVault.decryptSecret(scored.credential.encryptedSecret);
-            } catch (err: any) {
-              apiKey = 'mock_api_key_test';
-            }
+          // Fail-closed: a credential whose secret cannot be decrypted is unusable.
+          // Skip to the next credential/provider; never synthesize a mock key here.
+          try {
+            apiKey = secretVault.decryptSecret(scored.credential.encryptedSecret);
+          } catch (err: any) {
+            lastError = new Error(`Credential '${credentialId}' unusable: secret decryption failed (${err.message}).`);
+            console.warn(`[AI Gateway] ${lastError.message} Skipping credential (fail-closed, no mock key fallback).`);
+            continue;
           }
 
           const isGoogle = currentProvider.id === 'google' || currentProvider.type === 'gemini' || currentProvider.type === 'google-generative-ai' || currentProvider.type === 'google';

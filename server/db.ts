@@ -1063,6 +1063,13 @@ export const firestoreDb = {
     shots: Omit<Shot, 'id' | 'scene_id' | 'project_id' | 'version' | 'created_at' | 'updated_at'>[]
   ): Promise<Shot[]> {
     if (!USE_FIRESTORE) {
+      const replacedShotIds = Object.values(jsonState.shots)
+        .filter((shot) => shot.scene_id === sceneId)
+        .map((shot) => shot.id)
+        .filter((id): id is string => Boolean(id));
+      for (const key of Object.keys(jsonState.video_prompts)) {
+        if (replacedShotIds.includes(jsonState.video_prompts[key].shot_id)) delete jsonState.video_prompts[key];
+      }
       for (const key of Object.keys(jsonState.shots)) {
         if (jsonState.shots[key].scene_id === sceneId) delete jsonState.shots[key];
       }
@@ -1077,9 +1084,16 @@ export const firestoreDb = {
       return results;
     }
     const fsdb = getFirestore();
-    // Replace semantics: delete old shots for this scene, then insert new ones.
+    // Replace semantics: delete old shots and their prompts for this scene, then insert new ones.
     const existingShots = await colRef(fsdb, 'shots').where('scene_id', '==', sceneId).get();
     const batch = fsdb.batch();
+    const existingShotIds = new Set(existingShots.docs.map((d: any) => d.id));
+    if (existingShotIds.size > 0) {
+      const existingPrompts = await colRef(fsdb, 'video_prompts').where('scene_id', '==', sceneId).get();
+      for (const d of existingPrompts.docs) {
+        if (existingShotIds.has(d.data()?.shot_id)) batch.delete(d.ref);
+      }
+    }
     for (const d of existingShots.docs) batch.delete(d.ref);
     const results: Shot[] = [];
     for (const s of shots) {
@@ -1504,11 +1518,10 @@ export const firestoreDb = {
 };
 
 export function getDatabaseDriver(): typeof firestoreDb {
-  if (process.env.SUPABASE_ENABLED === 'true') {
-    if (!isSupabaseConfigured()) throw new Error('[SUPABASE FAIL-CLOSED] Missing Supabase configuration.');
-    return supabaseDb as unknown as typeof firestoreDb;
+  if (!isSupabaseConfigured()) {
+    throw new Error('[SUPABASE FAIL-CLOSED] Missing Supabase configuration.');
   }
-  return firestoreDb;
+  return supabaseDb as unknown as typeof firestoreDb;
 }
 
 export const db: typeof firestoreDb = new Proxy({} as typeof firestoreDb, {

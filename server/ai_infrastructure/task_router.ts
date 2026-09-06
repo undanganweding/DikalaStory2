@@ -159,13 +159,14 @@ export const taskRouter = {
       }
 
       // (c) Verify active credentials exist and are scored for this provider (memoized per provider)
+      // Predicate must match execution preflight: a WARNING-state credential is still usable.
       let availableCreds = providerScoredCredsCache.get(model.providerId);
       if (!availableCreds) {
         availableCreds = await quotaRouter.scoreCredentials(model.providerId);
         providerScoredCredsCache.set(model.providerId, availableCreds);
       }
       const activeCreds = availableCreds.filter(
-        c => c.credential.status === 'active' && c.state === 'ACTIVE'
+        c => c.credential.status === 'active' && (c.state === 'ACTIVE' || c.state === 'WARNING')
       );
       if (activeCreds.length === 0) {
         // Provider has no active healthy keys

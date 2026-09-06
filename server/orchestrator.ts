@@ -1905,6 +1905,7 @@ async function runPipelineForSceneImpl(
     const errType = classifyError(err);
     const blocker = knownBlocker(err, `S7:${sceneId}`);
     if (blocker) {
+      await db.updateScene(sceneId, { master_image_prompt_json: null });
       await persistBlockedScene(sceneId, blocker);
       const result: ScenePipelineResult = { sceneId, status: 'BLOCKED', success: false, blockers: [blocker], assetIntegrityReport, continuityState: sceneContinuityState };
       await safePersistSceneSummary(projectId, runContext?.runId, sceneId, scene.scene_number, sceneStartedAtMs, result.status, result);
@@ -1912,6 +1913,7 @@ async function runPipelineForSceneImpl(
     }
     const s7Duration = Date.now() - s7StartTime;
     await db.updateScene(sceneId, {
+      master_image_prompt_json: null,
       image_gen_status: 'failed',
       image_gen_error: errMsg,
     });

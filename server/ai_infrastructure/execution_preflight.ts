@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { taskRegistry } from './task_registry';
 import { quotaRouter } from './quota_router';
+import { credentialService } from './credential_service';
 import { providerService } from './provider_service';
 import { capabilityRegistry } from './capability_registry';
 import { isForbiddenCinemaModel } from './ai_gateway';
@@ -38,9 +39,12 @@ export const executionPreflight = {
     const blockedStages: string[] = [];
 
     // 1. Bulk pre-fetch snapshot data to solve N+1 DB reads
+    // Credential source must mirror runtime selection (quotaRouter/credentialService),
+    // including the env-based fallback credential, otherwise preflight diverges from
+    // the paths actually available at execution time.
     const [allModels, allCredentials] = await Promise.all([
       db.getModels(),
-      db.getCredentials ? db.getCredentials() : (db as any).listCredentials() as Promise<any[]>,
+      credentialService.listCredentials(),
     ]);
 
     const enabledModels = allModels.filter(m => m.enabled !== false);
