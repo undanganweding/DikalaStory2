@@ -1489,6 +1489,7 @@ async function runProjectInitializationImplInner(
     // Update project foundation status to READY
     await db.saveProject({
       ...(await db.getProject(projectId))!,
+      status: 'completed',
       foundation_status: 'ready',
       duration_validation_passed: true,
       retry_count: attempt,

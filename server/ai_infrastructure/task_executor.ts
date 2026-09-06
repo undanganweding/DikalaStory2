@@ -1,5 +1,6 @@
 import { taskRouter, TaskExecutionPlan, AITaskId, TaskRouterRequest } from './task_router';
 import { aiGateway } from './ai_gateway';
+import { executeNineRouterText, isNineRouterConfigured } from './nine_router_client';
 import { cleanJsonResponse } from '../llm_provider';
 import { ReasoningConfig } from '../../src/types';
 
@@ -81,7 +82,32 @@ export const taskExecutor = {
       `[TaskExecutor] EXECUTING task=${plan.taskId} stage=${options.stageCode || 'N/A'} model=${plan.modelId} provider=${plan.providerId} credential=${plan.credentialId} score=${plan.score}`
     );
 
-    // 4. Dispatch to AI Gateway
+    // 4. Dispatch through 9Router when configured; retain existing gateway only for local compatibility.
+    if (isNineRouterConfigured()) {
+      const nineRouterResponse = await executeNineRouterText({
+        combo: plan.modelId,
+        prompt: options.prompt,
+        systemInstruction: options.systemInstruction,
+        responseSchema: options.responseSchema,
+        temperature: options.temperature ?? 0.3,
+        maxTokens: options.maxOutputTokens,
+      });
+      const cleanedText = cleanJsonResponse(nineRouterResponse.text);
+      console.log(`[TaskExecutor] 9Router parsed task=${plan.taskId} stage=${options.stageCode || 'N/A'} model=${nineRouterResponse.model || 'unknown'} finish=${nineRouterResponse.finishReason || 'unknown'} rawLength=${nineRouterResponse.text.length} cleanedLength=${cleanedText.length} rawPreview=${nineRouterResponse.text.slice(0, 500)}`);
+      return {
+        text: cleanedText,
+        plan,
+        latencyMs: Date.now() - startTime,
+        tokens: nineRouterResponse.promptTokens === undefined || nineRouterResponse.completionTokens === undefined
+          ? undefined
+          : {
+              prompt: nineRouterResponse.promptTokens,
+              completion: nineRouterResponse.completionTokens,
+              total: nineRouterResponse.totalTokens ?? nineRouterResponse.promptTokens + nineRouterResponse.completionTokens,
+            },
+      };
+    }
+
     const gatewayResponse = await aiGateway.generate({
       executionPlan: plan,
       model: plan.modelId,

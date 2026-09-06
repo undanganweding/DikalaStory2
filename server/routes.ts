@@ -897,6 +897,28 @@ apiRouter.post('/projects/:id/initialize-foundation', async (req: Request, res: 
         error: result.error,
         timestamp: new Date().toISOString(),
       });
+    }).catch(async (err: unknown) => {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error(`[FoundationInit] Detached initialization failed project=${id}:`, err);
+      try {
+        const currentProject = await db.getProject(id);
+        if (currentProject) {
+          await db.saveProject({
+            ...currentProject,
+            status: 'failed',
+            foundation_status: 'failed',
+            error_message: errorMessage,
+          });
+        }
+      } catch (persistErr: unknown) {
+        console.error(`[FoundationInit] Failed to persist detached initialization failure project=${id}:`, persistErr);
+      }
+      broadcastSSE(id, {
+        type: 'finished',
+        success: false,
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
+      });
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

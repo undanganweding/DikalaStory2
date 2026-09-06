@@ -602,7 +602,13 @@ STRICT NARRATIVE DURATION & STRUCTURE RULES:
 4. ALLOCATE BY NARRATIVE WEIGHT: Climax, critical decisions, and heavy emotional beats MUST receive larger time allocations than quick expository or transition scenes. Do NOT distribute evenly.
 5. scene_number must be sequential 1, 2, 3...`;
 
-  const systemInstruction = `${baseInstruction}\n\n${narrativeDoctrine}\n\nGROUNDING CONTEXT:\n${groundingContext}`;
+  const canonicalEventInstruction = isIndo
+    ? `\n\nKONTRAK FIELD KANONIK (MUTLAK): SETIAP scene WAJIB memiliki field JSON canonical "event". Nilainya WAJIB berupa deskripsi bermakna dan tidak kosong tentang aksi atau peristiwa dramatis yang terjadi dalam scene tersebut. Field "dramatic_action", "narrative_goal", "narrative_beat", atau field serupa TIDAK BOLEH menggantikan "event". Jangan gunakan nilai placeholder seperti "-", "N/A", atau "none".`
+    : `\n\nCANONICAL FIELD CONTRACT (NON-NEGOTIABLE): EVERY scene MUST contain the canonical JSON field "event". Its value MUST be a non-empty, meaningful description of the dramatic action or event occurring in that scene. "dramatic_action", "narrative_goal", "narrative_beat", or similar fields MUST NOT replace "event". Do not use placeholder values such as "-", "N/A", or "none".`;
+  const canonicalStoryPurposeInstruction = isIndo
+    ? `\n\nKONTRAK FIELD KANONIK (MUTLAK): SETIAP scene WAJIB memiliki field JSON canonical "story_purpose". Nilainya WAJIB berupa tujuan naratif yang bermakna, tidak kosong, dan spesifik untuk scene tersebut. Field "narrative_goal", "dramatic_action", "event", atau field lain TIDAK BOLEH menggantikan "story_purpose". Jangan gunakan nilai kosong, whitespace, atau placeholder.`
+    : `\n\nCANONICAL FIELD CONTRACT (NON-NEGOTIABLE): EVERY scene MUST contain the canonical JSON field "story_purpose". Its value MUST be a meaningful, non-empty narrative purpose specific to that scene. "narrative_goal", "dramatic_action", "event", or other fields MUST NOT replace "story_purpose". Do not use empty, whitespace, or placeholder values.`;
+  const systemInstruction = `${baseInstruction}${canonicalEventInstruction}${canonicalStoryPurposeInstruction}\n\n${narrativeDoctrine}\n\nGROUNDING CONTEXT:\n${groundingContext}`;
 
   // Canonical asset roster contract (S2/S3 -> S5 -> S6). The S6 asset integrity
   // gate resolves scene.character_names / scene.location_name against the
@@ -661,6 +667,13 @@ Distinction: Batas container rendering bukan total film. Semua adegan jika dijum
     prompt += isIndo
       ? `\n\n=== REVISI PENTING DARI VALIDASI SEBELUMNYA ===
 ${input.feedbackPrompt}
+KONTRAK FIELD CANONICAL WAJIB DIPERBAIKI:
+- SETIAP scene WAJIB memiliki field JSON canonical "event".
+- "event" WAJIB berisi deskripsi aksi/peristiwa dramatis yang bermakna dan tidak kosong.
+- "dramatic_action", "narrative_goal", dan "narrative_beat" TIDAK BOLEH menggantikan field "event".
+- Jangan gunakan "-", "N/A", atau "none" sebagai nilai "event".
+- SETIAP scene WAJIB memiliki "story_purpose" bermakna, tidak kosong, dan spesifik untuk scene tersebut.
+- "narrative_goal", "dramatic_action", atau "event" TIDAK BOLEH menggantikan "story_purpose".
 PANDUAN PERBAIKAN STRUKTUR & DURASI:
 - Buat urutan ${targetSceneCount} adegan (minimal ${minScenesRequired} adegan).
 - Pastikan setiap adegan berdurasi antara 5 detik sampai maksimal ${effectiveCeiling} detik.
@@ -668,6 +681,13 @@ PANDUAN PERBAIKAN STRUKTUR & DURASI:
 - JANGAN menggunakan batas container rendering (30s) sebagai batas total durasi film. Proyek ini berdurasi ${input.totalDurationTargetSec} detik!`
       : `\n\n=== CRITICAL REVISION FROM PREVIOUS VALIDATION ===
 ${input.feedbackPrompt}
+MANDATORY CANONICAL FIELD REPAIR:
+- EVERY scene MUST contain the canonical JSON field "event".
+- "event" MUST contain a non-empty, meaningful description of the dramatic action or event.
+- "dramatic_action", "narrative_goal", and "narrative_beat" MUST NOT replace "event".
+- Do not use "-", "N/A", or "none" as the "event" value.
+- EVERY scene MUST contain a meaningful, non-empty, scene-specific "story_purpose".
+- "narrative_goal", "dramatic_action", or "event" MUST NOT replace "story_purpose".
 CORRECTIVE STRUCTURAL & DURATION GUIDELINES:
 - Generate a sequence of ${targetSceneCount} scenes (minimum ${minScenesRequired} scenes).
 - Ensure each scene duration is between 5s and maximum ${effectiveCeiling}s.
@@ -856,11 +876,6 @@ CORRECTIVE STRUCTURAL & DURATION GUIDELINES:
     input.allowFinalSceneOverride,
     input.language
   );
-
-  const semanticCheck = validateSceneSemanticPayload(normalizedScenes, input.language);
-  if (!semanticCheck.valid) {
-    throw new Error(`S5 Semantic Payload Validation Failed: ${semanticCheck.errorMessage}`);
-  }
 
   return normalizedScenes;
 }

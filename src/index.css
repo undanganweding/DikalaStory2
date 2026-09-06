@@ -43,4 +43,24 @@
   ::-webkit-scrollbar-thumb:hover {
     background: #363B5E;
   }
+
+  /* Phase 1 desktop shell: reserve extension bands for Phase 3/4. */
+  .phase1-shell-body {
+    min-width: 0;
+    background:
+      radial-gradient(circle at 50% -30%, rgba(99, 102, 241, 0.08), transparent 42%),
+      var(--bg-base);
+  }
+
+  @media (min-width: 768px) {
+    .phase1-shell-body {
+      padding-bottom: 0;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .phase1-shell-body {
+      --phase1-content-gutter: clamp(1rem, 2vw, 2rem);
+    }
+  }
 }

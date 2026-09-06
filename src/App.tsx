@@ -77,7 +77,7 @@ export default function App() {
   const [mainMode, setMainMode] = useState<'dashboard' | 'production' | 'studio'>('dashboard');
 
   const [activeTab, setActiveTab] = useState<StudioWorkspaceTab>('overview');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState<boolean>(false);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState<boolean>(false);
@@ -717,7 +717,38 @@ export default function App() {
       />
 
       {/* Main View Router */}
-      <div className="flex-1 min-h-0 flex overflow-hidden relative pb-16 md:pb-0">
+      <div className="phase1-shell-body flex-1 min-h-0 flex overflow-hidden relative pb-16 md:pb-0">
+        <div className="hidden md:flex h-full shrink-0">
+          <Sidebar
+            currentProject={currentProject}
+            activeTab={activeTab}
+            onSelectTab={(tab) => {
+              if (!currentProject && tab !== 'overview' && tab !== 'settings') {
+                setIsProjectsModalOpen(true);
+                return;
+              }
+              setActiveTab(tab);
+              setMainMode('studio');
+            }}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
+            onOpenProjects={() => setIsProjectsModalOpen(true)}
+            onNewProject={() => {
+              setCurrentProject(null);
+              setMainMode('production');
+            }}
+            counts={{
+              scenes: scenes.length,
+              shots: totalShotsCount,
+              characters: characters.length,
+              locations: locations.length,
+              objects: objects.length,
+              continuityViolations: 0,
+              isGenerating: currentProject?.status === 'processing',
+            }}
+          />
+        </div>
+
         {isInitialLoading && (
           <div className="absolute inset-0 bg-[#090B10]/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center gap-3">
             <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />

@@ -151,6 +151,9 @@ ${input.rawScript}
     throw new Error('Stage 2 failed: LLM provider returned an empty response.');
   }
 
-  const parsed = safeParseJSON(response.text) as DetectedCharacter[];
-  return parsed;
+  const parsed = safeParseJSON(response.text) as unknown;
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as { characters?: unknown }).characters)) {
+    throw new Error("Stage 2 failed: Contract violation - 'characters' field must be an array.");
+  }
+  return (parsed as { characters: DetectedCharacter[] }).characters;
 }
