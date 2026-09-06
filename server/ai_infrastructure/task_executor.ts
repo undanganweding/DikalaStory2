@@ -83,6 +83,7 @@ export const taskExecutor = {
 
     // 4. Dispatch to AI Gateway
     const gatewayResponse = await aiGateway.generate({
+      executionPlan: plan,
       model: plan.modelId,
       providerId: plan.providerId,
       task: plan.taskId,

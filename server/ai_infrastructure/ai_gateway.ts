@@ -193,6 +193,13 @@ export const FORBIDDEN_CINEMA_MODELS = [
 export interface AIGatewayRequest {
   model?: string;
   task?: string;
+  executionPlan?: {
+    taskId: string;
+    stageCode?: string;
+    providerId: string;
+    modelId: string;
+    credentialId: string;
+  };
   prompt: string;
   systemInstruction?: string;
   agentName?: string;
@@ -221,6 +228,16 @@ export interface AIGatewayResponse {
 export const aiGateway = {
   async generate(req: AIGatewayRequest): Promise<AIGatewayResponse> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const authoritativePlan = req.executionPlan;
+    if (authoritativePlan) {
+      if (req.model && req.model !== authoritativePlan.modelId) {
+        throw new Error(`[AI PLAN MISMATCH] Requested model '${req.model}' differs from authoritative model '${authoritativePlan.modelId}'.`);
+      }
+      if (req.providerId && req.providerId !== authoritativePlan.providerId) {
+        throw new Error(`[AI PLAN MISMATCH] Requested provider '${req.providerId}' differs from authoritative provider '${authoritativePlan.providerId}'.`);
+      }
+      req = { ...req, model: authoritativePlan.modelId, providerId: authoritativePlan.providerId };
+    }
 
     // Intelligence Router Bridge: Translate task intent into candidate ranking preferences
     let taskIntent: TaskIntentRecommendation | undefined;
@@ -381,6 +398,7 @@ export const aiGateway = {
 
     for (const currentProvider of capableAndEligibleProviders) {
       const currentProviderId = currentProvider.id;
+      if (authoritativePlan && currentProviderId !== authoritativePlan.providerId) continue;
 
       // Get ordered fallback chain of credentials
       let scoredCredentials;
@@ -399,6 +417,7 @@ export const aiGateway = {
       // 5. Execute through existing provider driver
       for (const scored of scoredCredentials) {
         totalAttempts++;
+        if (authoritativePlan && scored.credential.id !== authoritativePlan.credentialId) continue;
         const credentialId = scored.credential.id;
         const credName = scored.credential.name || scored.credential.id;
         console.log(`[AI Gateway] Selected credential: ${credName} (Priority: ${scored.credential.priority || 1}, Score: ${scored.score}, Provider: ${currentProviderId})`);
@@ -705,10 +724,9 @@ export const aiGateway = {
             ];
 
             const primaryModelCandidate = activeModelId || 'gemini-3.7-flash';
-            let fallbackChain = [
-              primaryModelCandidate,
-              ...policyCandidates.filter(m => m !== primaryModelCandidate),
-            ];
+            let fallbackChain = authoritativePlan
+              ? [primaryModelCandidate]
+              : [primaryModelCandidate, ...policyCandidates.filter(m => m !== primaryModelCandidate)];
 
             // Strictly filter out any forbidden models (lite, preview leaks) using regex predicate
             fallbackChain = fallbackChain.filter(m => !isForbiddenCinemaModel(m));
