@@ -1,0 +1,433 @@
+{
+  "narrativeBeats": {
+    "beginning": "SFX: Derap langkah terburu-buru di lorong berbatu Makkah, napas terengah-engah. Kamera melacak Abdul Muttalib (70) menerobos tirai kain Rumah Aminah saat sinar fajar keemasan menerpa debu ruangan. Aminah (20) menyerahkan bayi yang terbedong erat dalam kain putih bersih dengan wajah rapat tersembunyi di dekapan. Abdul Muttalib berlutut, matanya berkaca-kaca menatap sosok yatim cucunya, merasakan keheningan luar biasa yang menyelimuti seluruh Makkah.",
+    "development": "SFX: Riuh gemuruh pasar bersahutan dengan derap langkah kaki di pelataran. Abdul Muttalib melangkah mantap menembus terik matahari Pelataran Ka'bah, menggendong bedongan suci tersebut tinggi-tinggi. Para Pembesar Quraisy (55) berbisik curiga dan menyipitkan mata saat melihat pemimpin kabilah itu melangkah menuju pusat Ka'bah, membawa bayi yatim Abdullah di tengah ekspektasi tinggi para bangsawan.",
+    "climax": "SFX: Keheningan mendadak yang menekan saat angin gurun berhenti berhembus. Di depan dinding Ka'bah, Abdul Muttalib berteriak tegas penuh keagungan: 'Aku memberinya nama Muhammad!' Pembesar Quraisy maju dengan raut gusar: 'Mengapa engkau menamainya dengan nama asing yang tak pernah dipakai nenek moyang kita?!' Abdul Muttalib menatap tajam tanpa gentar: 'Agar dia dipuji oleh Allah di langit dan dipuji seluruh makhluk di bumi!'",
+    "consequence": "SFX: Bisik-bisik ketegangan meletup di antara para tetua Quraisy. Proklamasi berani itu menyengat kesadaran para bangsawan Makkah, memicu perdebatan tajam dan tatapan tak percaya di pelataran batu Ka'bah. Dari balik tirai Rumah Aminah, sang ibu memeluk selendangnya dengan tatapan haru, merasakan gelombang takdir besar telah resmi dimulai.",
+    "ending": "SFX: Angin gurun berderu kencang membawa debu kemerahan di Gerbang Kota Makkah saat matahari terbenam. Kafilah wanita pengasuh dari dusun padang pasir tiba dengan wajah letih akibat kemarau panjang. Halimah as-Sa'diyah (28) melangkah ragu dengan unta kurusnya, menatap Kota Makkah tanpa menyadari bahwa bayi terbedong bernama Muhammad sedang menunggu Takdir Ilahi bersamanya."
+  },
+  "scenes": [
+    {
+      "scene_number": 1,
+      "title": "INT. LORONG KOTA MAKKAH - LANGKAH TERGESA SANG PEMIMPIN",
+      "duration_sec": 15,
+      "scene_pattern": "HOOK",
+      "story_purpose": "Membuka cerita secara dinamis dengan aksi fisik Abdul Muttalib yang berlari menyambut kelahiran cucunya.",
+      "location_name": "Lorong Kota Makkah",
+      "time_of_day": "DAWN",
+      "character_names": [
+        "Abdul Muttalib"
+      ],
+      "emotional_objective": "Urgensi mendalam bercampur harapan besar.",
+      "event": "Abdul Muttalib berlari tergesa menyusuri lorong berbatu Makkah saat fajar merekah.",
+      "narrative_function": "Inciting Incident Beat 1",
+      "visual_action": "Kamera bergerak cepat melacak langkah kaki Abdul Muttalib yang membelah lorong sempit. Jubahnya tersibak kencang menyapu dinding batu berdebu. Napasnya memburu, pandangannya lurus terkunci ke depan tanpa memedulikan dinginnya embun gurun.",
+      "dialogue": [
+        {
+          "character_name": "Abdul Muttalib",
+          "line": "Benarkah anak Abdullah telah lahir?! Bukakan jalan!",
+          "delivery": "terengah-engah namun berwibawa",
+          "emotional_subtext": "Kecemasan bercampur kerinduan membuncah pada darah daging putranya yang telah tiada."
+        }
+      ],
+      "historical_integrity": {
+        "tier": "DRAMATIZED_DIALOGUE",
+        "basis": "Riwayat kegembiraan Abdul Muttalib saat mendengar kabar kelahiran cucunya dari Abdullah."
+      },
+      "narrator_vo": "Fajar merekah di lembah tandus, memecah kesunyian yang menanti fajar baru.",
+      "prophet_depiction_safeguard": {
+        "is_prophet_present": false,
+        "visual_rule": "Nabi Muhammad ﷺ belum tampak di dalam bingkai adegan."
+      },
+      "sound_design": {
+        "sfx": [
+          "derap langkah terburu-buru di lorong berbatu",
+          "napas terengah-engah berat",
+          "desir angin fajar"
+        ],
+        "bgm_mood": "ketegangan berdenyut cepat berpadu denting oud ritmis",
+        "silence_cue": false
+      },
+      "scene_tone": {
+        "intensity": 45,
+        "emotional_weight": 55,
+        "pacing": "medium",
+        "atmosphere": "mysterious",
+        "dramatic_tension": 60,
+        "preset": "MYSTERIOUS",
+        "is_ai_recommended": true
+      }
+    },
+    {
+      "scene_number": 2,
+      "title": "INT. RUMAH AMINAH - PERTEMUAN SANG KAKEK DAN YATIM",
+      "duration_sec": 21,
+      "scene_pattern": "CONTEXT",
+      "story_purpose": "Memperlihatkan momen emosional penyerahan bayi terbedong dari Aminah kepada Abdul Muttalib.",
+      "location_name": "Rumah Aminah",
+      "time_of_day": "DAWN",
+      "character_names": [
+        "Abdul Muttalib",
+        "Aminah"
+      ],
+      "emotional_objective": "Keharuan sakral dan pelepasan duka mendalam.",
+      "event": "Aminah menyerahkan bayi terbedong kepada Abdul Muttalib yang berlutut berlinang air mata.",
+      "narrative_function": "Inciting Incident Beat 2",
+      "visual_action": "Abdul Muttalib menerobos tirai kain. Cahaya fajar keemasan menyusup lembut menerpa butiran debu ruangan. Aminah duduk bersandar pucat namun teduh, menyerahkan bungkusan kain putih bersih. Bayi terbedong rapat bersandar di dada kakeknya, wajah sepenuhnya membelakangi kamera. Abdul Muttalib berlutut, jemari keriputnya bergetar menyentuh tepi kain pembungkus.",
+      "dialogue": [
+        {
+          "character_name": "Aminah",
+          "line": "Ambillah, wahai Tuanku... Dia adalah peninggalan terakhir Abdullah untukmu.",
+          "delivery": "berbisik lirih penuh keikhlasan",
+          "emotional_subtext": "Menyerahkan amanah terberat sekaligus terindah kepada sang pelindung kabilah."
+        },
+        {
+          "character_name": "Abdul Muttalib",
+          "line": "Duhai penyejuk mata... Engkau menggantikan aroma ayahmu di dadaku.",
+          "delivery": "bergetar tertahan dengan linangan air mata",
+          "emotional_subtext": "Penawar rindu mendalam atas wafatnya sang putra tercinta."
+        }
+      ],
+      "historical_integrity": {
+        "tier": "FACT",
+        "basis": "Ibnu Hisyam mencatat Abdul Muttalib segera memangku cucunya dengan haru saat lahir."
+      },
+      "narrator_vo": "Di bilik bersahaja ini, seorang yatim disambut dengan air mata cinta dan takdir yang abadi.",
+      "prophet_depiction_safeguard": {
+        "is_prophet_present": true,
+        "visual_rule": "Bayi terbedong rapat dalam kain katun putih, posisi menghadap dada Abdul Muttalib dan membelakangi lensa. Tidak ada penggambaran wajah maupun cahaya gaib."
+      },
+      "sound_design": {
+        "sfx": [
+          "gesekan lembut tirai kain",
+          "hembusan napas lega",
+          "tangisan lirih tercekat"
+        ],
+        "bgm_mood": "gesekan ney dan senar cello melankolis yang syahdu",
+        "silence_cue": true
+      },
+      "scene_tone": {
+        "intensity": 55,
+        "emotional_weight": 95,
+        "pacing": "slow",
+        "atmosphere": "tragic",
+        "dramatic_tension": 70,
+        "preset": "TRAGIC",
+        "is_ai_recommended": true
+      }
+    },
+    {
+      "scene_number": 3,
+      "title": "EXT. LORONG KOTA MAKKAH - ARAKAN MENUJU PUSAT KOTA",
+      "duration_sec": 22,
+      "scene_pattern": "ESCALATION",
+      "story_purpose": "Membangun ketegangan publik saat sang pemimpin membawa bayi yatim melintasi kota menuju Ka'bah.",
+      "location_name": "Lorong Kota Makkah",
+      "time_of_day": "DAY",
+      "character_names": [
+        "Abdul Muttalib"
+      ],
+      "emotional_objective": "Keteguhan tekad berbalut doa pengharapan.",
+      "event": "Abdul Muttalib melangkah gagah mendekap sang bayi melewati lorong kota di bawah tatapan warga.",
+      "narrative_function": "Escalation Beat 1",
+      "visual_action": "Abdul Muttalib berjalan dengan punggung tegak di tengah terik yang mulai menyengat. Kedua tangannya mendekap erat bungkusan bayi di dada. Matanya menatap lurus ke depan tanpa goyah, melewati bayang-bayang pilar batu lorong saat warga Makkah menoleh dan memperhatikannya dari kejauhan.",
+      "dialogue": [
+        {
+          "character_name": "Abdul Muttalib",
+          "line": "Segala puji bagi Pemilik Rumah Suci... Engkau menitipkan permata di saat duka terkelam kami.",
+          "delivery": "khusyuk berbisik tegas sebagai doa",
+          "emotional_subtext": "Mengukuhkan sumpah perlindungan mutlak bagi cucunya di hadapan semesta."
+        }
+      ],
+      "historical_integrity": {
+        "tier": "FACT",
+        "basis": "Sirah Nabawiyah meriwayatkan Abdul Muttalib membawa cucunya langsung ke dalam Ka'bah untuk berdoa."
+      },
+      "narrator_vo": "Langkah sang tetua membelah prasangka, membawa harapan rapuh ke jantung kota leluhur.",
+      "prophet_depiction_safeguard": {
+        "is_prophet_present": true,
+        "visual_rule": "Bayi berada dalam bedongan kain putih rapat di dekapan Abdul Muttalib, membelakangi kamera."
+      },
+      "sound_design": {
+        "sfx": [
+          "derap mantap sandal kulit di atas batu padat",
+          "deru angin gurun berpasir tipis",
+          "bisikan sayup warga kota"
+        ],
+        "bgm_mood": "ritme tabuhan darbuka berat bercampur string bernada khidmat",
+        "silence_cue": false
+      },
+      "scene_tone": {
+        "intensity": 25,
+        "emotional_weight": 65,
+        "pacing": "slow",
+        "atmosphere": "contemplative",
+        "dramatic_tension": 25,
+        "preset": "CONTEMPLATIVE",
+        "is_ai_recommended": true
+      }
+    },
+    {
+      "scene_number": 4,
+      "title": "EXT. PELATARAN KA'BAH - SERUAN DI DEPAN BANGSAWAN",
+      "duration_sec": 25,
+      "scene_pattern": "TURNING_POINT",
+      "story_purpose": "Memperlihatkan proklamasi nama Muhammad yang mengejutkan para pembesar kabilah.",
+      "location_name": "Pelataran Ka'bah",
+      "time_of_day": "DAY",
+      "character_names": [
+        "Abdul Muttalib",
+        "Pembesar Quraisy"
+      ],
+      "emotional_objective": "Kekagetan dramatis dan konfrontasi adat kabilah.",
+      "event": "Abdul Muttalib mengumumkan nama cucunya di hadapan para tetua Quraisy di depan Ka'bah.",
+      "narrative_function": "Climax Beat 1",
+      "visual_action": "Matahari siang membakar pelataran batu. Pembesar Quraisy duduk melingkar dengan jubah mewah, saling berbisik curiga. Abdul Muttalib berdiri di tengah pelataran, mengangkat bedongan bayi sedikit lebih tinggi. Keheningan mendadak mencekam saat Abdul Muttalib membuka suara lantang menggema.",
+      "dialogue": [
+        {
+          "character_name": "Pembesar Quraisy",
+          "line": "Wahai Syaibah! Nama apa yang hendak engkau sematkan pada anak yatim itu?",
+          "delivery": "dingin bernada meremehkan",
+          "emotional_subtext": "Menuntut kepatuhan pada tradisi penamaan leluhur Quraisy."
+        },
+        {
+          "character_name": "Abdul Muttalib",
+          "line": "Aku menamainya... Muhammad!",
+          "delivery": "menggelegar penuh wibawa tanpa gentar",
+          "emotional_subtext": "Mendeklarasikan takdir baru yang mendobrak kebiasaan kuno kabilah."
+        }
+      ],
+      "historical_integrity": {
+        "tier": "FACT",
+        "basis": "Penamaan 'Muhammad' oleh Abdul Muttalib mengejutkan Quraisy karena bukan nama lazim leluhur mereka."
+      },
+      "narrator_vo": "Sebuah nama yang tak pernah dikenal padang pasir, kini mengguncang keangkuhan tradisi.",
+      "prophet_depiction_safeguard": {
+        "is_prophet_present": true,
+        "visual_rule": "Bayi terbedong putih erat di lengan Abdul Muttalib, kamera mengambil sudut low-angle dari belakang pundak kakeknya."
+      },
+      "sound_design": {
+        "sfx": [
+          "angin berhenti berhembus mendadak",
+          "gemuruh bisikan tetua Quraisy",
+          "gema suara lantang di dinding batu"
+        ],
+        "bgm_mood": "crescendo orkestrasi brass menegangkan yang tertahan",
+        "silence_cue": true
+      },
+      "scene_tone": {
+        "intensity": 25,
+        "emotional_weight": 65,
+        "pacing": "slow",
+        "atmosphere": "contemplative",
+        "dramatic_tension": 25,
+        "preset": "CONTEMPLATIVE",
+        "is_ai_recommended": true
+      }
+    },
+    {
+      "scene_number": 5,
+      "title": "EXT. PELATARAN KA'BAH - PROKLAMASI MAKNA NAMA",
+      "duration_sec": 25,
+      "scene_pattern": "TURNING_POINT",
+      "story_purpose": "Menegaskan visi Abdul Muttalib atas makna nama Muhammad yang membungkam penentangan Quraisy.",
+      "location_name": "Pelataran Ka'bah",
+      "time_of_day": "DAY",
+      "character_names": [
+        "Abdul Muttalib",
+        "Pembesar Quraisy"
+      ],
+      "emotional_objective": "Kemenangan moral dan wibawa mutlak yang tak terbantahkan.",
+      "event": "Abdul Muttalib menjawab kegusaran pembesar Quraisy dengan deklarasi makna nama cucunya.",
+      "narrative_function": "Climax Beat 2",
+      "visual_action": "Pembesar Quraisy bangkit berdiri, menyipitkan mata dengan dahi berkerut tajam, melangkah maju mendekati Abdul Muttalib. Abdul Muttalib tidak mundur seinci pun. Tatapannya menusuk tajam, dagunya terangkat tegak di depan dinding batu hitam Ka'bah.",
+      "dialogue": [
+        {
+          "character_name": "Pembesar Quraisy",
+          "line": "Mengapa engkau buang nama nenek moyangmu demi nama yang asing bagi telinga bangsa kita?!",
+          "delivery": "gusar dan menekan",
+          "emotional_subtext": "Merasa tatanan adat kabilah terancam oleh keputusan sepihak."
+        },
+        {
+          "character_name": "Abdul Muttalib",
+          "line": "Agar dia dipuji oleh Allah di langit, dan dipuji seluruh makhluk di bumi!",
+          "delivery": "tegas menggelegar dan tak tergoyahkan",
+          "emotional_subtext": "Keyakinan ilahiah melampaui sekat tradisi fanatik suku bangsa."
+        }
+      ],
+      "historical_integrity": {
+        "tier": "FACT",
+        "basis": "Riwayat perkataan masyhur Abdul Muttalib: 'Aradtu an yahmadahu Allah fi as-sama' wa khalquhu fi al-ardh'."
+      },
+      "narrator_vo": "Bungkamlah lidah para tetua, terkunci oleh wibawa kata yang lahir dari nubuat nurani.",
+      "prophet_depiction_safeguard": {
+        "is_prophet_present": true,
+        "visual_rule": "Kamera fokus pada ekspresi wajah tegang para pembesar dan tatapan tajam Abdul Muttalib; bayi terbedong tetap aman membelakangi kamera."
+      },
+      "sound_design": {
+        "sfx": [
+          "gesekan jubah bangsawan yang tersentak",
+          "dengung angin panas pelataran",
+          "keheningan mencekam pasca ucapan"
+        ],
+        "bgm_mood": "dentuman timpani tunggal disusul dengung ambient menegangkan",
+        "silence_cue": true
+      },
+      "scene_tone": {
+        "intensity": 75,
+        "emotional_weight": 80,
+        "pacing": "medium",
+        "atmosphere": "triumphant",
+        "dramatic_tension": 70,
+        "preset": "TRIUMPHANT",
+        "is_ai_recommended": true
+      }
+    },
+    {
+      "scene_number": 6,
+      "title": "EXT. LORONG KOTA MAKKAH - KESIBUKAN PASAR DAN KETIDAKACUHAN",
+      "duration_sec": 12,
+      "scene_pattern": "CONTEXT",
+      "story_purpose": "Memperlihatkan kontras antara kelahiran sang pembawa risalah dan kesibukan duniawi warga Makkah yang lalai.",
+      "location_name": "Lorong Kota Makkah",
+      "time_of_day": "DAY",
+      "character_names": [
+        "Pembesar Quraisy"
+      ],
+      "emotional_objective": "Ironi dramatis atas ketidaksadaran peradaban.",
+      "event": "Para pembesar kembali menghitung perniagaan dan warga melanjutkan hiruk pikuk pasar tanpa peduli fajar sejarah baru.",
+      "narrative_function": "Deepening / Transition Beat",
+      "visual_action": "Pembesar Quraisy berjalan menjauhi Ka'bah sambil memeriksa timbangan logam dan kantong uang kulit. Sudut kamera melebar memperlihatkan aktivitas pasar: karavan unta, debu terangkat dari kaki para pedagang, dan transaksi perak yang riuh di lorong sempit.",
+      "dialogue": [],
+      "historical_integrity": {
+        "tier": "FICTIONALIZED",
+        "basis": "Penggambaran sosiologis atmosfer niaga jahiliyah di kota Makkah pada era kelahiran Nabi."
+      },
+      "narrator_vo": "Makkah terus berniaga dalam riuh nafsu fana, tak menyadari zaman sedang berganti poros selamanya.",
+      "prophet_depiction_safeguard": {
+        "is_prophet_present": false,
+        "visual_rule": "Nabi Muhammad ﷺ tidak berada di lokasi pasar."
+      },
+      "sound_design": {
+        "sfx": [
+          "denting koin perak di atas timbangan",
+          "teriakan para pedagang pasar",
+          "dengusan unta kafilah niaga"
+        ],
+        "bgm_mood": "ritme perkusi etnik cepat bernuansa hiruk-pikuk duniawi",
+        "silence_cue": false
+      },
+      "scene_tone": {
+        "intensity": 45,
+        "emotional_weight": 55,
+        "pacing": "medium",
+        "atmosphere": "mysterious",
+        "dramatic_tension": 60,
+        "preset": "MYSTERIOUS",
+        "is_ai_recommended": true
+      }
+    },
+    {
+      "scene_number": 7,
+      "title": "INT. RUMAH AMINAH - UJIAN PENCARIAN IBU SUSU",
+      "duration_sec": 20,
+      "scene_pattern": "ESCALATION",
+      "story_purpose": "Menunjukkan getirnya penolakan wanita susuan Badui terhadap bayi yatim sebelum takdir mempertemukannya dengan Halimah.",
+      "location_name": "Rumah Aminah",
+      "time_of_day": "DAY",
+      "character_names": [
+        "Aminah",
+        "Pembesar Quraisy"
+      ],
+      "emotional_objective": "Kepedihan seorang ibu di tengah penolakan sosial.",
+      "event": "Wanita-wanita pengasuh menolak mengambil bayi Aminah karena ketiadaan ayah penyandang biaya.",
+      "narrative_function": "Escalation Beat 2",
+      "visual_action": "Aminah memeluk selendangnya di ambang pintu bilik, menatap bayangan seorang perantara bangsawan yang menggelengkan kepala dari luar tirai. Di atas pembaringan bersahaja, bedongan kain putih terbaring tenang di samping Aminah.",
+      "dialogue": [
+        {
+          "character_name": "Pembesar Quraisy",
+          "line": "Wanita-wanita pedalaman mencari limpahan harta para ayah. Bayi yatim ini tak menjanjikan upah bagi mereka.",
+          "delivery": "dingin tanpa empati",
+          "emotional_subtext": "Perhitungan materiil tanpa menyadari kemuliaan jiwa yang ada di hadapannya."
+        },
+        {
+          "character_name": "Aminah",
+          "line": "Allah tak akan pernah menelantarkan anak yang telah dipilih-Nya...",
+          "delivery": "lirih bergetar menahan tangis namun tegar",
+          "emotional_subtext": "Iman dan kepasrahan total seorang ibu menghadapi kejamnya prasangka dunia."
+        }
+      ],
+      "historical_integrity": {
+        "tier": "FACT",
+        "basis": "Catatan sejarah bahwa para wanita Sa'diyah enggan menyusui anak yatim karena mengharapkan imbalan dari ayah."
+      },
+      "narrator_vo": "Di mata dunia ia hanyalah yatim tanpa bekal, namun bagi langit ia adalah perbendaharaan agung.",
+      "prophet_depiction_safeguard": {
+        "is_prophet_present": true,
+        "visual_rule": "Bayi terbedong putih utuh di pembaringan, hanya terlihat sebagian lipatan kain di tepi bingkai kamera."
+      },
+      "sound_design": {
+        "sfx": [
+          "tirai bambu yang bergoyang tertiup angin",
+          "langkah menjauh di atas tanah",
+          "hela napas sedih tertahan"
+        ],
+        "bgm_mood": "dawai oud tunggal yang menyayat hati dan sunyi",
+        "silence_cue": false
+      },
+      "scene_tone": {
+        "intensity": 25,
+        "emotional_weight": 65,
+        "pacing": "slow",
+        "atmosphere": "contemplative",
+        "dramatic_tension": 25,
+        "preset": "CONTEMPLATIVE",
+        "is_ai_recommended": true
+      }
+    },
+    {
+      "scene_number": 8,
+      "title": "EXT. GERBANG KOTA MAKKAH - KEDATANGAN DARI PADANG SA'D",
+      "duration_sec": 20,
+      "scene_pattern": "CLIFFHANGER",
+      "story_purpose": "Memperkenalkan kemunculan Halimah as-Sa'diyah sebagai pembuka babak takdir pengasuhan di padang pasir.",
+      "location_name": "Gerbang Kota Makkah",
+      "time_of_day": "DUSK",
+      "character_names": [
+        "Halimah as-Sa'diyah"
+      ],
+      "emotional_objective": "Ketidakpastian yang sarat antisipasi takdir besar.",
+      "event": "Halimah as-Sa'diyah tiba di gerbang Makkah dengan unta kurus menuntun langkah menuju takdirnya.",
+      "narrative_function": "Payoff / Cliffhanger",
+      "visual_action": "Langit senja memerah membara di batas cakrawala gerbang kota. Halimah melangkah tertatih menuntun tali kekang seekor unta yang kurus kering. Debu gurun menyelimuti jubah kusamnya. Ia berhenti sejenak di depan pintu gerbang batu raksasa Makkah, menyeka peluh di keningnya, lalu menatap ke dalam kota dengan tatapan gamang namun penuh pengharapan.",
+      "dialogue": [],
+      "historical_integrity": {
+        "tier": "FACT",
+        "basis": "Kedatangan kafilah Bani Sa'd ke Makkah di musim paceklik termasuk Halimah dengan tunggangannya yang lemah."
+      },
+      "narrator_vo": "Dari tanah gersang Bani Sa'd, langkah-langkah lelah ini berjalan menjemput rahasia berkah yang akan mengubah semesta.",
+      "prophet_depiction_safeguard": {
+        "is_prophet_present": false,
+        "visual_rule": "Nabi Muhammad ﷺ tidak hadir dalam adegan gerbang kota."
+      },
+      "sound_design": {
+        "sfx": [
+          "deru kencang angin gurun senja",
+          "derap langkah unta lambat",
+          "gemerincing pelan lonceng pelana usang"
+        ],
+        "bgm_mood": "orkestrasi megah bersayap harapan berpadu paduan suara senyap yang menggantung",
+        "silence_cue": false
+      },
+      "scene_tone": {
+        "intensity": 25,
+        "emotional_weight": 65,
+        "pacing": "slow",
+        "atmosphere": "contemplative",
+        "dramatic_tension": 25,
+        "preset": "CONTEMPLATIVE",
+        "is_ai_recommended": true
+      }
+    }
+  ]
+}

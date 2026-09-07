@@ -122,10 +122,19 @@ async function main(): Promise<void> {
     'ephemeral api_key is re-attached on the saved/read object'
   );
 
-  // B + C + F: inspect what was actually persisted to disk.
-  const persisted = JSON.parse(fs.readFileSync(STORE, 'utf-8'));
-  const doc = persisted.projects?.[projectId];
-  assert(doc, 'project document exists in persisted JSON store');
+  async function getRawPersistedDoc(): Promise<any> {
+    if (fs.existsSync(STORE)) {
+      const persisted = JSON.parse(fs.readFileSync(STORE, 'utf-8'));
+      return persisted.projects?.[projectId];
+    }
+    const { getSupabaseClient } = await import('./db/supabase_client');
+    const { data } = await getSupabaseClient().from('projects').select('*').eq('id', projectId).single();
+    return data;
+  }
+
+  // B + C + F: inspect what was actually persisted to storage.
+  const doc = await getRawPersistedDoc();
+  assert(doc, 'project document exists in persisted storage');
 
   const apiKeyTrail = findApiKeyProperty(doc);
   assert(apiKeyTrail === null, `persisted document contains NO api_key property anywhere (found at ${apiKeyTrail})`);
@@ -151,13 +160,12 @@ async function main(): Promise<void> {
     'getProject re-attaches the ephemeral api_key in-process'
   );
 
-  // JSON store on disk must still contain no api_key even after read-back.
-  const persistedAfterRead = JSON.parse(fs.readFileSync(STORE, 'utf-8'));
-  const docAfterRead = persistedAfterRead.projects?.[projectId];
+  // Persisted store must still contain no api_key even after read-back.
+  const docAfterRead = await getRawPersistedDoc();
   const apiKeyTrailAfterRead = findApiKeyProperty(docAfterRead);
-  assert(apiKeyTrailAfterRead === null, 'no api_key property appears on disk after getProject');
+  assert(apiKeyTrailAfterRead === null, 'no api_key property appears in storage after getProject');
   const undefinedTrailAfterRead = findUndefinedValue(docAfterRead);
-  assert(undefinedTrailAfterRead === null, 'no undefined value on disk after getProject');
+  assert(undefinedTrailAfterRead === null, 'no undefined value in storage after getProject');
 
   // Also exercise updateProject (second persistence path).
   const updated = await db.updateProject(projectId, (p) => {
@@ -169,15 +177,19 @@ async function main(): Promise<void> {
     return p;
   });
   assert(updated, 'updateProject returns the updated project');
-  const persistedAfterUpdate = JSON.parse(fs.readFileSync(STORE, 'utf-8'));
-  const docAfterUpdate = persistedAfterUpdate.projects?.[projectId];
+  const docAfterUpdate = await getRawPersistedDoc();
   const apiKeyTrailAfterUpdate = findApiKeyProperty(docAfterUpdate);
-  assert(apiKeyTrailAfterUpdate === null, 'no api_key property on disk after updateProject');
+  assert(apiKeyTrailAfterUpdate === null, 'no api_key property in storage after updateProject');
   const undefinedTrailAfterUpdate = findUndefinedValue(docAfterUpdate);
-  assert(undefinedTrailAfterUpdate === null, 'no undefined value on disk after updateProject');
+  assert(undefinedTrailAfterUpdate === null, 'no undefined value in storage after updateProject');
   assert(docAfterUpdate.title === 'Updated title', 'updateProject applied the update');
 
-  console.log('PASS: api_key sanitization invariants hold on the JSON fallback path.');
+  // Cleanup test project
+  try {
+    await db.deleteProject(projectId);
+  } catch {}
+
+  console.log('PASS: api_key sanitization invariants hold on persistence path.');
   console.log('A. project with api_key saved successfully.');
   console.log('B. persisted payload has no reasoning_config.api_key property.');
   console.log('C. no undefined value in persisted document.');

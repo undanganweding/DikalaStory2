@@ -1,5 +1,5 @@
 import { getSupabaseClient, getCachedTableColumns } from './supabase_client';
-import { attachEphemeralApiKey } from '../db';
+import { attachEphemeralApiKey, sanitizeProjectForStorage } from '../db_helpers';
 import {
   Project,
   ProjectFoundation,
@@ -386,12 +386,15 @@ export const supabaseDb = {
     const supabase = getSupabaseClient();
     const now = new Date().toISOString();
 
+    // Sanitize project for storage: strips plaintext api_key and stashes in ephemeral memory
+    const sanitizedProject = sanitizeProjectForStorage(project);
+
     // 1. Resolve Single Source of Truth for model routing
     // reasoning_config is the authoritative store. If legacy ai_model is passed without reasoning_config,
     // synthesize an authoritative reasoning_config so Task Router always has complete policy.
-    let effectiveReasoningConfig = project.reasoning_config;
-    if (!effectiveReasoningConfig && (project as any).ai_model) {
-      const legacyModel = (project as any).ai_model;
+    let effectiveReasoningConfig = sanitizedProject.reasoning_config;
+    if (!effectiveReasoningConfig && (sanitizedProject as any).ai_model) {
+      const legacyModel = (sanitizedProject as any).ai_model;
       const isAuto = !legacyModel || legacyModel === 'auto';
       effectiveReasoningConfig = {
         provider_type: 'google',
@@ -405,41 +408,41 @@ export const supabaseDb = {
       };
     }
 
-    const pAny = project as any;
+    const pAny = sanitizedProject as any;
     // 2. Strict whitelist projection for public.projects table in Supabase.
     // Note: ai_model is NOT a column in public.projects; reasoning_config is the sole authoritative store.
     const projectRow = {
-      id: project.id,
-      title: project.title,
-      raw_script: project.raw_script ?? '',
-      total_duration_target_sec: project.total_duration_target_sec ?? 60,
-      max_scene_shot_duration_sec: project.max_scene_shot_duration_sec ?? null,
-      scene_duration_sec: project.scene_duration_sec ?? null,
-      duration_mode: project.duration_mode ?? (project.scene_duration_sec ? 'fixed' : 'auto'),
-      fixed_scene_duration: project.fixed_scene_duration ?? project.scene_duration_sec ?? null,
+      id: sanitizedProject.id,
+      title: sanitizedProject.title,
+      raw_script: sanitizedProject.raw_script ?? '',
+      total_duration_target_sec: sanitizedProject.total_duration_target_sec ?? 60,
+      max_scene_shot_duration_sec: sanitizedProject.max_scene_shot_duration_sec ?? null,
+      scene_duration_sec: sanitizedProject.scene_duration_sec ?? null,
+      duration_mode: sanitizedProject.duration_mode ?? (sanitizedProject.scene_duration_sec ? 'fixed' : 'auto'),
+      fixed_scene_duration: sanitizedProject.fixed_scene_duration ?? sanitizedProject.scene_duration_sec ?? null,
       project_duration: pAny.project_duration ?? pAny.projectDuration ?? null,
       timeline_scene_duration: pAny.timeline_scene_duration ?? pAny.timelineSceneDuration ?? null,
       duration_mode_override: pAny.duration_mode_override ?? null,
       model_output_duration: pAny.model_output_duration ?? pAny.modelOutputDuration ?? null,
       selected_extended_duration: pAny.selected_extended_duration ?? pAny.selectedExtendedDuration ?? null,
       primary_video_model: pAny.primary_video_model ?? pAny.primaryVideoModel ?? 'veo',
-      foundation_status: project.foundation_status ?? 'not_initialized',
-      allow_final_scene_override: Boolean(project.allow_final_scene_override),
-      prompt_language: project.prompt_language ?? 'id',
-      image_model: project.image_model ?? 'nano_banana_pro',
-      video_model: project.video_model ?? ['veo'],
-      include_seedance_format: Boolean(project.include_seedance_format),
-      status: project.status ?? 'draft',
-      current_stage: project.current_stage ?? 0,
-      error_message: project.error_message ?? null,
-      duration_validation_passed: Boolean(project.duration_validation_passed),
-      retry_count: project.retry_count ?? 0,
-      active_run_id: project.active_run_id ?? null,
-      latest_run_id: project.latest_run_id ?? null,
+      foundation_status: sanitizedProject.foundation_status ?? 'not_initialized',
+      allow_final_scene_override: Boolean(sanitizedProject.allow_final_scene_override),
+      prompt_language: sanitizedProject.prompt_language ?? 'id',
+      image_model: sanitizedProject.image_model ?? 'nano_banana_pro',
+      video_model: sanitizedProject.video_model ?? ['veo'],
+      include_seedance_format: Boolean(sanitizedProject.include_seedance_format),
+      status: sanitizedProject.status ?? 'draft',
+      current_stage: sanitizedProject.current_stage ?? 0,
+      error_message: sanitizedProject.error_message ?? null,
+      duration_validation_passed: Boolean(sanitizedProject.duration_validation_passed),
+      retry_count: sanitizedProject.retry_count ?? 0,
+      active_run_id: sanitizedProject.active_run_id ?? null,
+      latest_run_id: sanitizedProject.latest_run_id ?? null,
       reasoning_config: effectiveReasoningConfig ?? null,
-      reasoning_model_preferences: project.reasoning_model_preferences ?? null,
+      reasoning_model_preferences: sanitizedProject.reasoning_model_preferences ?? null,
       owner_id: pAny.owner_id ?? 'system',
-      created_at: project.created_at || now,
+      created_at: sanitizedProject.created_at || now,
       updated_at: now,
     };
 
@@ -1154,10 +1157,20 @@ export const supabaseDb = {
     return states;
   },
 
-  async recordApprovedCostumeTransition(projectId: string, transition: ApprovedCostumeTransition): Promise<CharacterContinuityState[]> {
+  async recordApprovedCostumeTransition(
+    projectId: string,
+    characterNameOrTransition: string | ApprovedCostumeTransition,
+    maybeTransition?: ApprovedCostumeTransition
+  ): Promise<CharacterContinuityState[]> {
     const states = await this.getCharacterContinuityStates(projectId);
-    if (states.length > 0) {
-      const state = states[0];
+    const characterName = typeof characterNameOrTransition === 'string' ? characterNameOrTransition : undefined;
+    const transition: ApprovedCostumeTransition = maybeTransition || (characterNameOrTransition as ApprovedCostumeTransition);
+
+    let state = characterName ? states.find(s => s.character_name === characterName) : states[0];
+    if (!state && states.length > 0) {
+      state = states[0];
+    }
+    if (state) {
       state.approved_transitions = state.approved_transitions || [];
       state.approved_transitions.push(transition);
     }

@@ -345,8 +345,11 @@ export default function App() {
       setActiveTab('pipeline');
       setMainMode('studio');
 
+      const isDryRun = Boolean((formData as any).dryRun || (formData as any).is_simulation);
       const genRes = await fetch(`/api/projects/${newProject.id}/generate`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: isDryRun }),
       });
       const genData = await genRes.json().catch(() => null);
       if (!genRes.ok) {
@@ -364,6 +367,23 @@ export default function App() {
       setCurrentProject((prev) => (prev ? { ...prev, status: 'failed', error_message: err?.message } : null));
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleRetrySimulation = async () => {
+    if (!currentProject) return;
+    try {
+      setLogs([]);
+      setPipelineError(null);
+      setIsPipelineCarouselOpen(true);
+      setCurrentProject((prev) => (prev ? { ...prev, status: 'processing', current_stage: 1, is_simulation: true } : null));
+      setActiveTab('pipeline');
+      await fetch(`/api/projects/${currentProject.id}/simulate`, {
+        method: 'POST',
+      });
+    } catch (err: any) {
+      console.error('Failed to run simulation:', err);
+      setPipelineError(err?.message || 'Gagal memulai simulasi pipeline.');
     }
   };
 
@@ -476,17 +496,59 @@ export default function App() {
     }
   };
 
-  const handleRegenerateScenePrompt = async (sceneId: string) => {
+  const handleRegenerateScenePrompt = async (sceneId: string, target?: string) => {
     if (!currentProject) return;
+    setProcessingSceneId(sceneId);
     try {
       const res = await fetch(`/api/scenes/${sceneId}/regenerate-prompt`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: target || 'all' }),
       });
       if (res.ok) {
+        const body = await res.json().catch(() => null);
+        if (body) {
+          if (body.scene) {
+            setScenes((prev) => prev.map((s) => (s.id === sceneId ? { ...s, ...body.scene } : s)));
+          }
+          if (body.shot) {
+            setShots((prev) => {
+              const currentList = prev[sceneId] || [];
+              const exists = currentList.some((sh) => sh.id === body.shot.id);
+              return {
+                ...prev,
+                [sceneId]: exists
+                  ? currentList.map((sh) => (sh.id === body.shot.id ? { ...sh, ...body.shot } : sh))
+                  : [body.shot, ...currentList],
+              };
+            });
+          }
+          if (body.prompts && Array.isArray(body.prompts) && body.prompts.length > 0) {
+            setVideoPrompts((prev) => {
+              const next = { ...prev };
+              for (const p of body.prompts) {
+                const sId = p.shot_id || (body.shot && body.shot.id) || 'unknown';
+                if (!next[sId]) next[sId] = [];
+                const idx = next[sId].findIndex((x) => x.id === p.id || x.prompt_target === p.prompt_target);
+                if (idx >= 0) {
+                  next[sId][idx] = p;
+                } else {
+                  next[sId].push(p);
+                }
+              }
+              return next;
+            });
+          }
+        }
         await loadProjectDetails(currentProject.id, true);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error('Failed to regenerate scene prompt:', errData);
       }
     } catch (err) {
       console.error('Failed to regenerate scene prompt:', err);
+    } finally {
+      setProcessingSceneId(null);
     }
   };
 
@@ -1075,6 +1137,7 @@ export default function App() {
             setMainMode('studio');
             setActiveTab('overview');
           }}
+          onRetrySimulation={handleRetrySimulation}
         />
 
         <ExecutionObservabilityModal

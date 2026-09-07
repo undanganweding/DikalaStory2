@@ -74,32 +74,24 @@ export const taskRouter = {
       }
     }
 
-    // 2. Fetch all registered AI Models from Database (No hardcoded Gemini lists!)
+    // 2. Fetch all registered AI Models from Database
     let allModels = await db.getModels();
-    let enabledModels = allModels.filter(m => m.enabled !== false);
+    let enabledModels = allModels.filter(m => m.enabled === true);
 
-    // If database has no active models or lacks eligible models satisfying the task's required capabilities and context window,
-    // invoke production registry initialization to prime baseline definitions.
-    const hasEligibleCandidate = enabledModels.some(m => {
-      const caps = m.capabilities || [];
-      const hasCaps = task.requiredCapabilities.every(req => caps.includes(req));
-      const hasCtx = !task.minContextWindow || (m.contextWindow || 0) >= task.minContextWindow;
-      return hasCaps && hasCtx;
-    });
-
-    if (enabledModels.length === 0 || !hasEligibleCandidate) {
+    // ONLY initialize baseline defaults if the database is COMPLETELY EMPTY (0 models total)
+    if (allModels.length === 0) {
       try {
         await providerService.initializeDefaults();
         await modelRegistryService.initializeDefaults();
         allModels = await db.getModels();
-        enabledModels = allModels.filter(m => m.enabled !== false);
+        enabledModels = allModels.filter(m => m.enabled === true);
       } catch (seedErr: any) {
         console.warn('[TaskRouter] Baseline registry seed warning:', seedErr?.message || seedErr);
       }
     }
 
     if (enabledModels.length === 0) {
-      throw new Error(`TaskRouter: No active AI models found in database registry.`);
+      throw new Error(`TaskRouter: No active AI models enabled in Infrastructure Settings. Please enable at least one model in Settings.`);
     }
 
     // 3. Evaluate each model against task requirements, AMM compatibility, provider health & credential status
@@ -159,7 +151,6 @@ export const taskRouter = {
       }
 
       // (c) Verify active credentials exist and are scored for this provider (memoized per provider)
-      // Predicate must match execution preflight: a WARNING-state credential is still usable.
       let availableCreds = providerScoredCredsCache.get(model.providerId);
       if (!availableCreds) {
         availableCreds = await quotaRouter.scoreCredentials(model.providerId);
@@ -248,12 +239,25 @@ export const taskRouter = {
         reasons.push(`Context window available: ${formattedCtx} tokens >= ${Math.round(task.minContextWindow / 1000)}k required`);
       }
 
-      // Provider & Credential Health
+      // Provider & Credential Health + Priority Scoring
       const topCred = activeCreds[0] || availableCreds[0];
       const quotaScore = topCred ? Math.min(topCred.score, 100) : 50;
       if (topCred) {
         score += 5;
         reasons.push(`Provider '${model.providerId}' healthy with top key (${topCred.credential.name || topCred.credential.id})`);
+      }
+
+      // Provider Priority Enforcement (User / Project Config -> Provider Priority)
+      if (projectPolicy.pinnedProviderId && projectPolicy.pinnedProviderId === model.providerId) {
+        score += 30;
+        reasons.push(`Provider Priority: Pinned provider '${model.providerId}' matched (+30)`);
+      } else if (projectPolicy.preferredProvider && projectPolicy.preferredProvider === model.providerId) {
+        score += 20;
+        reasons.push(`Provider Priority: Preferred provider '${model.providerId}' matched (+20)`);
+      } else if (model.providerId !== 'google') {
+        // Priority 1: Healthy custom provider with active credential
+        score += 15;
+        reasons.push(`Provider Priority: Active custom provider '${model.providerId}' (Priority 1)`);
       }
 
       // Stage-aware Cinematic Production Policy based on Minimum Capability + Quality Tier:
@@ -265,76 +269,60 @@ export const taskRouter = {
       const isS7 = stage === 'S7' || taskIdStr === 'master_frame_generation' || taskIdStr === 'master_frame';
       const isS8 = stage === 'S8' || taskIdStr === 'video_prompt_generation' || taskIdStr === 'video_prompt';
 
+      const isProOrReasoning = model.tier === 'pro' || model.tier === 'ultra' || model.id.includes('pro') || model.capabilities?.includes('reasoning');
+      const isFlashOrFast = model.tier === 'flash' || model.tier === 'lite' || model.id.includes('flash') || model.capabilities?.includes('fast');
+
       if (isS1toS5) {
-        // S1-S5: Deep Narrative & Screenplay Understanding -> Quality Tier 'pro' (gemini-2.5-pro)
-        if (model.id.includes('2.5-pro')) {
+        // S1-S5: Deep Narrative & Screenplay Understanding -> Quality Tier 'pro' (high reasoning)
+        if (isProOrReasoning) {
           score += 25;
-          reasons.push(`Production Policy [${stage || 'S1-S5'}]: Selected 'pro' tier reasoning model 'gemini-2.5-pro'`);
-        } else if (model.id.includes('2.5-flash')) {
+          reasons.push(`Production Policy [${stage || 'S1-S5'}]: High-reasoning pro model '${model.id}'`);
+        } else if (isFlashOrFast) {
           score += 15;
-          reasons.push(`Production Policy [${stage || 'S1-S5'}]: Tier fallback candidate 'gemini-2.5-flash'`);
-        } else if (model.tier === 'pro') {
-          score += 12;
-          reasons.push(`Quality tier 'pro' capability match`);
-        } else if (model.id.includes('3.7-flash')) {
-          score += 8;
-          reasons.push(`Google provider fallback: 'gemini-3.7-flash'`);
+          reasons.push(`Production Policy [${stage || 'S1-S5'}]: Fast model alternative '${model.id}'`);
         }
       } else if (isS6) {
-        // S6: Shot Breakdown & Camera Grammar -> Flexible (gemini-2.5-pro or gemini-2.5-flash)
+        // S6: Shot Breakdown & Camera Grammar -> Flexible
         if (projectPolicy.priority === 'speed' || projectPolicy.priority === 'cost') {
-          if (model.id.includes('2.5-flash')) {
+          if (isFlashOrFast) {
             score += 25;
-            reasons.push(`Production Policy [S6]: Selected fast structured model 'gemini-2.5-flash' for speed/cost`);
-          } else if (model.id.includes('2.5-pro')) {
+            reasons.push(`Production Policy [S6]: Fast structured model '${model.id}' for speed/cost`);
+          } else if (isProOrReasoning) {
             score += 20;
-            reasons.push(`Production Policy [S6]: Pro tier alternative 'gemini-2.5-pro'`);
+            reasons.push(`Production Policy [S6]: Pro tier alternative '${model.id}'`);
           }
         } else {
-          // Default: gemini-2.5-pro preferred for maximum framing nuance, gemini-2.5-flash high second
-          if (model.id.includes('2.5-pro')) {
+          if (isProOrReasoning) {
             score += 25;
-            reasons.push(`Production Policy [S6]: Selected cinematic framing model 'gemini-2.5-pro'`);
-          } else if (model.id.includes('2.5-flash')) {
+            reasons.push(`Production Policy [S6]: Cinematic framing model '${model.id}'`);
+          } else if (isFlashOrFast) {
             score += 22;
-            reasons.push(`Production Policy [S6]: High-efficiency framing candidate 'gemini-2.5-flash'`);
+            reasons.push(`Production Policy [S6]: High-efficiency framing candidate '${model.id}'`);
           }
         }
-        if (model.id.includes('3.7-flash')) {
-          score += 10;
-          reasons.push(`Google provider fallback: 'gemini-3.7-flash'`);
-        }
       } else if (isS7) {
-        // S7: Master Frame Generation -> Quality Tier 'pro' (gemini-2.5-pro) for rich visual fidelity
-        if (model.id.includes('2.5-pro')) {
+        // S7: Master Frame Generation -> Quality Tier 'pro' for rich visual fidelity
+        if (isProOrReasoning) {
           score += 25;
-          reasons.push(`Production Policy [S7]: Selected visual composition model 'gemini-2.5-pro'`);
-        } else if (model.id.includes('2.5-flash')) {
+          reasons.push(`Production Policy [S7]: Visual composition model '${model.id}'`);
+        } else if (isFlashOrFast) {
           score += 15;
-          reasons.push(`Production Policy [S7]: Fallback candidate 'gemini-2.5-flash'`);
-        } else if (model.tier === 'pro') {
-          score += 12;
-        } else if (model.id.includes('3.7-flash')) {
-          score += 8;
-          reasons.push(`Google provider fallback: 'gemini-3.7-flash'`);
+          reasons.push(`Production Policy [S7]: Fast visual fallback candidate '${model.id}'`);
         }
       } else if (isS8) {
-        // S8: Video Prompt Generation -> Quality Tier 'flash' (gemini-2.5-flash) for motion mechanics & cost control
-        if (model.id.includes('2.5-flash')) {
+        // S8: Video Prompt Generation -> Quality Tier 'flash' for motion mechanics & cost control
+        if (isFlashOrFast) {
           score += 25;
-          reasons.push(`Production Policy [S8]: Selected cost-efficient motion compiler 'gemini-2.5-flash'`);
-        } else if (model.id.includes('2.5-pro')) {
+          reasons.push(`Production Policy [S8]: Cost-efficient motion compiler '${model.id}'`);
+        } else if (isProOrReasoning) {
           score += 15;
-          reasons.push(`Production Policy [S8]: Pro tier alternative 'gemini-2.5-pro'`);
-        } else if (model.id.includes('3.7-flash')) {
-          score += 10;
-          reasons.push(`Google provider fallback: 'gemini-3.7-flash'`);
+          reasons.push(`Production Policy [S8]: Pro tier alternative '${model.id}'`);
         }
       } else {
-        if (projectPolicy.priority === 'speed' && (model.tier === 'flash' || model.tier === 'lite' || effectiveCapabilities.includes('fast'))) {
+        if (projectPolicy.priority === 'speed' && isFlashOrFast) {
           score += 10;
           reasons.push(`Speed policy preference applied`);
-        } else if (projectPolicy.priority === 'quality' && (model.tier === 'pro' || model.tier === 'ultra' || effectiveCapabilities.includes('reasoning'))) {
+        } else if (projectPolicy.priority === 'quality' && isProOrReasoning) {
           score += 10;
           reasons.push(`Quality priority policy aligned`);
         }
@@ -372,6 +360,56 @@ export const taskRouter = {
     const credSelection = await quotaRouter.selectCredential(chosen.model.providerId, memoizedCreds);
     chosen.reasons.push(`Credential Router assigned key: '${credSelection.credentialId}' (score: ${credSelection.score})`);
 
+    // 6. Build Structured Sequential Fallback Hierarchy:
+    // Resolved Route -> FAIL -> (1) same provider / next credential -> (2) next eligible model -> (3) next provider
+    const fallbackPlan: Array<{
+      type: 'same_provider_next_credential' | 'next_eligible_model' | 'next_provider';
+      providerId: string;
+      modelId: string;
+      credentialId?: string;
+      score?: number;
+      description: string;
+    }> = [];
+
+    // Step 1: Same provider, next active credentials
+    const chosenProviderCreds = providerScoredCredsCache.get(chosen.model.providerId) || [];
+    for (const sc of chosenProviderCreds) {
+      if (sc.credential.id !== credSelection.credentialId && sc.state === 'ACTIVE' && sc.credential.status === 'active') {
+        fallbackPlan.push({
+          type: 'same_provider_next_credential',
+          providerId: chosen.model.providerId,
+          modelId: chosen.model.id,
+          credentialId: sc.credential.id,
+          score: sc.score,
+          description: `Fallback: Same provider '${chosen.model.providerId}' using backup key '${sc.credential.name || sc.credential.id}'`,
+        });
+      }
+    }
+
+    // Step 2: Next eligible models on the same provider
+    const sameProviderCandidates = candidates.slice(1).filter(c => c.model.providerId === chosen.model.providerId);
+    for (const altCandidate of sameProviderCandidates) {
+      fallbackPlan.push({
+        type: 'next_eligible_model',
+        providerId: altCandidate.model.providerId,
+        modelId: altCandidate.model.id,
+        score: altCandidate.score,
+        description: `Fallback: Alternative model '${altCandidate.model.id}' on provider '${altCandidate.model.providerId}' (Score: ${altCandidate.score})`,
+      });
+    }
+
+    // Step 3: Next eligible providers & models
+    const otherProviderCandidates = candidates.slice(1).filter(c => c.model.providerId !== chosen.model.providerId);
+    for (const nextProvCandidate of otherProviderCandidates) {
+      fallbackPlan.push({
+        type: 'next_provider',
+        providerId: nextProvCandidate.model.providerId,
+        modelId: nextProvCandidate.model.id,
+        score: nextProvCandidate.score,
+        description: `Fallback: Alternative provider '${nextProvCandidate.model.providerId}' with model '${nextProvCandidate.model.id}' (Score: ${nextProvCandidate.score})`,
+      });
+    }
+
     const executionPlan: TaskExecutionPlan = {
       taskId: task.id,
       stageCode: task.stageCode,
@@ -380,18 +418,27 @@ export const taskRouter = {
       credentialId: credSelection.credentialId,
       apiKey: credSelection.apiKey,
       score: chosen.score,
+      priority: chosen.model.providerId !== 'google' ? 1 : 2,
       reasons: chosen.reasons,
+      fallbackPlan,
       candidateEvaluation: {
         totalCandidates: allModels.length,
         eligibleCandidates: candidates.length,
         selectedModelTier: chosen.model.tier || 'pro',
         contextWindow: chosen.model.contextWindow || 128000,
         fallbackChain: candidates.slice(1).map(c => c.model.id),
+        candidatesSummary: candidates.map(c => ({
+          providerId: c.model.providerId,
+          modelId: c.model.id,
+          score: c.score,
+          priority: c.model.providerId !== 'google' ? 1 : 2,
+          tier: c.model.tier,
+        })),
       },
       decisionTimestamp: Date.now(),
     };
 
-    // 6. Log Structured Execution Plan for Auditing
+    // 7. Log Single Resolved Route for Auditing
     this.logDecision(executionPlan);
 
     return executionPlan;
@@ -400,26 +447,38 @@ export const taskRouter = {
   /**
    * Structured audit logging for all AI routing decisions
    */
-  logDecision(plan: {
-    taskId: string;
-    stageCode?: string;
-    modelId: string;
-    providerId: string;
-    credentialId: string;
-    score: number;
-    reasons: string[];
-  }): void {
+  logDecision(plan: TaskExecutionPlan): void {
     console.log('\n===============================================================');
-    console.log('🤖 AI ROUTER DECISION');
+    console.log('🤖 [TASK ROUTER]');
     console.log('===============================================================');
-    console.log(`Task:        ${plan.taskId} (${plan.stageCode || 'GENERAL'})`);
-    console.log(`Selected:    ${plan.modelId}`);
-    console.log(`Provider:    ${plan.providerId}`);
-    console.log(`Credential:  ${plan.credentialId}`);
-    console.log(`Score:       ${plan.score}/100`);
-    console.log('Reasons:');
+    const taskName = plan.stageCode ? `${plan.stageCode}.${plan.taskId}` : String(plan.taskId);
+    console.log(`requested task: ${taskName}\n`);
+    
+    if (plan.candidateEvaluation?.candidatesSummary && plan.candidateEvaluation.candidatesSummary.length > 0) {
+      console.log('candidate providers / models:');
+      plan.candidateEvaluation.candidatesSummary.forEach((cand, idx) => {
+        const isChosen = cand.providerId === plan.providerId && cand.modelId === plan.modelId;
+        const mark = isChosen ? '👉' : '  ';
+        console.log(`${mark} ${idx + 1}. [Provider: ${cand.providerId}] Model: ${cand.modelId} (Score: ${cand.score}/100, Priority: ${cand.priority})`);
+      });
+      console.log('');
+    }
+
+    console.log('[RESOLVED ROUTE]');
+    console.log(`  provider:   ${plan.providerId}`);
+    console.log(`  model:      ${plan.modelId}`);
+    console.log(`  credential: ${plan.credentialId}`);
+    console.log(`  score:      ${plan.score}/100`);
+    console.log(`  priority:   ${plan.priority || 1}`);
+    console.log('  reasons:');
     for (const r of plan.reasons) {
-      console.log(`  ✓ ${r}`);
+      console.log(`    ✓ ${r}`);
+    }
+    if (plan.fallbackPlan && plan.fallbackPlan.length > 0) {
+      console.log('  fallback plan:');
+      for (const fb of plan.fallbackPlan) {
+        console.log(`    ↳ [${fb.type}] ${fb.providerId} / ${fb.modelId} (Key: ${fb.credentialId || 'auto'})`);
+      }
     }
     console.log('===============================================================\n');
   },

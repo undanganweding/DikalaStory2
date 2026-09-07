@@ -20,8 +20,31 @@ import {
   serializeAudioPurityConstraintBlock,
   validateAudioPurityContract,
 } from './audio_purity_engine';
+import {
+  DikalaPromptContract,
+  buildCanonicalPromptContract,
+  compileBananaProPrompt,
+  compileVeoPrompt,
+  compileOmniPrompt,
+  compileSeedancePrompt,
+  NEGATIVE_PROMPT_BANANA,
+  NEGATIVE_PROMPT_VEO,
+  NEGATIVE_PROMPT_OMNI,
+  NEGATIVE_PROMPT_SEEDANCE,
+} from './canonical_prompt_contract';
 
-export type { PromptTarget };
+export type { PromptTarget, DikalaPromptContract };
+export {
+  buildCanonicalPromptContract,
+  compileBananaProPrompt,
+  compileVeoPrompt,
+  compileOmniPrompt,
+  compileSeedancePrompt,
+  NEGATIVE_PROMPT_BANANA,
+  NEGATIVE_PROMPT_VEO,
+  NEGATIVE_PROMPT_OMNI,
+  NEGATIVE_PROMPT_SEEDANCE,
+};
 
 export type PromptDetailLevel = 'basic' | 'standard' | 'detailed' | 'cinematic' | 'maximum';
 export type VideoModelTarget = 'veo' | 'gemini_omni' | 'seedance' | 'seedance_10' | 'seedance_30' | 'banana';
@@ -588,6 +611,11 @@ export function compileNegativePrompt(data: MasterSceneData): string {
     camera: ['random camera shake', 'erratic motion', 'blurry autofocus', 'lens flare anachronism', 'extreme fisheye lens'],
     physics: ['floating objects', 'sliding feet', 'impossible gravity', 'clipping geometry'],
     audio: [
+      'narration',
+      'voice-over',
+      'voiceover',
+      'narrator voice',
+      'spoken narration',
       'background music',
       'BGM',
       'soundtrack',
@@ -915,13 +943,18 @@ export function adaptBananaMasterFrame(data: MasterSceneData): string {
 
   const charLockInfo = data.characters
     .map((c) => {
-      if (c.prophet_restrictions) {
-        return `${c.name}: Silhouette & posture lock only (face completely obscured; no facial identity lock).`;
+      const charLower = (c.name || '').toLowerCase();
+      const isProphetChar = c.prophet_restrictions || charLower.includes('rasulullah') || charLower.includes('muhammad') || charLower.includes('prophet');
+      if (isProphetChar) {
+        return `${c.name}: Silhouette & posture lock only (face completely obscured; zero direct facial depiction; no facial identity lock).`;
       }
       if (isReveredHolyFigure(c.name)) {
         return `${c.name}: Revered Holy Figure lock (authentic Sorban/Imamah or Blangkon, noble Jubah/Surjan, sacred wibawa & posture lock; NO casual t-shirts/peasant wear).`;
       }
-      return `${c.name}: Locked facial geometry, costume weave, and height ratio.`;
+      if (data.is_prophet_scene) {
+        return `${c.name}: Authentic period costume weave, dignified historical posture, and appearance continuity lock.`;
+      }
+      return `${c.name}: Costume weave, physical posture, and historical appearance continuity lock.`;
     })
     .join('; ');
 

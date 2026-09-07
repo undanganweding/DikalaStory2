@@ -17,6 +17,11 @@ import {
   Trash2,
   FileCode,
   RefreshCw,
+  Eye,
+  MessageSquare,
+  Volume2,
+  Mic,
+  ShieldAlert,
 } from 'lucide-react';
 import { Scene, Shot, VideoPrompt, Project } from '../types';
 import { CombinedPromptViewer } from './CombinedPromptViewer';
@@ -63,6 +68,9 @@ export const SceneCard: React.FC<SceneCardProps> = ({
 
   // Compile prompt text for clipboard copy
   const getCompiledMasterPrompt = () => {
+    if (scene.master_image_prompt && scene.master_image_prompt.trim().length > 0) {
+      return scene.master_image_prompt.trim();
+    }
     const pj = scene.master_image_prompt_json;
     if (!pj) return `Master cinematic film still. Scene #${scene.scene_number}: ${scene.title}. ${scene.event}. Shot on 35mm anamorphic lens. Lighting: volumetric cinematic lighting. Historical accuracy 8k UHD.`;
     return `Master cinematic film still, ${pj.cinematic_style || 'Panavision 35mm style'}. ${pj.subject || scene.event}. ${pj.characters_note || ''}. Costumes: ${pj.costume || ''}. Location & Era: ${pj.location || scene.location_name}, ${pj.era || 'Historical'}, ${pj.architecture || ''}. Environment: ${pj.environment || scene.time_of_day}. Lighting: ${pj.lighting || ''}. Composition: ${pj.composition || 'Rule of thirds'}. Shot on ${pj.camera || 'Arri Alexa 65'}, ${pj.lens || '35mm anamorphic'}. Mood: ${pj.mood || scene.emotional_objective}. Photorealistic, ultra-detailed 8k, historical accuracy.\nNegative Prompt: ${pj.negative_prompt || 'no modern objects, no modern textiles, no deformed faces, no CGI artifacts'}`;
@@ -139,6 +147,24 @@ export const SceneCard: React.FC<SceneCardProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="text-base sm:text-lg font-bold text-zinc-100">{scene.title}</h4>
+                {scene.scene_pattern && (
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-mono border ${
+                    scene.scene_pattern === 'HOOK' || scene.scene_pattern === 'INCITING_CALL' || scene.scene_pattern === 'INCITING_INCIDENT' ? 'bg-rose-500/15 text-rose-300 border-rose-500/30' :
+                    scene.scene_pattern === 'TURNING_POINT' || scene.scene_pattern === 'CLIMAX' || scene.scene_pattern === 'POINT_OF_NO_RETURN' ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' :
+                    scene.scene_pattern === 'ESCALATION' || scene.scene_pattern === 'CRUCIBLE' || scene.scene_pattern === 'CONFRONTATION' || scene.scene_pattern === 'TEST' ? 'bg-amber-500/15 text-amber-300 border-amber-500/30' :
+                    scene.scene_pattern === 'PAYOFF' || scene.scene_pattern === 'CLIFFHANGER' || scene.scene_pattern === 'RESOLUTION' || scene.scene_pattern === 'LEGACY' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' :
+                    scene.scene_pattern === 'AFTERMATH' || scene.scene_pattern === 'CATASTROPHE' ? 'bg-red-950/40 text-red-300 border-red-800/40' :
+                    scene.scene_pattern === 'REVELATION' || scene.scene_pattern === 'ILLUMINATION' ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' :
+                    'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                  }`}>
+                    {scene.scene_pattern}
+                  </span>
+                )}
+                {scene.historical_integrity?.tier && (
+                  <span className="px-2 py-0.5 rounded text-[9px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
+                    {scene.historical_integrity.tier}
+                  </span>
+                )}
                 {scene.status === 'completed' && (
                   <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     Tahap 6-8 Siap
@@ -375,6 +401,16 @@ export const SceneCard: React.FC<SceneCardProps> = ({
           {/* Scene Event & Narrative Description */}
           <div className="lg:col-span-2 space-y-3 text-xs flex flex-col justify-between">
             <div className="space-y-2.5">
+              {scene.prophet_depiction_safeguard?.is_prophet_present && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-xs text-emerald-300">
+                  <ShieldAlert className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div>
+                    <span className="font-bold block text-emerald-200">Adab Penggambaran Nabi Muhammad ﷺ (Locked):</span>
+                    <span className="text-[11px] text-emerald-300/90">{scene.prophet_depiction_safeguard.visual_rule}</span>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <span className="text-zinc-400 font-semibold block mb-1 uppercase tracking-wider text-[10px]">
                   Aksi Dramatis & Peristiwa Kejadian:
@@ -383,6 +419,17 @@ export const SceneCard: React.FC<SceneCardProps> = ({
                   {scene.event}
                 </p>
               </div>
+
+              {scene.visual_action && (
+                <div>
+                  <span className="text-zinc-400 font-semibold block mb-1 uppercase tracking-wider text-[10px] flex items-center gap-1">
+                    <Eye className="w-3 h-3 text-amber-400" /> Aksi Visual (Show, Don't Tell):
+                  </span>
+                  <p className="text-zinc-200 leading-relaxed font-medium bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/90 text-xs">
+                    {scene.visual_action}
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 <div className="bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-800/60">
@@ -399,7 +446,7 @@ export const SceneCard: React.FC<SceneCardProps> = ({
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-zinc-400 font-medium">Tokoh dalam Adegan:</span>
                   <div className="flex flex-wrap gap-1.5">
-                    {scene.character_names.map((charName, cIdx) => (
+                    {Array.from(new Set(scene.character_names.filter(Boolean))).map((charName, cIdx) => (
                       <span
                         key={`char-${scene.id || ''}-${charName}-${cIdx}`}
                         className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 text-[11px]"
@@ -408,6 +455,60 @@ export const SceneCard: React.FC<SceneCardProps> = ({
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Character Dialogue */}
+              {scene.dialogue && scene.dialogue.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] font-mono uppercase text-amber-400 font-bold flex items-center gap-1">
+                    <MessageSquare className="w-3 h-3 text-amber-400" /> Dialog Karakter ({scene.dialogue.length} Baris):
+                  </span>
+                  <div className="space-y-1.5">
+                    {scene.dialogue.map((d: any, dIdx: number) => (
+                      <div key={`d-${scene.id || ''}-${dIdx}`} className="bg-zinc-950/70 border border-zinc-800/80 rounded-lg p-2.5 text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-amber-300 text-[11px]">{d.character_name}</span>
+                          {d.delivery && (
+                            <span className="text-[10px] font-mono italic text-zinc-400">({d.delivery})</span>
+                          )}
+                        </div>
+                        <p className="text-zinc-200 italic font-serif">"{d.line}"</p>
+                        {d.emotional_subtext && (
+                          <p className="text-[10px] text-zinc-500 font-mono">Subteks: {d.emotional_subtext}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Narrator Voiceover & Sound Design */}
+              {(scene.narrator_vo || scene.sound_design) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                  {scene.narrator_vo && (
+                    <div className="bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800/60 space-y-1">
+                      <span className="text-[10px] font-mono uppercase text-zinc-400 font-bold flex items-center gap-1">
+                        <Mic className="w-3 h-3 text-zinc-400" /> Narator VO (Minimal):
+                      </span>
+                      <p className="text-zinc-300 italic text-[11px]">"{scene.narrator_vo}"</p>
+                    </div>
+                  )}
+                  {scene.sound_design && (
+                    <div className="bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800/60 space-y-1">
+                      <span className="text-[10px] font-mono uppercase text-zinc-400 font-bold flex items-center gap-1">
+                        <Volume2 className="w-3 h-3 text-zinc-400" /> Desain Suara & Atmosfer:
+                      </span>
+                      <p className="text-zinc-300 text-[11px]">
+                        <strong>SFX:</strong> {(scene.sound_design.sfx || []).join(', ') || 'Ambient alami'}
+                      </p>
+                      {scene.sound_design.bgm_mood && (
+                        <p className="text-zinc-400 text-[10px]">
+                          <strong>BGM:</strong> {scene.sound_design.bgm_mood}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

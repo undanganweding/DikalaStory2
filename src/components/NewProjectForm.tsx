@@ -24,6 +24,9 @@ import {
   XCircle,
   Server,
   Tag,
+  FlaskConical,
+  PlayCircle,
+  ShieldCheck,
 } from 'lucide-react';
 import { PromptLanguage, GeminiModelOption, ReasoningConfig, ReasoningProviderType } from '../types';
 
@@ -41,6 +44,8 @@ interface NewProjectFormProps {
     image_model?: 'nano_banana_pro';
     video_model?: ('veo' | 'gemini_omni')[];
     include_seedance_format?: boolean;
+    dryRun?: boolean;
+    is_simulation?: boolean;
   }) => Promise<void>;
   isLoading: boolean;
 }
@@ -175,6 +180,9 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
   const [externalDisplayName, setExternalDisplayName] = useState<string>('');
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [testMessage, setTestMessage] = useState<string | null>(null);
+  const [testLatency, setTestLatency] = useState<number | null>(null);
+  const [isDiscoveringModels, setIsDiscoveringModels] = useState<boolean>(false);
+  const [discoveredModelsList, setDiscoveredModelsList] = useState<{ id: string; displayName: string }[]>([]);
 
   const [selectedVideoModels, setSelectedVideoModels] = useState<('veo' | 'gemini_omni')[]>(['veo']);
   const [includeSeedance, setIncludeSeedance] = useState<boolean>(false);
@@ -244,6 +252,7 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
   const handleTestConnection = async () => {
     setTestStatus('testing');
     setTestMessage(null);
+    setTestLatency(null);
 
     const modelToTest = providerType === 'google' ? effectiveModel : externalModelId.trim();
     if (!modelToTest) {
@@ -270,13 +279,53 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
       if (data.success) {
         setTestStatus('success');
         setTestMessage(data.message || 'Koneksi ke LLM berhasil! Model siap digunakan.');
+        if (data.latency) setTestLatency(data.latency);
       } else {
         setTestStatus('failed');
         setTestMessage(data.message || 'Gagal terhubung ke model.');
+        if (data.latency) setTestLatency(data.latency);
       }
     } catch (err: any) {
       setTestStatus('failed');
       setTestMessage(err?.message || 'Error saat menghubungi server untuk uji koneksi.');
+    }
+  };
+
+  const handleDiscoverModels = async () => {
+    if (providerType === 'google') return;
+    if (!externalBaseUrl.trim()) {
+      setTestStatus('failed');
+      setTestMessage('Base URL wajib diisi untuk mendeteksi model otomatis.');
+      return;
+    }
+
+    setIsDiscoveringModels(true);
+    setTestMessage(null);
+    try {
+      const res = await fetch('/api/ai/discover-models-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          protocol: 'openai-compatible',
+          baseUrl: externalBaseUrl.trim(),
+          apiKey: externalApiKey.trim() || 'sk-custom-token',
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.models) && data.models.length > 0) {
+        setDiscoveredModelsList(data.models.map((m: any) => ({ id: m.id, displayName: m.displayName || m.id })));
+        setTestStatus('success');
+        setTestMessage(`Ditemukan ${data.models.length} model dari endpoint! Klik model di bawah untuk memilih.`);
+      } else {
+        setTestStatus('failed');
+        setTestMessage(data.error || 'Gagal mendeteksi daftar model dari endpoint.');
+      }
+    } catch (err: any) {
+      setTestStatus('failed');
+      setTestMessage(err?.message || 'Gagal menghubungi server untuk deteksi model.');
+    } finally {
+      setIsDiscoveringModels(false);
     }
   };
 
@@ -329,6 +378,45 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
       setSelectedVideoModels(selectedVideoModels.filter((m) => m !== modelKey));
     } else {
       setSelectedVideoModels([...selectedVideoModels, modelKey]);
+    }
+  };
+
+  const handleRunSimulation = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    setErrorMessage(null);
+
+    const simulationTitle = title.trim() || 'Uji Prototipe Sinematik (Simulasi 0-Kuota)';
+    const simulationScript = rawScript.trim() || 'Sebuah petualangan sinematik intens di tengah malam berkabut Jakarta. Raden Arya dan Kirana Maya bertemu di rooftop rahasia untuk mengamankan artefak teknologi kuno sebelum alarm keamanan kota aktif.';
+
+    const isDivisible = isAutoSceneDuration || (effectiveTotalDuration % fixedSceneDuration === 0);
+    const sceneDur = isAutoSceneDuration ? null : (isDivisible ? fixedSceneDuration : null);
+
+    const payload = {
+      title: simulationTitle,
+      raw_script: simulationScript,
+      total_duration_target_sec: Math.max(30, effectiveTotalDuration),
+      max_scene_shot_duration_sec: sceneDur,
+      scene_duration_sec: sceneDur,
+      allow_final_scene_override: true,
+      prompt_language: promptLanguage,
+      ai_model: 'simulation-engine-0-quota',
+      reasoning_config: {
+        provider_type: 'google' as const,
+        provider_name: 'Simulation Prototype Engine',
+        model_id: 'simulation-engine',
+        display_name: 'Simulasi Prototipe (0 Kuota)',
+      },
+      image_model: 'nano_banana_pro' as const,
+      video_model: selectedVideoModels,
+      include_seedance_format: includeSeedance,
+      dryRun: true,
+      is_simulation: true,
+    };
+
+    try {
+      await onSubmit(payload);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Gagal memulai uji simulasi.');
     }
   };
 
@@ -425,6 +513,8 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
       image_model: 'nano_banana_pro' as const,
       video_model: selectedVideoModels,
       include_seedance_format: includeSeedance,
+      dryRun: false,
+      is_simulation: false,
     };
 
     try {
@@ -1191,8 +1281,26 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
             <div className="space-y-4 bg-zinc-950/80 p-4 sm:p-5 rounded-xl border border-zinc-800">
               {providerType === 'custom_openai' && (
                 <div className="space-y-2 pb-3 border-b border-zinc-800/80">
-                  <span className="text-[11px] font-semibold text-zinc-300 block">Preset Cepat Provider Kustom:</span>
+                  <span className="text-[11px] font-semibold text-zinc-300 block">Preset Cepat Provider Kustom & Proxy:</span>
                   <div className="flex flex-wrap gap-2">
+                    {/* 9router by Decolus */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExternalBaseUrl('http://localhost:20000/v1');
+                        setExternalModelId('gemini-2.5-flash');
+                        setExternalDisplayName('9router (Decolus)');
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-1.5 cursor-pointer ${
+                        externalBaseUrl.includes('20000') || externalDisplayName.includes('9router')
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700'
+                      }`}
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span>9router (Decolus)</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => {
@@ -1206,7 +1314,7 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
                           : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700'
                       }`}
                     >
-                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <Zap className="w-3 h-3 text-emerald-400" />
                       <span>Tabitoken (ops-5)</span>
                     </button>
 
@@ -1223,7 +1331,7 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
                           : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700'
                       }`}
                     >
-                      <Zap className="w-3 h-3 text-emerald-400" />
+                      <Cpu className="w-3 h-3 text-purple-400" />
                       <span>Groq Cloud</span>
                     </button>
 
@@ -1240,7 +1348,7 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
                           : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700'
                       }`}
                     >
-                      <Cpu className="w-3 h-3 text-purple-400" />
+                      <Sparkles className="w-3 h-3 text-sky-400" />
                       <span>Together AI</span>
                     </button>
 
@@ -1252,7 +1360,7 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
                         setExternalDisplayName('Ollama Local');
                       }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-1.5 cursor-pointer ${
-                        externalBaseUrl.includes('11434') || externalBaseUrl.includes('localhost')
+                        externalBaseUrl.includes('11434') || (externalBaseUrl.includes('localhost') && !externalBaseUrl.includes('20000'))
                           ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                           : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700'
                       }`}
@@ -1267,10 +1375,21 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Base URL */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-                    <Globe className="w-3.5 h-3.5 text-zinc-400" />
-                    URL Basis (Endpoint API)
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-zinc-400" />
+                      URL Basis (Endpoint API)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleDiscoverModels}
+                      disabled={isDiscoveringModels || !externalBaseUrl.trim()}
+                      className="text-[10px] text-amber-400 hover:text-amber-300 transition flex items-center gap-1 font-medium disabled:opacity-40 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isDiscoveringModels ? 'animate-spin' : ''}`} />
+                      <span>{isDiscoveringModels ? 'Mendeteksi...' : 'Deteksi Model Otomatis'}</span>
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={externalBaseUrl}
@@ -1282,7 +1401,7 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
                     {providerType === 'openrouter' && 'Gunakan https://openrouter.ai/api/v1 untuk semua model di OpenRouter.'}
                     {providerType === 'openai' && 'Endpoint resmi standar OpenAI: https://api.openai.com/v1'}
                     {providerType === 'xai' && 'Endpoint resmi standar xAI: https://api.x.ai/v1'}
-                    {providerType === 'custom_openai' && 'Endpoint API server kompatibel OpenAI Anda (Together, Groq, Ollama, vLLM, dll).'}
+                    {providerType === 'custom_openai' && 'Endpoint server OpenAI-compatible Anda (9router Decolus: http://localhost:20000/v1, Together, Groq, Ollama, vLLM, dll).'}
                   </p>
                 </div>
 
@@ -1300,7 +1419,7 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
                       providerType === 'openrouter' ? 'cth. qwen/qwen-2.5-72b-instruct:free' :
                       providerType === 'openai' ? 'cth. gpt-4o' :
                       providerType === 'xai' ? 'cth. grok-2-latest' :
-                      'cth. deepseek-ai/DeepSeek-R1'
+                      'cth. gemini-2.5-flash / deepseek-ai/DeepSeek-R1'
                     }
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-amber-200 font-mono focus:outline-none focus:border-amber-500/60"
                   />
@@ -1313,7 +1432,7 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
                     <Key className="w-3.5 h-3.5 text-zinc-400" />
-                    Kunci API (Opsional jika sudah disetel di server)
+                    Kunci API (Opsional jika proxy lokal tanpa auth)
                   </label>
                   <input
                     type="password"
@@ -1338,7 +1457,7 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
                     type="text"
                     value={externalDisplayName}
                     onChange={(e) => setExternalDisplayName(e.target.value)}
-                    placeholder="cth. Qwen 72B Free / Grok 2"
+                    placeholder="cth. 9router Gemini 2.5 / DeepSeek R1"
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-500/60"
                   />
                   <p className="text-[10px] text-zinc-400">
@@ -1346,6 +1465,35 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
                   </p>
                 </div>
               </div>
+
+              {/* Detected models picker if auto-discovered */}
+              {discoveredModelsList.length > 0 && (
+                <div className="p-3 bg-zinc-900/90 rounded-xl border border-amber-500/20 space-y-2">
+                  <span className="text-[11px] font-semibold text-amber-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    Pilih Model Terdeteksi ({discoveredModelsList.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                    {discoveredModelsList.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setExternalModelId(m.id);
+                          setExternalDisplayName(m.displayName);
+                        }}
+                        className={`px-2 py-1 rounded text-[11px] font-mono transition border cursor-pointer ${
+                          externalModelId === m.id
+                            ? 'bg-amber-500/25 border-amber-400 text-amber-200'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                        }`}
+                      >
+                        {m.displayName || m.id}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1365,7 +1513,7 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
               ) : (
                 <>
                   <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Uji Koneksi LLM</span>
+                  <span>Uji Koneksi LLM (Ping & Latency)</span>
                 </>
               )}
             </button>
@@ -1374,6 +1522,11 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>{testMessage}</span>
+                {testLatency && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono text-[10px]">
+                    {testLatency}ms
+                  </span>
+                )}
               </div>
             )}
 
@@ -1381,6 +1534,11 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
                 <XCircle className="w-4 h-4 shrink-0" />
                 <span>{testMessage}</span>
+                {testLatency && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono text-[10px]">
+                    {testLatency}ms
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -1388,29 +1546,56 @@ export const NewProjectForm: React.FC<NewProjectFormProps> = ({ onSubmit, isLoad
       )}
     </div>
 
-    {/* Action Button */}
-        <div className="pt-2 pb-8">
-          <button
-            id="btn-generate-project"
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold text-base shadow-xl shadow-amber-500/20 transition active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 cursor-pointer"
-          >
-            {isLoading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" />
-                <span>Menjalankan Pipeline Orkestrasi (Tahap 1-8)...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5 fill-zinc-950" />
-                <span>Buat Cetak Biru Sinematik Proyek</span>
-              </>
-            )}
-          </button>
-          <p className="text-center text-xs text-zinc-400 mt-2.5 flex items-center justify-center gap-1.5">
+    {/* Action Buttons: Live AI vs Zero-Quota Simulation Prototype */}
+        <div className="pt-2 pb-8 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+            {/* Primary Live AI Button */}
+            <button
+              id="btn-generate-project"
+              type="submit"
+              disabled={isLoading}
+              className="sm:col-span-7 py-4 px-5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold text-base shadow-xl shadow-amber-500/20 transition active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 cursor-pointer"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" />
+                  <span>Menjalankan Pipeline (Tahap 1-8)...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5 fill-zinc-950" />
+                  <span>Buat Cetak Biru (Live AI)</span>
+                </>
+              )}
+            </button>
+
+            {/* Zero-Quota Simulation / Prototype Button */}
+            <button
+              id="btn-simulate-project"
+              type="button"
+              disabled={isLoading}
+              onClick={handleRunSimulation}
+              title="Uji coba seluruh alur orkestrasi 8 tahap tanpa menggunakan kuota API Gemini"
+              className="sm:col-span-5 py-4 px-4 rounded-2xl bg-gradient-to-r from-cyan-950/80 to-blue-950/80 hover:from-cyan-900/90 hover:to-blue-900/90 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 hover:border-cyan-400/50 font-bold text-sm shadow-lg shadow-cyan-950/50 transition active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer group"
+            >
+              <FlaskConical className="w-4 h-4 text-cyan-400 group-hover:rotate-12 transition-transform" />
+              <span>Uji Simulasi (0 Kuota)</span>
+            </button>
+          </div>
+
+          <div className="p-3 rounded-xl bg-cyan-950/30 border border-cyan-500/20 flex items-start gap-2.5 text-xs text-cyan-200/90">
+            <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-cyan-300 mb-0.5">Mode Uji Simulasi / Prototipe (0 Kuota AI):</p>
+              <p className="text-zinc-300 leading-relaxed">
+                Menjalankan simulasi penuh Tahap 1 s/d 8, perancangan karakter, lokasi, breakdown shot, prompt visual master frame, dan prompt video Seedance tanpa memotong kuota API sepeser pun.
+              </p>
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-zinc-400 mt-1 flex items-center justify-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-amber-400" />
-            Orkestrator akan mengeksekusi Tahap 1 hingga 8 secara modular dengan alokasi shot presisi dan master frame Nano Banana Pro.
+            Orkestrator mengeksekusi Tahap 1 hingga 8 secara modular dengan alokasi shot presisi dan master frame Nano Banana Pro.
           </p>
         </div>
       </form>

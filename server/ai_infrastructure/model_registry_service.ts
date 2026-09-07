@@ -13,6 +13,24 @@ export const DEFAULT_BASELINE_MODELS: Omit<AIModel, 'createdAt' | 'updatedAt'>[]
     contextWindow: 1048576,
   },
   {
+    id: 'gemini-3.8-flash',
+    providerId: 'google',
+    displayName: 'Gemini 3.8 Flash',
+    tier: 'flash' as const,
+    capabilities: ['text', 'vision', 'multimodal', 'reasoning', 'structured_output', 'creative', 'image', 'video', 'fast'],
+    enabled: true,
+    contextWindow: 1048576,
+  },
+  {
+    id: 'gemini-flash-latest',
+    providerId: 'google',
+    displayName: 'Gemini Flash Latest',
+    tier: 'flash' as const,
+    capabilities: ['text', 'vision', 'multimodal', 'reasoning', 'structured_output', 'creative', 'image', 'video', 'fast'],
+    enabled: true,
+    contextWindow: 1048576,
+  },
+  {
     id: 'gemini-3.6-flash',
     providerId: 'google',
     displayName: 'Gemini 3.6 Flash',
@@ -22,12 +40,57 @@ export const DEFAULT_BASELINE_MODELS: Omit<AIModel, 'createdAt' | 'updatedAt'>[]
     contextWindow: 1048576,
   },
   {
-    id: 'gemini-3.8-flash',
+    id: 'gemini-3.5-flash',
     providerId: 'google',
-    displayName: 'Gemini 3.8 Flash',
+    displayName: 'Gemini 3.5 Flash',
     tier: 'flash' as const,
     capabilities: ['text', 'vision', 'multimodal', 'reasoning', 'structured_output', 'creative', 'image', 'video', 'fast'],
     enabled: true,
+    contextWindow: 1048576,
+  },
+  {
+    id: 'gemini-2.5-pro',
+    providerId: 'google',
+    displayName: 'Gemini 2.5 Pro',
+    tier: 'pro' as const,
+    capabilities: ['text', 'vision', 'multimodal', 'reasoning', 'structured_output', 'creative', 'image', 'video'],
+    enabled: true,
+    contextWindow: 2097152,
+  },
+  {
+    id: 'gemini-2.5-flash',
+    providerId: 'google',
+    displayName: 'Gemini 2.5 Flash',
+    tier: 'flash' as const,
+    capabilities: ['text', 'vision', 'multimodal', 'reasoning', 'structured_output', 'creative', 'image', 'video', 'fast'],
+    enabled: true,
+    contextWindow: 1048576,
+  },
+  {
+    id: 'gemini-3.1-pro-preview',
+    providerId: 'google',
+    displayName: 'Gemini 3.1 Pro Preview',
+    tier: 'pro' as const,
+    capabilities: ['text', 'vision', 'multimodal', 'reasoning', 'structured_output', 'creative'],
+    enabled: true,
+    contextWindow: 1048576,
+  },
+  {
+    id: 'gemini-3.1-flash-lite',
+    providerId: 'google',
+    displayName: 'Gemini 3.1 Flash Lite',
+    tier: 'lite' as const,
+    capabilities: ['text', 'structured_output', 'fast'],
+    enabled: false,
+    contextWindow: 1048576,
+  },
+  {
+    id: 'gemini-3.5-flash-lite',
+    providerId: 'google',
+    displayName: 'Gemini 3.5 Flash Lite',
+    tier: 'lite' as const,
+    capabilities: ['text', 'structured_output', 'fast'],
+    enabled: false,
     contextWindow: 1048576,
   },
 ];
@@ -129,23 +192,15 @@ export const modelRegistryService = {
   },
 
   async initializeDefaults(): Promise<void> {
+    const existingModels = await db.getModels();
+    if (existingModels.length > 0) {
+      // Do not re-add or overwrite baseline models if models are already configured in DB
+      return;
+    }
     for (const m of DEFAULT_BASELINE_MODELS) {
       const existing = await this.getModel(m.id, m.providerId);
       if (!existing) {
         await this.addModel(m);
-      } else {
-        // Self-healing: ensure baseline reasoning and context window are maintained
-        const missingCaps = m.capabilities.filter(c => !existing.capabilities?.includes(c));
-        const contextTooSmall = m.contextWindow && (!existing.contextWindow || existing.contextWindow < m.contextWindow);
-        if (missingCaps.length > 0 || contextTooSmall || !existing.enabled) {
-          const mergedCaps = Array.from(new Set([...(existing.capabilities || []), ...m.capabilities]));
-          await this.updateModel(m.id, {
-            ...existing,
-            capabilities: mergedCaps,
-            contextWindow: Math.max(existing.contextWindow || 0, m.contextWindow || 0),
-            enabled: true,
-          }, m.providerId);
-        }
       }
     }
   },

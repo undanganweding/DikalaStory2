@@ -136,8 +136,8 @@ async function runRuntimePreflightProof() {
     dailyExhaustedRegistry.clear();
     const cacheKey1 = `${mockCredential.name}:${mockModel.id}`;
     const cacheKey2 = `${mockCredential.id}:${mockModel.id}`;
-    dailyExhaustedRegistry.add(cacheKey1);
-    dailyExhaustedRegistry.add(cacheKey2);
+    dailyExhaustedRegistry.set(cacheKey1, Date.now() + 3600000);
+    dailyExhaustedRegistry.set(cacheKey2, Date.now() + 3600000);
 
     console.log('👉 Force-exhausted credential paths:');
     console.log(`   - ${cacheKey1}`);

@@ -1,6 +1,5 @@
 import { taskRouter, TaskExecutionPlan, AITaskId, TaskRouterRequest } from './task_router';
 import { aiGateway } from './ai_gateway';
-import { executeNineRouterText, isNineRouterConfigured } from './nine_router_client';
 import { cleanJsonResponse } from '../llm_provider';
 import { ReasoningConfig } from '../../src/types';
 
@@ -23,6 +22,7 @@ export interface ExecuteTaskOptions {
   onProgress?: (message: string) => void;
   entityId?: string;
   projectId?: string;
+  timeoutMs?: number;
 }
 
 export interface ExecuteTaskResult {
@@ -82,36 +82,12 @@ export const taskExecutor = {
       `[TaskExecutor] EXECUTING task=${plan.taskId} stage=${options.stageCode || 'N/A'} model=${plan.modelId} provider=${plan.providerId} credential=${plan.credentialId} score=${plan.score}`
     );
 
-    // 4. Dispatch through 9Router when configured; retain existing gateway only for local compatibility.
-    if (isNineRouterConfigured()) {
-      const nineRouterResponse = await executeNineRouterText({
-        combo: plan.modelId,
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-        responseSchema: options.responseSchema,
-        temperature: options.temperature ?? 0.3,
-        maxTokens: options.maxOutputTokens,
-      });
-      const cleanedText = cleanJsonResponse(nineRouterResponse.text);
-      console.log(`[TaskExecutor] 9Router parsed task=${plan.taskId} stage=${options.stageCode || 'N/A'} model=${nineRouterResponse.model || 'unknown'} finish=${nineRouterResponse.finishReason || 'unknown'} rawLength=${nineRouterResponse.text.length} cleanedLength=${cleanedText.length} rawPreview=${nineRouterResponse.text.slice(0, 500)}`);
-      return {
-        text: cleanedText,
-        plan,
-        latencyMs: Date.now() - startTime,
-        tokens: nineRouterResponse.promptTokens === undefined || nineRouterResponse.completionTokens === undefined
-          ? undefined
-          : {
-              prompt: nineRouterResponse.promptTokens,
-              completion: nineRouterResponse.completionTokens,
-              total: nineRouterResponse.totalTokens ?? nineRouterResponse.promptTokens + nineRouterResponse.completionTokens,
-            },
-      };
-    }
-
+    // 4. Dispatch to AI Gateway with authoritative resolved route & sequential fallback plan
     const gatewayResponse = await aiGateway.generate({
-      executionPlan: plan,
       model: plan.modelId,
       providerId: plan.providerId,
+      credentialId: plan.credentialId,
+      apiKey: plan.apiKey,
       task: plan.taskId,
       agentName: options.stageCode || plan.taskId,
       prompt: options.prompt,
@@ -120,10 +96,18 @@ export const taskExecutor = {
       temperature: options.temperature ?? 0.3,
       maxTokens: options.maxOutputTokens,
       projectId: options.projectId,
+      timeoutMs: options.timeoutMs,
+      plan,
+      fallbackPlan: plan.fallbackPlan,
     });
 
     const latencyMs = Date.now() - startTime;
+    console.log(`[TaskExecutor] Raw response length: ${gatewayResponse.text?.length || 0}`);
+    if (gatewayResponse.text) {
+      console.log(`[TaskExecutor] Raw response start: ${gatewayResponse.text.substring(0, 200)}`);
+    }
     const cleanedText = cleanJsonResponse(gatewayResponse.text);
+    console.log(`[TaskExecutor] Cleaned response length: ${cleanedText?.length || 0}`);
 
     return {
       text: cleanedText,

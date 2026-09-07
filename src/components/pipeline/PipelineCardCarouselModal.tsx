@@ -18,6 +18,8 @@ import {
   Layers,
   Activity,
   Clock,
+  FlaskConical,
+  ShieldCheck,
 } from 'lucide-react';
 import { Project, PipelineLogEvent, Scene, Shot, VideoPrompt } from '../../types';
 import { PipelineStageArt } from './PipelineStageArt';
@@ -34,6 +36,7 @@ interface PipelineCardCarouselModalProps {
   onClose: () => void;
   onOpenPipelineDetails: () => void;
   onOpenStudio: () => void;
+  onRetrySimulation?: () => void;
 }
 
 interface StageMeta {
@@ -142,10 +145,23 @@ export const PipelineCardCarouselModal: React.FC<PipelineCardCarouselModalProps>
   onClose,
   onOpenPipelineDetails,
   onOpenStudio,
+  onRetrySimulation,
 }) => {
   const [selectedStageIdx, setSelectedStageIdx] = useState<number>(0);
   const [autoFollow, setAutoFollow] = useState<boolean>(true);
+  const [showEmbeddedLogs, setShowEmbeddedLogs] = useState<boolean>(false);
+  const [logFilterStage, setLogFilterStage] = useState<number | 'all'>('all');
+  const [copiedLogs, setCopiedLogs] = useState<boolean>(false);
   const touchStartXRef = useRef<number | null>(null);
+  const maxProgressRef = useRef<number>(0);
+  const logsEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset max progress tracker on new project or when modal is freshly opened
+  useEffect(() => {
+    if (isOpen) {
+      maxProgressRef.current = 0;
+    }
+  }, [isOpen, project?.id]);
 
   // 1. Total Scenes Count Detection
   const totalScenes = useMemo(() => {
@@ -285,27 +301,66 @@ export const PipelineCardCarouselModal: React.FC<PipelineCardCarouselModalProps>
     };
   }, [isCompleted, project?.current_stage, project?.foundation_status, s6DoneCount, s7DoneCount, s8DoneCount, totalScenes]);
 
-  // 4. Smooth Weighted Global Progress Calculation
+  // 4. STRICTLY MONOTONIC Global Progress Calculation (No flickering backward)
   const progressPercent = useMemo(() => {
-    if (isCompleted) return 100;
-    if (error) return Math.min(95, Math.max(10, Math.round(((directorStage.stageNum - 1) / 8) * 100)));
-
-    if (directorStage.stageNum <= 5) {
-      // 0% - 50% for foundation stages (10% each)
-      const base = (directorStage.stageNum - 1) * 10;
-      const stageLogsCount = logs.filter((l) => l.stage === directorStage.stageNum).length;
-      const microBoost = Math.min(8, stageLogsCount * 1.5);
-      return Math.min(50, Math.max(5, Math.round(base + microBoost + 2)));
+    if (isCompleted) {
+      maxProgressRef.current = 100;
+      return 100;
     }
 
-    // 50% - 100% for parallel scene stages S6-S8
-    const s6Ratio = totalScenes > 0 ? Math.min(1, s6DoneCount / totalScenes) : 0;
-    const s7Ratio = totalScenes > 0 ? Math.min(1, s7DoneCount / totalScenes) : 0;
-    const s8Ratio = totalScenes > 0 ? Math.min(1, s8DoneCount / totalScenes) : 0;
+    let calculated = 5;
 
-    const weighted = 50 + s6Ratio * 18 + s7Ratio * 16 + s8Ratio * 16;
-    return Math.min(99, Math.max(52, Math.round(weighted)));
-  }, [isCompleted, error, directorStage.stageNum, s6DoneCount, s7DoneCount, s8DoneCount, totalScenes, logs]);
+    if (directorStage.stageNum <= 5) {
+      // S1 to S5 foundation stages mapped linearly to 10% - 50%
+      const base = (directorStage.stageNum - 1) * 10;
+      const stageLogs = logs.filter((l) => l.stage === directorStage.stageNum);
+      const subRatio = stageLogs.length > 0 ? Math.min(8, stageLogs.length * 1.5) : 0;
+      calculated = Math.min(50, Math.max(5, Math.round(base + subRatio)));
+    } else {
+      // S6 (50%-66%), S7 (66%-83%), S8 (83%-99%) based strictly on scene completion ratios
+      const s6Ratio = totalScenes > 0 ? Math.min(1, s6DoneCount / totalScenes) : 0;
+      const s7Ratio = totalScenes > 0 ? Math.min(1, s7DoneCount / totalScenes) : 0;
+      const s8Ratio = totalScenes > 0 ? Math.min(1, s8DoneCount / totalScenes) : 0;
+
+      if (directorStage.stageNum === 6) {
+        calculated = Math.round(50 + s6Ratio * 16);
+      } else if (directorStage.stageNum === 7) {
+        calculated = Math.round(66 + s7Ratio * 17);
+      } else {
+        calculated = Math.round(83 + s8Ratio * 16);
+      }
+    }
+
+    // Monotonic guarantee: never drop below max reached progress
+    const safeProgress = Math.min(99, Math.max(maxProgressRef.current, calculated));
+    maxProgressRef.current = safeProgress;
+    return safeProgress;
+  }, [isCompleted, directorStage.stageNum, s6DoneCount, s7DoneCount, s8DoneCount, totalScenes, logs]);
+
+  // Filtered Logs for Live Transparency Drawer
+  const filteredLogs = useMemo(() => {
+    if (logFilterStage === 'all') return logs;
+    return logs.filter((l) => l.stage === logFilterStage);
+  }, [logs, logFilterStage]);
+
+  // Auto-scroll logs drawer to bottom on new log
+  useEffect(() => {
+    if (showEmbeddedLogs && logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs.length, showEmbeddedLogs]);
+
+  const handleCopyLogs = () => {
+    const text = logs
+      .map(
+        (l) =>
+          `[${l.timestamp ? new Date(l.timestamp).toISOString() : new Date().toISOString()}] [Stage ${l.stage || 'Global'}] [${(l.level || 'info').toUpperCase()}] ${l.message} ${l.data ? JSON.stringify(l.data) : ''}`
+      )
+      .join('\n');
+    navigator.clipboard.writeText(text);
+    setCopiedLogs(true);
+    setTimeout(() => setCopiedLogs(false), 2500);
+  };
 
   // 5. Live Workers / Parallel Queue Extraction
   const liveWorkers: LiveWorkerItem[] = useMemo(() => {
@@ -488,6 +543,12 @@ export const PipelineCardCarouselModal: React.FC<PipelineCardCarouselModalProps>
           <span className="text-[11px] sm:text-xs font-mono font-bold tracking-widest text-zinc-300 uppercase">
             @sinema.director • Cetak Biru Sinematik
           </span>
+          {project?.is_simulation && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1">
+              <FlaskConical className="w-3 h-3" />
+              <span>Simulasi 0-Kuota</span>
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -569,19 +630,30 @@ export const PipelineCardCarouselModal: React.FC<PipelineCardCarouselModalProps>
               <button
                 id="btn-error-close"
                 onClick={onClose}
-                className="w-full sm:w-1/2 py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs border border-white/10 transition cursor-pointer flex items-center justify-center gap-2"
+                className="w-full sm:w-1/3 py-3 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold text-xs border border-white/10 transition cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <X className="w-4 h-4" />
                 <span>Tutup</span>
               </button>
 
+              {onRetrySimulation && (
+                <button
+                  id="btn-error-retry-simulation"
+                  onClick={onRetrySimulation}
+                  className="w-full sm:w-1/3 py-3 px-3 rounded-xl bg-cyan-900/80 hover:bg-cyan-800/90 text-cyan-200 font-bold text-xs border border-cyan-500/40 shadow-lg transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <FlaskConical className="w-4 h-4 text-cyan-300" />
+                  <span>Uji Simulasi (0 Kuota)</span>
+                </button>
+              )}
+
               <button
                 id="btn-error-open-pipeline"
                 onClick={onOpenPipelineDetails}
-                className="w-full sm:w-1/2 py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition cursor-pointer flex items-center justify-center gap-2"
+                className={`w-full ${onRetrySimulation ? 'sm:w-1/3' : 'sm:w-2/3'} py-3 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition cursor-pointer flex items-center justify-center gap-1.5`}
               >
                 <Terminal className="w-4 h-4" />
-                <span>Buka Detail Halaman Pipeline</span>
+                <span>Detail Pipeline</span>
               </button>
             </div>
           </motion.div>
@@ -835,6 +907,12 @@ export const PipelineCardCarouselModal: React.FC<PipelineCardCarouselModalProps>
             animate={{ scale: 1, opacity: 1 }}
             className="w-full mt-4 flex flex-col items-center gap-2"
           >
+            {project?.is_simulation && (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-bold mb-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Simulasi Selesai 100% (0 Kuota AI Terpakai)</span>
+              </div>
+            )}
             <button
               id="btn-open-studio-completed"
               onClick={onOpenStudio}
@@ -846,6 +924,120 @@ export const PipelineCardCarouselModal: React.FC<PipelineCardCarouselModalProps>
             </button>
           </motion.div>
         )}
+
+        {/* FULL TRANSPARENCY LIVE DIAGNOSTIC LOGS DRAWER */}
+        <div className="w-full mt-3 bg-black/60 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-md">
+          <div className="flex items-center justify-between px-3.5 py-2.5 bg-white/5 border-b border-white/10">
+            <button
+              onClick={() => setShowEmbeddedLogs(!showEmbeddedLogs)}
+              className="flex items-center gap-2 text-xs font-mono font-bold text-zinc-200 hover:text-white transition cursor-pointer"
+            >
+              <Terminal className="w-3.5 h-3.5 text-amber-400" />
+              <span>DIAGNOSTIK & LOG PROSES REAL-TIME ({logs.length} Event)</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-zinc-400">
+                {showEmbeddedLogs ? 'Tutup ▲' : 'Buka Detail ▼'}
+              </span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCopyLogs}
+                className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-white/10 hover:bg-white/20 text-zinc-300 transition cursor-pointer"
+                title="Salin seluruh log ke clipboard"
+              >
+                {copiedLogs ? 'Tersalin ✓' : 'Salin Log'}
+              </button>
+            </div>
+          </div>
+
+          {/* Expanded Log Viewer */}
+          {showEmbeddedLogs && (
+            <div className="p-3 space-y-2">
+              {/* Stage Filter Chips */}
+              <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-white/5 text-[10px] font-mono">
+                <span className="text-zinc-500 font-bold">Filter Tahap:</span>
+                <button
+                  onClick={() => setLogFilterStage('all')}
+                  className={`px-2 py-0.5 rounded-full transition cursor-pointer ${
+                    logFilterStage === 'all'
+                      ? 'bg-amber-500 text-zinc-950 font-bold'
+                      : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Semua ({logs.length})
+                </button>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((sNum) => {
+                  const cnt = logs.filter((l) => l.stage === sNum).length;
+                  if (cnt === 0) return null;
+                  return (
+                    <button
+                      key={sNum}
+                      onClick={() => setLogFilterStage(sNum)}
+                      className={`px-2 py-0.5 rounded-full transition cursor-pointer ${
+                        logFilterStage === sNum
+                          ? 'bg-amber-500 text-zinc-950 font-bold'
+                          : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      S{sNum} ({cnt})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Scrollable Log Terminal List */}
+              <div className="max-h-56 overflow-y-auto font-mono text-[11px] space-y-1.5 pr-1 select-text">
+                {filteredLogs.length === 0 ? (
+                  <div className="text-zinc-500 text-center py-4">Belum ada log pada filter ini...</div>
+                ) : (
+                  filteredLogs.map((log, index) => {
+                    const isErr = log.level === 'error' || log.message.toLowerCase().includes('error') || log.message.toLowerCase().includes('gagal');
+                    const isSuccess = log.level === 'success' || log.message.toLowerCase().includes('berhasil') || log.message.toLowerCase().includes('lolos');
+                    const isWarn = log.level === 'warn' || log.message.toLowerCase().includes('warning') || log.message.toLowerCase().includes('rate limit');
+                    const timeStr = log.timestamp
+                      ? new Date(log.timestamp).toTimeString().split(' ')[0]
+                      : new Date().toTimeString().split(' ')[0];
+
+                    return (
+                      <div
+                        key={index}
+                        className={`p-2 rounded-lg border text-left leading-relaxed ${
+                          isErr
+                            ? 'bg-rose-950/40 border-rose-500/40 text-rose-200'
+                            : isSuccess
+                            ? 'bg-emerald-950/20 border-emerald-500/20 text-emerald-200'
+                            : isWarn
+                            ? 'bg-amber-950/30 border-amber-500/30 text-amber-200'
+                            : 'bg-zinc-900/60 border-white/5 text-zinc-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-[9.5px] text-zinc-400 mb-0.5">
+                          <span className="flex items-center gap-1.5 font-bold">
+                            <span className="text-zinc-500">{timeStr}</span>
+                            {log.stage ? (
+                              <span className="px-1.5 py-0.2 rounded bg-white/10 text-amber-300">
+                                S{log.stage}
+                              </span>
+                            ) : null}
+                            <span className="uppercase text-[9px]">{log.level || 'INFO'}</span>
+                          </span>
+                          {log.stage_name && <span className="text-zinc-500 truncate">{log.stage_name}</span>}
+                        </div>
+                        <div className="text-[11px] font-medium whitespace-pre-wrap break-words">{log.message}</div>
+                        {log.data && (
+                          <pre className="mt-1 p-1.5 rounded bg-black/50 text-[9.5px] text-zinc-400 overflow-x-auto whitespace-pre-wrap">
+                            {typeof log.data === 'string' ? log.data : JSON.stringify(log.data, null, 2)}
+                          </pre>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={logsEndRef} />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Footer Details Bar */}

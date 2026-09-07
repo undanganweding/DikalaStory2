@@ -107,8 +107,6 @@ export const providerService = {
         enabled: true,
         capabilities: { text: true, vision: true, image: true, video: true },
       });
-    } else if (!google.enabled) {
-      await this.updateProvider('google', { enabled: true });
     }
   },
 };

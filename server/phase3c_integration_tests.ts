@@ -169,6 +169,9 @@ async function runInitializationFixture(
     researchEngine: new ResearchEngine([], [provider], searchProvider ? [searchProvider] : []),
     stage1Runner: stopStage1Capture(captured),
   });
+  if (!result.error?.includes(STOP_AFTER_STAGE_1)) {
+    console.error('Actual initialization result:', result);
+  }
   assert(result.success === false && result.error?.includes(STOP_AFTER_STAGE_1), 'integration reaches the real Stage 1 boundary');
   const reloaded = await db.getProject(fixtureProject.id);
   assert(reloaded, 'project reloads from existing persistence');

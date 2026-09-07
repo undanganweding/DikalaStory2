@@ -1,0 +1,1704 @@
+[
+  {
+    "id": "proj_1788773631968_e0aj7i",
+    "title": "ANAK YATIM YANG MENJADI IMAM BESAR",
+    "status": "completed",
+    "scenesCount": 12,
+    "scenes": [
+      {
+        "scene_number": 1,
+        "title": "Konfrontasi di Dermaga Batavia - Perkembangan Aksi & Penutup Ketegangan - Titik Balik Dramatis - Konsekuensi Aksi & Konteks - Perkembangan Aksi Konfrontasi - Resolusi & Penutup",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)",
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan.",
+        "event": "Perdebatan sengit tentang koordinat jalur terlarang. (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 2,
+        "title": "Konfrontasi di Dermaga Batavia - Perkembangan Aksi & Penutup Ketegangan - Titik Balik Dramatis - Konsekuensi Aksi & Konteks - Perkembangan Aksi Konfrontasi - Inisiasi & Konteks",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)",
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Puncak eskalasi dramatis dan resolusi beat.",
+        "event": "Perdebatan sengit tentang koordinat jalur terlarang. (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Puncak aksi & pergerakan lanjutan)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 3,
+        "title": "Konfrontasi di Dermaga Batavia - Perkembangan Aksi & Penutup Ketegangan - Titik Balik Dramatis - Konsekuensi Aksi & Konteks - Perkembangan Aksi - Konsekuensi Aksi",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)",
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Puncak eskalasi dramatis dan resolusi beat.",
+        "event": "Perdebatan sengit tentang koordinat jalur terlarang. (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Puncak aksi & pergerakan lanjutan)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 4,
+        "title": "Konfrontasi di Dermaga Batavia - Perkembangan Aksi & Penutup Ketegangan - Titik Balik Dramatis - Konsekuensi Aksi & Konteks - Titik Balik Dramatis",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)",
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Puncak eskalasi dramatis dan resolusi beat.",
+        "event": "Perdebatan sengit tentang koordinat jalur terlarang. (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Puncak aksi & pergerakan lanjutan)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 5,
+        "title": "Konfrontasi di Dermaga Batavia - Perkembangan Aksi & Penutup Ketegangan - Titik Balik Dramatis - Konsekuensi Aksi - Eskalasi Ketegangan",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)",
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Puncak eskalasi dramatis dan resolusi beat.",
+        "event": "Perdebatan sengit tentang koordinat jalur terlarang. (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Puncak aksi & pergerakan lanjutan)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 6,
+        "title": "Konfrontasi di Dermaga Batavia - Perkembangan Aksi & Penutup Ketegangan - Titik Balik Dramatis - Resolusi & Penutup",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)",
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Puncak eskalasi dramatis dan resolusi beat.",
+        "event": "Perdebatan sengit tentang koordinat jalur terlarang. (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Puncak aksi & pergerakan lanjutan)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 7,
+        "title": "Konfrontasi di Dermaga Batavia - Perkembangan Aksi & Penutup Ketegangan - Puncak Konfrontasi",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)",
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Puncak eskalasi dramatis dan resolusi beat.",
+        "event": "Perdebatan sengit tentang koordinat jalur terlarang. (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Puncak aksi & pergerakan lanjutan)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 8,
+        "title": "Konfrontasi di Dermaga Batavia - Perkembangan Aksi & Penutup - Perkembangan Aksi",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)",
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Fase inisiasi dan pembangunan ketegangan. - Fase inisiasi dan pembangunan ketegangan. - Puncak eskalasi dramatis dan resolusi beat.",
+        "event": "Perdebatan sengit tentang koordinat jalur terlarang. (Fase permulaan & persiapan aksi) (Fase permulaan & persiapan aksi) (Puncak aksi & pergerakan lanjutan)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 9,
+        "title": "Konfrontasi di Dermaga Batavia - Perkembangan Aksi - Inisiasi & Konteks",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)",
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Fase inisiasi dan pembangunan ketegangan. - Puncak eskalasi dramatis dan resolusi beat.",
+        "event": "Perdebatan sengit tentang koordinat jalur terlarang. (Fase permulaan & persiapan aksi) (Puncak aksi & pergerakan lanjutan)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 10,
+        "title": "Konfrontasi di Dermaga Batavia - Titik Balik Dramatis",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)",
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Puncak eskalasi dramatis dan resolusi beat.",
+        "event": "Perdebatan sengit tentang koordinat jalur terlarang. (Puncak aksi & pergerakan lanjutan)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 11,
+        "title": "Keputusan Pelayaran - Puncak Konfrontasi",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Fase inisiasi dan pembangunan ketegangan.",
+        "event": "Kapal melepas sauh dan bergerak menembus samudra. (Fase permulaan & persiapan aksi)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 12,
+        "title": "Keputusan Pelayaran - Konsekuensi Aksi",
+        "character_names": [
+          "Muhammad bin Idris asy-Syafi'i (Imam Syafi'i)"
+        ],
+        "location_name": "Pemukiman Kuno Asqalan-Gaza",
+        "story_purpose": "undefined - Puncak eskalasi dramatis dan resolusi beat.",
+        "event": "Kapal melepas sauh dan bergerak menembus samudra. (Puncak aksi & pergerakan lanjutan)",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      }
+    ]
+  },
+  {
+    "id": "proj_1788771741166_f4hc0c",
+    "title": "Uji Prototipe Sinematik (Simulasi 0-Kuota)",
+    "status": "completed",
+    "scenesCount": 8,
+    "scenes": [
+      {
+        "scene_number": 1,
+        "title": "Scene 1: Inisiasi & Pandangan Pertama",
+        "character_names": [
+          "Raden Arya"
+        ],
+        "location_name": "Rooftop Menara Metropolitan Jakarta",
+        "story_purpose": "Pengenalan protagonis di dunia cerita",
+        "event": "Arya berdiri di tepi rooftop basah menatap cakrawala kota yang tenggelam dalam kabut malam. Angin mengibarkan jaketnya saat ia memegang transceiver.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Arya berdiri di tepi rooftop basah menatap cakrawala kota yan",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Arya berdiri di tepi rooftop basah menatap cakrawala kota yang tenggelam dalam kabut malam. Angin mengibarkan jaketnya saat ia memegang transceiver.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Membangun rasa kesepian mendalam dan skala dunia yang megah.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Antisipasi tegang",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 2,
+        "title": "Scene 2: Pertemuan di Tengah Bayangan",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Rooftop Menara Metropolitan Jakarta",
+        "story_purpose": "Pertemuan dua tokoh kunci",
+        "event": "Maya muncul dari balik pintu darurat rooftop. Tatapan mata mereka bertemu di bawah pendaran cahaya neon biru.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Maya muncul dari balik pintu darurat rooftop. Tatapan mata me",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Maya muncul dari balik pintu darurat rooftop. Tatapan mata mereka bertemu di bawah pendaran cahaya neon biru.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Dua karakter berdiri berhadapan dengan kontras pencahayaan siluet yang tajam.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Kehati-hatian dan kepercayaan yang rapuh",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 3,
+        "title": "Scene 3: Penyerahan Artefak Rahasia",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Rooftop Menara Metropolitan Jakarta",
+        "story_purpose": "Perpindahan objek kunci pengubah alur cerita",
+        "event": "Maya menyerahkan sebuah silinder data bercahaya keemasan kepada Arya. Refleksi cahaya menyinari wajah kedua tokoh.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Maya menyerahkan sebuah silinder data bercahaya keemasan kepa",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Maya menyerahkan sebuah silinder data bercahaya keemasan kepada Arya. Refleksi cahaya menyinari wajah kedua tokoh.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Fokus ekstrem pada pertukaran tangan dan cahaya pendaran artefak.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Momen penentuan nasib",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 4,
+        "title": "Scene 4: Alarm & Peringatan Bahaya",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Rooftop Menara Metropolitan Jakarta",
+        "story_purpose": "Munculnya rintangan langsung yang memaksa pelarian",
+        "event": "Lampu sorot keamanan tiba-tiba menyala di kejauhan menyapu rooftop. Suara sirine bergaung memecah keheningan.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Lampu sorot keamanan tiba-tiba menyala di kejauhan menyapu ro",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Lampu sorot keamanan tiba-tiba menyala di kejauhan menyapu rooftop. Suara sirine bergaung memecah keheningan.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Cahaya sorot tajam membelah kegelapan dengan partikel air hujan berkilau.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Tensi meningkat drastis",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 5,
+        "title": "Scene 5: Pelarian Menuju Ruang Bawah Tanah",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Ruang Arsip Rahasia Bawah Tanah",
+        "story_purpose": "Perjalanan menuju titik pengamanan data",
+        "event": "Arya dan Maya menerobos lorong arsip bawah tanah berkubah beton. Langkah kaki mereka bergema di lantai marmer hitam.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Arya dan Maya menerobos lorong arsip bawah tanah berkubah bet",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Arya dan Maya menerobos lorong arsip bawah tanah berkubah beton. Langkah kaki mereka bergema di lantai marmer hitam.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Gerakan kamera tracking dinamis mengikuti ritme lari kedua karakter.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Urgensi dan determinasi tinggi",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 6,
+        "title": "Scene 6: Klimaks Aktivasi Sistem",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Ruang Arsip Rahasia Bawah Tanah",
+        "story_purpose": "Titik balik puncak di mana misi terselesaikan",
+        "event": "Arya memasang artefak silinder ke terminal pusat. Gelombang cahaya biru mengalir seketika menerangi seluruh ruangan berkubah.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Arya memasang artefak silinder ke terminal pusat. Gelombang c",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Arya memasang artefak silinder ke terminal pusat. Gelombang cahaya biru mengalir seketika menerangi seluruh ruangan berkubah.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Pancaran cahaya volumetrik megah menerangi seluruh kubah arsitektur.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Klimaks kepuasan & keajaiban visual",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 7,
+        "title": "Scene 7: Konfrontasi Terakhir",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Ruang Arsip Rahasia Bawah Tanah",
+        "story_purpose": "Pertahanan posisi saat sistem menyelesaikan sinkronisasi",
+        "event": "Bayangan musuh terlihat di ujung pintu masuk. Arya dan Maya bersiap dengan posisi taktis saling melindungi.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Bayangan musuh terlihat di ujung pintu masuk. Arya dan Maya b",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Bayangan musuh terlihat di ujung pintu masuk. Arya dan Maya bersiap dengan posisi taktis saling melindungi.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Komposisi simetris dengan rim light emas dramatis di kedua siluet tokoh.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Keberanian mutlak",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 8,
+        "title": "Scene 8: Resolusi & Fajar Baru",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Ruang Arsip Rahasia Bawah Tanah",
+        "story_purpose": "Penutupan babak dengan harapan baru",
+        "event": "Sistem stabil. Sinar matahari pagi pertama menembus ventilasi kaca tinggi, menandai kemenangan babak awal mereka.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Sistem stabil. Sinar matahari pagi pertama menembus ventilasi",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Sistem stabil. Sinar matahari pagi pertama menembus ventilasi kaca tinggi, menandai kemenangan babak awal mereka.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Cahaya fajar hangat (golden hour) membasuh ruangan beton dengan kedamaian.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Kelegaan penuh harapan",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "proj_1788765312974_j3qfl8",
+    "title": "NU'AIMAN — SAHABAT YANG SELALU MEMBUAT RASULULLAH ﷺ TERSENYUM",
+    "status": "completed",
+    "scenesCount": 12,
+    "scenes": [
+      {
+        "scene_number": 1,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 2,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa - Sekuel",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 3,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa - Sekuel",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 4,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa - Sekuel",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 5,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa - Sekuel",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 6,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa - Sekuel",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 7,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa - Sekuel",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 8,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa - Sekuel",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 9,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa - Sekuel",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 10,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa - Sekuel",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 11,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa - Sekuel",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 12,
+        "title": "EXT. PASAR MADINAH - Aroma Hidangan Istimewa - Sekuel",
+        "character_names": [
+          "Nu'aiman bin Amr radhiyallahu 'anhu",
+          "Pedagang Makanan Madinah"
+        ],
+        "location_name": "Pasar Terbuka & Lorong Berbatu Madinah Kuno",
+        "story_purpose": "Memperkenalkan Nu'aiman yang terpikat aroma makanan di tengah riuh pasar Madinah.",
+        "event": "Nu'aiman terhenti di lorong pasar, menghirup aroma lezat dari lapak pedagang asing.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      }
+    ]
+  },
+  {
+    "id": "proj_1788760599774_e69jpc",
+    "title": "Uji Prototipe Sinematik (Simulasi 0-Kuota)",
+    "status": "completed",
+    "scenesCount": 8,
+    "scenes": [
+      {
+        "scene_number": 1,
+        "title": "Scene 1: Inisiasi & Pandangan Pertama",
+        "character_names": [
+          "Raden Arya"
+        ],
+        "location_name": "Rooftop Menara Metropolitan Jakarta",
+        "story_purpose": "Pengenalan protagonis di dunia cerita",
+        "event": "Arya berdiri di tepi rooftop basah menatap cakrawala kota yang tenggelam dalam kabut malam. Angin mengibarkan jaketnya saat ia memegang transceiver.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Arya berdiri di tepi rooftop basah menatap cakrawala kota yan",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Arya berdiri di tepi rooftop basah menatap cakrawala kota yang tenggelam dalam kabut malam. Angin mengibarkan jaketnya saat ia memegang transceiver.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Membangun rasa kesepian mendalam dan skala dunia yang megah.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Antisipasi tegang",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 2,
+        "title": "Scene 2: Pertemuan di Tengah Bayangan",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Rooftop Menara Metropolitan Jakarta",
+        "story_purpose": "Pertemuan dua tokoh kunci",
+        "event": "Maya muncul dari balik pintu darurat rooftop. Tatapan mata mereka bertemu di bawah pendaran cahaya neon biru.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Maya muncul dari balik pintu darurat rooftop. Tatapan mata me",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Maya muncul dari balik pintu darurat rooftop. Tatapan mata mereka bertemu di bawah pendaran cahaya neon biru.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Dua karakter berdiri berhadapan dengan kontras pencahayaan siluet yang tajam.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Kehati-hatian dan kepercayaan yang rapuh",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 3,
+        "title": "Scene 3: Penyerahan Artefak Rahasia",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Rooftop Menara Metropolitan Jakarta",
+        "story_purpose": "Perpindahan objek kunci pengubah alur cerita",
+        "event": "Maya menyerahkan sebuah silinder data bercahaya keemasan kepada Arya. Refleksi cahaya menyinari wajah kedua tokoh.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Maya menyerahkan sebuah silinder data bercahaya keemasan kepa",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Maya menyerahkan sebuah silinder data bercahaya keemasan kepada Arya. Refleksi cahaya menyinari wajah kedua tokoh.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Fokus ekstrem pada pertukaran tangan dan cahaya pendaran artefak.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Momen penentuan nasib",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 4,
+        "title": "Scene 4: Alarm & Peringatan Bahaya",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Rooftop Menara Metropolitan Jakarta",
+        "story_purpose": "Munculnya rintangan langsung yang memaksa pelarian",
+        "event": "Lampu sorot keamanan tiba-tiba menyala di kejauhan menyapu rooftop. Suara sirine bergaung memecah keheningan.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Lampu sorot keamanan tiba-tiba menyala di kejauhan menyapu ro",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Lampu sorot keamanan tiba-tiba menyala di kejauhan menyapu rooftop. Suara sirine bergaung memecah keheningan.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Cahaya sorot tajam membelah kegelapan dengan partikel air hujan berkilau.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Tensi meningkat drastis",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 5,
+        "title": "Scene 5: Pelarian Menuju Ruang Bawah Tanah",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Ruang Arsip Rahasia Bawah Tanah",
+        "story_purpose": "Perjalanan menuju titik pengamanan data",
+        "event": "Arya dan Maya menerobos lorong arsip bawah tanah berkubah beton. Langkah kaki mereka bergema di lantai marmer hitam.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Arya dan Maya menerobos lorong arsip bawah tanah berkubah bet",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Arya dan Maya menerobos lorong arsip bawah tanah berkubah beton. Langkah kaki mereka bergema di lantai marmer hitam.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Gerakan kamera tracking dinamis mengikuti ritme lari kedua karakter.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Urgensi dan determinasi tinggi",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 6,
+        "title": "Scene 6: Klimaks Aktivasi Sistem",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Ruang Arsip Rahasia Bawah Tanah",
+        "story_purpose": "Titik balik puncak di mana misi terselesaikan",
+        "event": "Arya memasang artefak silinder ke terminal pusat. Gelombang cahaya biru mengalir seketika menerangi seluruh ruangan berkubah.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Arya memasang artefak silinder ke terminal pusat. Gelombang c",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Arya memasang artefak silinder ke terminal pusat. Gelombang cahaya biru mengalir seketika menerangi seluruh ruangan berkubah.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Pancaran cahaya volumetrik megah menerangi seluruh kubah arsitektur.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Klimaks kepuasan & keajaiban visual",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 7,
+        "title": "Scene 7: Konfrontasi Terakhir",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Ruang Arsip Rahasia Bawah Tanah",
+        "story_purpose": "Pertahanan posisi saat sistem menyelesaikan sinkronisasi",
+        "event": "Bayangan musuh terlihat di ujung pintu masuk. Arya dan Maya bersiap dengan posisi taktis saling melindungi.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Bayangan musuh terlihat di ujung pintu masuk. Arya dan Maya b",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Bayangan musuh terlihat di ujung pintu masuk. Arya dan Maya bersiap dengan posisi taktis saling melindungi.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Komposisi simetris dengan rim light emas dramatis di kedua siluet tokoh.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Keberanian mutlak",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      },
+      {
+        "scene_number": 8,
+        "title": "Scene 8: Resolusi & Fajar Baru",
+        "character_names": [
+          "Raden Arya",
+          "Kirana Maya"
+        ],
+        "location_name": "Ruang Arsip Rahasia Bawah Tanah",
+        "story_purpose": "Penutupan babak dengan harapan baru",
+        "event": "Sistem stabil. Sinar matahari pagi pertama menembus ventilasi kaca tinggi, menandai kemenangan babak awal mereka.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "Cinematic film still, 8k UHD, 35mm anamorphic photography. Sistem stabil. Sinar matahari pagi pertama menembus ventilasi",
+        "shots_count": 3,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": "Berdiri di posisi strategis memantau situasi",
+            "visual_description": null,
+            "character_action": "Arya berdiri tegak mengamati keadaan sekitar dengan mata waspada.",
+            "event_detail": "Wide establishing shot: Sistem stabil. Sinar matahari pagi pertama menembus ventilasi kaca tinggi, menandai kemenangan babak awal mereka.",
+            "audio_narration": null,
+            "sound_effects": "Desiran angin malam, tetesan air hujan di aspal",
+            "audio_note": "Desiran angin malam dan deru samar kota di kejauhan",
+            "dialogue": [],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 2,
+            "action": "Interaksi tatap muka dan pertukaran objek",
+            "visual_description": null,
+            "character_action": "Maya melangkah mendekat dengan percaya diri sambil memegang artefak silinder data.",
+            "event_detail": "Medium character interaction: Cahaya fajar hangat (golden hour) membasuh ruangan beton dengan kedamaian.",
+            "audio_narration": null,
+            "sound_effects": "Langkah kaki berderap, hembusan napas terkontrol",
+            "audio_note": "Langkah sepatu di lantai basah dan desiran mantel",
+            "dialogue": [
+              {
+                "line": "Waktu kita terbatas. Amankan silinder ini sekarang.",
+                "character_name": "Kirana Maya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          },
+          {
+            "shot_number": 3,
+            "action": "Fokus intensitas tatapan mata karakter",
+            "visual_description": null,
+            "character_action": "Arya mengangguk mantap, tatapan matanya berkilat di bawah pendaran cahaya artefak.",
+            "event_detail": "Close-up intense reaction: Kelegaan penuh harapan",
+            "audio_narration": null,
+            "sound_effects": "Dengung resonansi frekuensi rendah artefak",
+            "audio_note": "Dengung frekuensi rendah dari artefak data",
+            "dialogue": [
+              {
+                "line": "Dimengerti. Kita selesaikan ini bersama.",
+                "character_name": "Raden Arya"
+              }
+            ],
+            "has_master_image_prompt": false,
+            "has_video_prompt": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "proj_1788754523901_lca80f",
+    "title": "PANGERAN DIPO­NEGORO — SANG PANGERAN SANTRI",
+    "status": "completed",
+    "scenesCount": 12,
+    "scenes": [
+      {
+        "scene_number": 1,
+        "title": "HANTAMAN PATOK DI TEGALREJO",
+        "character_names": [
+          "Residen Anthony Hendrik Smissaert",
+          "Pangeran Diponegoro (Bendara Pangeran Harya Dipanegara)"
+        ],
+        "location_name": "Padepokan & Pesantren Tegalrejo",
+        "story_purpose": "Membuka langsung dengan benturan fisik yang memicu kemarahan rakyat atas perusakan tanah leluhur.",
+        "event": "Mandor kolonial memukul patok pembatas jalan menerobos pekarangan Tegalrejo di bawah pengawasan Smissaert.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 2,
+        "title": "KEMARAHAN DI AMBANG GERBANG",
+        "character_names": [
+          "Pangeran Diponegoro (Bendara Pangeran Harya Dipanegara)"
+        ],
+        "location_name": "Padepokan & Pesantren Tegalrejo",
+        "story_purpose": "Memperlihatkan reaksi perlawanan langsung para santri dan rakyat di bawah kepemimpinan Diponegoro.",
+        "event": "Pangeran Diponegoro melangkah mendekati batas patok sementara santri dan petani mengepung pekarangan.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 3,
+        "title": "DAMAR ILMU TEGALSARI",
+        "character_names": [
+          "Pangeran Diponegoro (Bendara Pangeran Harya Dipanegara)",
+          "Kiai Hasan Besari",
+          "Kiai Baidlowi",
+          "Kiai Nur Muhammad"
+        ],
+        "location_name": "Pesantren Gebang Tinatar Tegalsari, Ponorogo",
+        "story_purpose": "Memperlihatkan fondasi spiritual dan keilmuan Islam yang membentuk karakter luhur Diponegoro.",
+        "event": "Kilas balik Diponegoro muda mengaji kitab kuning di bawah bimbingan para ulama Tegalsari.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 4,
+        "title": "KIKISAN EMAS BANGSAL KERATON",
+        "character_names": [
+          "Sultan Hamengkubuwana III (Raden Mas Surojo)",
+          "Residen Anthony Hendrik Smissaert"
+        ],
+        "location_name": "Keraton Kasultanan Ngayogyakarta Hadiningrat",
+        "story_purpose": "Memperlihatkan dilema politik keraton dan penindasan ekonomi sewa tanah kolonial.",
+        "event": "Residen Smissaert memaksakan piagam pajak baru di hadapan Sultan Hamengkubuwana III.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 5,
+        "title": "BUMI MANDIRI TEGALREJO",
+        "character_names": [
+          "Pangeran Diponegoro (Bendara Pangeran Harya Dipanegara)",
+          "Ratu Ageng (Kanjeng Ratu Barat)"
+        ],
+        "location_name": "Padepokan & Pesantren Tegalrejo",
+        "story_purpose": "Memperlihatkan pilihan sadar Diponegoro hidup mandiri bersama rakyat di bawah asuhan Ratu Ageng.",
+        "event": "Ratu Ageng mendampingi Diponegoro mengawasi lumbung padi dan para petani di pelataran Tegalrejo.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 6,
+        "title": "KONSOLIDASI SYARIAT DAN PEDANG",
+        "character_names": [
+          "Pangeran Diponegoro (Bendara Pangeran Harya Dipanegara)",
+          "Kiai Mojo",
+          "Sentot Alibasya Prawirodirdjo"
+        ],
+        "location_name": "Padepokan & Pesantren Tegalrejo",
+        "story_purpose": "Menyatukan kekuatan ulama dan kavaleri muda saat ancaman militer kolonial mendekat.",
+        "event": "Kiai Mojo dan Sentot Alibasya memaparkan kesiapan barisan laskar di hadapan Diponegoro.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 7,
+        "title": "PENCABUTAN PATOK PEMBATAS",
+        "character_names": [
+          "Pangeran Diponegoro (Bendara Pangeran Harya Dipanegara)",
+          "Sentot Alibasya Prawirodirdjo"
+        ],
+        "location_name": "Padepokan & Pesantren Tegalrejo",
+        "story_purpose": "Menampilkan titik balik fisik pemutusan hubungan dengan penjajah lewat aksi simbolik dramatis.",
+        "event": "Diponegoro mencabut patok Belanda dengan tangannya sendiri dan menggantinya dengan tombak bertali hijau.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 8,
+        "title": "KOBARAN API TEGALREJO",
+        "character_names": [
+          "Pangeran Diponegoro (Bendara Pangeran Harya Dipanegara)",
+          "Sentot Alibasya Prawirodirdjo"
+        ],
+        "location_name": "Padepokan & Pesantren Tegalrejo",
+        "story_purpose": "Memperlihatkan kebrutalan agresi militer Belanda yang menghanguskan kediaman Diponegoro.",
+        "event": "Pasukan Belanda membombardir Tegalrejo; Diponegoro memimpin evakuasi keluar dari kepungan api.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 9,
+        "title": "BENTENG KARANG SELARONG",
+        "character_names": [
+          "Pangeran Diponegoro (Bendara Pangeran Harya Dipanegara)",
+          "Kiai Mojo",
+          "Sentot Alibasya Prawirodirdjo"
+        ],
+        "location_name": "Gua Selarong, Bantul",
+        "story_purpose": "Memperlihatkan konsolidasi rahasia di dalam gua kapur bersama ribuan santri dan rakyat jelata.",
+        "event": "Ribuan santri dan prajurit berbaris di mulut Gua Selarong mendengarkan arahan Diponegoro.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 10,
+        "title": "IKATAN SORBAN JALAGIRI",
+        "character_names": [
+          "Pangeran Diponegoro (Bendara Pangeran Harya Dipanegara)",
+          "Kiai Mojo",
+          "Sentot Alibasya Prawirodirdjo"
+        ],
+        "location_name": "Gua Selarong, Bantul",
+        "story_purpose": "Mencapai puncak resolusi perlawanan dengan proklamasi resmi Perang Jawa.",
+        "event": "Diponegoro mengikatkan sorban jalagiri di kepalanya dan memproklamasikan perang pembebasan.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 11,
+        "title": "BADAI KAVALERI DI MENOREH",
+        "character_names": [
+          "Sentot Alibasya Prawirodirdjo",
+          "Jenderal Hendrik Merkus de Kock"
+        ],
+        "location_name": "Perbukitan Menoreh & Persawahan Tanah Jawa",
+        "story_purpose": "Memperlihatkan perang gerilya sengit selama lima tahun yang mengguncang kekuasaan kolonial.",
+        "event": "Kavaleri Sentot Alibasya melancarkan serbuan kilat di lereng Menoreh sementara Jenderal de Kock memantau dari pos benteng stelsel.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 12,
+        "title": "BADAI KAVALERI DI MENOREH - Sekuel",
+        "character_names": [
+          "Sentot Alibasya Prawirodirdjo",
+          "Jenderal Hendrik Merkus de Kock"
+        ],
+        "location_name": "Perbukitan Menoreh & Persawahan Tanah Jawa",
+        "story_purpose": "Memperlihatkan perang gerilya sengit selama lima tahun yang mengguncang kekuasaan kolonial.",
+        "event": "Kavaleri Sentot Alibasya melancarkan serbuan kilat di lereng Menoreh sementara Jenderal de Kock memantau dari pos benteng stelsel.",
+        "has_master_image_prompt": true,
+        "master_image_prompt_sample": "[BANANA IMAGE GENERATION PROMPT]\nSUBJECT: Sentot Alibasya Prawirodirdjo wearing Surjan keprajuritan motif lurik hitam pe",
+        "shots_count": 1,
+        "shots": [
+          {
+            "shot_number": 1,
+            "action": null,
+            "visual_description": null,
+            "character_action": "Sentot Alibasya memacu kencang kudanya di garis depan sambil menghunus pedang memberi aba-aba taktis di tengah kepulan debu tanah basah; secara kontras Jenderal de Kock di gardu pos benteng kolonial menurunkan teropongnya perlahan dengan raut dingin kalkulatif saat menyaksikan gempuran kavaleri pribumi.",
+            "event_detail": "Kabut fajar di lembah Menoreh terbelah oleh deru laju pasukan kavaleri pimpinan Sentot Alibasya yang melancarkan serbuan kilat melintasi medan berbukit dan pematang sawah, sementara di atas panggung menara pos benteng stelsel kolonial, Jenderal Hendrik Merkus de Kock berdiri kaku mengamati manuver gempuran gerilya berkuda tersebut dengan cengkeraman erat pada teropong kuningan.",
+            "audio_narration": null,
+            "sound_effects": null,
+            "audio_note": "SFX gemuruh derap tapak kuda melaju di atas tanah basah, ringkikan kuda perang, kibasan jubah ditiup angin kencang fajar, dipadu iringan musik orkestrasi perkusi cepat bertensi tinggi.",
+            "dialogue": [],
+            "has_master_image_prompt": true,
+            "has_video_prompt": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "proj_1788745693483_60ikgf",
+    "title": "🌙 LAHIRNYA CAHAYA — MALAM KELAHIRAN RASULULLAH ﷺ",
+    "status": "completed",
+    "scenesCount": 4,
+    "scenes": [
+      {
+        "scene_number": 1,
+        "title": "INT. RUMAH AMINAH - KEHENINGAN MALAM DAN KETABAHAN",
+        "character_names": [
+          "Aminah binti Wahb"
+        ],
+        "location_name": "Rumah Sederhana Aminah binti Wahb (Perkampungan Bani Hasyim, Makkah)",
+        "story_purpose": "Memperkenalkan suasana hening Makkah abad ke-6 serta ketabahan dan kesendirian bermartabat Sayyidah Aminah menjelang persalinan pasca wafatnya sang suami.",
+        "event": "Sayyidah Aminah binti Wahb duduk dalam keheningan rumah sederhana, menghadapi saat-saat menjelang kelahiran dengan keteguhan hati dan ketenangan batin.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 2,
+        "title": "INT. RUMAH AMINAH - FAJAR KELAHIRAN DAN KABAR GEMBIRA",
+        "character_names": [
+          "Nabi Muhammad ﷺ (Fase Bayi / Lahirnya Cahaya)",
+          "Aminah binti Wahb",
+          "Abdul Muthalib (Syaibah bin Hasyim)"
+        ],
+        "location_name": "Rumah Sederhana Aminah binti Wahb (Perkampungan Bani Hasyim, Makkah)",
+        "story_purpose": "Menampilkan momen terbitnya fajar yang membawa ketenteraman atas kelahiran sang bayi mulia serta penyampaian kabar gembira kepada sang kakek, Abdul Muthalib.",
+        "event": "Fajar merekah saat sang bayi mulia lahir membawa kedamaian; Abdul Muthalib tiba dengan langkah berwibawa dan raut wajah penuh haru serta syukur.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 3,
+        "title": "INT. RUMAH AMINAH - DUKUNGAN KASIH DAN PENYEMATAN NAMA MUHAMMAD",
+        "character_names": [
+          "Nabi Muhammad ﷺ (Fase Bayi / Lahirnya Cahaya)",
+          "Abdul Muthalib (Syaibah bin Hasyim)"
+        ],
+        "location_name": "Rumah Sederhana Aminah binti Wahb (Perkampungan Bani Hasyim, Makkah)",
+        "story_purpose": "Menghadirkan momen puncak spiritual saat Abdul Muthalib menggendong cucunya dengan takzim, memanjatkan doa syukur, dan menyematkan nama luhur 'Muhammad'.",
+        "event": "Abdul Muthalib menggendong sang bayi mulia dalam dekapan penuh kasih sayang, memanjatkan doa tulus ke hadirat Sang Pencipta seraya mengikrarkan nama 'Muhammad' agar terpuji di langit dan bumi.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      },
+      {
+        "scene_number": 4,
+        "title": "INT. RUMAH AMINAH - PERJAMUAN SYUKUR BERSAMA KERABAT QURAISY",
+        "character_names": [
+          "Abdul Muthalib (Syaibah bin Hasyim)",
+          "Tokoh Kerabat Quraisy / Bani Hasyim (Karakter Pendukung)"
+        ],
+        "location_name": "Rumah Sederhana Aminah binti Wahb (Perkampungan Bani Hasyim, Makkah)",
+        "story_purpose": "Menggambarkan perjamuan syukuran yang diadakan Abdul Muthalib bersama para pemuka kerabat Quraisy dan Bani Hasyim sebagai pengakuan serta perlindungan keluarga.",
+        "event": "Para kerabat Bani Hasyim dan tokoh Quraisy berkumpul menikmati hidangan perjamuan, menyambut dengan takjub dan hormat penjelasan Abdul Muthalib mengenai nama istimewa sang cucu.",
+        "has_master_image_prompt": false,
+        "master_image_prompt_sample": null,
+        "shots_count": 0,
+        "shots": []
+      }
+    ]
+  }
+]

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useInfrastructureState } from './useInfrastructureState';
+import { GeminiRealtimeQuotaPanel } from '../../GeminiRealtimeQuotaPanel';
 import {
   Activity,
   CheckCircle2,
@@ -95,6 +96,9 @@ export const HealthWorkspace: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Real-time Gemini Quota & Key Telemetry */}
+      <GeminiRealtimeQuotaPanel onRefreshParent={refresh} />
 
       {/* Metrics Summary Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

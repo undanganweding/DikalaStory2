@@ -116,7 +116,6 @@ export const healthService = {
       lastError: undefined,
       updatedAt: Date.now(),
     };
-    if (credentialId === 'env_gemini_default') return updated;
     return db.saveHealth(updated);
   },
 
@@ -143,7 +142,6 @@ export const healthService = {
         lastError: `[${classification.errorType}] ${error}`,
         updatedAt: Date.now(),
       };
-      if (credentialId === 'env_gemini_default') return updated;
       return db.saveHealth(updated);
     }
 
@@ -172,7 +170,6 @@ export const healthService = {
       lastError: `[${classification.errorType}] ${error}`,
       updatedAt: Date.now(),
     };
-    if (credentialId === 'env_gemini_default') return updated;
     return db.saveHealth(updated);
   },
 

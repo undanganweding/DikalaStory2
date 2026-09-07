@@ -511,7 +511,7 @@ async function runProjectInitializationImpl(
   ) => void,
   dependencies: ProjectInitializationDependencies = {}
 ): Promise<{ success: boolean; error?: string }> {
-  aiBudgetRegistry.initializeBudget(projectId, 15);
+  aiBudgetRegistry.initializeBudget(projectId, 50);
   try {
     return await aiBudgetRegistry.runWithProjectId(projectId, async () => {
       return await runProjectInitializationImplInner(projectId, onProgress, dependencies);
@@ -687,7 +687,7 @@ async function runProjectInitializationImplInner(
     }
 
     // ==========================================
-    // EXECUTION PREFLIGHT V1
+    // EXECUTION PREFLIGHT V2 (Live Model & Quota Verification)
     // ==========================================
     const stagesToCheck: StageCode[] = [];
     if (!haveS1) stagesToCheck.push('S1');
@@ -697,13 +697,21 @@ async function runProjectInitializationImplInner(
     if (!haveS5) stagesToCheck.push('S5');
 
     if (stagesToCheck.length > 0) {
-      log(0, 'Execution Preflight', 'Menjalankan pra-pemeriksaan eksekusi (Execution Preflight v1)...', 'info', 'S1');
+      log(0, 'Execution Preflight', 'Memeriksa ketersediaan & kuota semua model AI sebelum memulai pipeline...', 'info', 'S1');
       const preflightResult = await executionPreflight.checkExecutionPreflight(stagesToCheck);
       
+      const readyModelsDisplay = preflightResult.readyModels && preflightResult.readyModels.length > 0
+        ? preflightResult.readyModels.join(', ')
+        : 'Standar AI Models';
+
+      const poolInfo = preflightResult.totalCredentialsInPool && preflightResult.totalCredentialsInPool > 1
+        ? ` (${preflightResult.totalCredentialsInPool} Key di Pool - Fast Rolling Siap)`
+        : '';
+
       log(
         0,
         'Execution Preflight',
-        `Preflight: ${preflightResult.viable ? 'Ada execution path yang saat ini belum diketahui exhausted.' : 'Pipeline diblokir sebelum AI request.'}`,
+        `Hasil Pra-Pemeriksaan: ${preflightResult.viable ? `Model AI Siap (${readyModelsDisplay}) pada kredensial "${preflightResult.activeCredentialName || 'Default'}"${poolInfo}. Multi-key failover aktif.` : 'Pipeline diblokir: Tidak ada model/kuota yang mencukupi.'}`,
         preflightResult.viable ? 'info' : 'error',
         'S1'
       );
@@ -712,7 +720,7 @@ async function runProjectInitializationImplInner(
         log(
           0,
           'Execution Preflight',
-          `Pipeline dihentikan lebih awal: ${preflightResult.reason}`,
+          `Pipeline dihentikan: ${preflightResult.reason}`,
           'error',
           'S1'
         );
@@ -1880,7 +1888,9 @@ async function runPipelineForSceneImpl(
     assetIntegrityReport = validateMasterFrameCoverage(assetIntegrityReport, JSON.stringify(stage7Result));
     assertSceneAssetCoverage(assetIntegrityReport);
 
+    const compiledMasterPrompt = stage7Result.compiledPromptText || stage7Result.masterFramePromptText || (stage7Result.promptJson ? `${stage7Result.promptJson.subject || ''}. Location: ${stage7Result.promptJson.location || ''}. Lighting: ${stage7Result.promptJson.lighting || ''}. Style: ${stage7Result.promptJson.cinematic_style || ''}` : '');
     await db.updateScene(sceneId, {
+      master_image_prompt: compiledMasterPrompt,
       master_image_prompt_json: stage7Result.promptJson,
       image_gen_status: 'success',
       image_gen_error: null,
@@ -1906,7 +1916,6 @@ async function runPipelineForSceneImpl(
     const errType = classifyError(err);
     const blocker = knownBlocker(err, `S7:${sceneId}`);
     if (blocker) {
-      await db.updateScene(sceneId, { master_image_prompt_json: null });
       await persistBlockedScene(sceneId, blocker);
       const result: ScenePipelineResult = { sceneId, status: 'BLOCKED', success: false, blockers: [blocker], assetIntegrityReport, continuityState: sceneContinuityState };
       await safePersistSceneSummary(projectId, runContext?.runId, sceneId, scene.scene_number, sceneStartedAtMs, result.status, result);
@@ -1914,7 +1923,6 @@ async function runPipelineForSceneImpl(
     }
     const s7Duration = Date.now() - s7StartTime;
     await db.updateScene(sceneId, {
-      master_image_prompt_json: null,
       image_gen_status: 'failed',
       image_gen_error: errMsg,
     });
@@ -1946,34 +1954,6 @@ async function runPipelineForSceneImpl(
   let successfulShotsCount = 0;
   let failedShotsCount = 0;
 
-  if (currentScene.timeline && currentScene.timeline.length > 0) {
-      log(8, 'Video Prompt Agent', `Scene #${scene.scene_number}: Generasi berbasis Scene (Timeline detected).`, 'info', 'S8');
-      
-      // Dynamically resolve model with TaskProfile authority
-      const selectedModelId = await resolveStageModel('S8', 'image', 'HIGH');
-      
-      const stage8Result = await runStage8VideoPrompt({
-          scene: currentScene,
-          foundation,
-          characters,
-          locations,
-          videoModels: project.video_model || ['veo'],
-          includeSeedance: !!project.include_seedance_format,
-          language: project.prompt_language,
-          model: selectedModelId, // Use dynamically resolved model
-          reasoningConfig: project.reasoning_config,
-          contextPackage: project.contextPackage || null,
-          continuityState: sceneContinuityState,
-      });
-      
-      await enforceStageConsistency(projectId, `S8:${sceneId}`, stage8Result, sceneConsistencyState);
-      sceneContinuityState = await advanceContinuity(projectId, `S8:${sceneId}`, currentScene, stage8Result, sceneContinuityState, 'within-scene', false);
-      assetIntegrityReport = validateVideoPromptCoverage(assetIntegrityReport, JSON.stringify(stage8Result), true);
-      assertSceneAssetCoverage(assetIntegrityReport);
-      
-  } else {
-      log(8, 'Video Prompt Agent', `Scene #${scene.scene_number}: Generasi berbasis Shot (Legacy).`, 'info', 'S8');
-      
   for (let idx = 0; idx < savedShots.length; idx++) {
     const shot = savedShots[idx];
     if (idx > 0) {
@@ -2021,12 +2001,23 @@ async function runPipelineForSceneImpl(
       if (shot.id) {
         await db.saveVideoPrompts(shot.id, sceneId, projectId, stage8Result.prompts);
         
-        // Save banana_image prompt as the shot's master_image_prompt
-        const bananaImageStill = stage8Result.stills.find((s) => s.target === 'banana_image');
-        if (bananaImageStill) {
-          await db.updateShot(shot.id, {
-            master_image_prompt: bananaImageStill.prompt_text
-          });
+        // Save banana_image / banana_master_frame prompt as the shot's master_image_prompt
+        const bananaImageStill = stage8Result.stills.find((s) => s.target === 'banana_image' || s.target === 'banana_master_frame');
+        const veoPrompt = stage8Result.prompts.find((p) => p.target_platform === 'veo');
+        const seedancePrompt = stage8Result.prompts.find((p) => p.target_platform === 'seedance');
+
+        const shotUpdates: any = {};
+        if (bananaImageStill?.prompt_text) {
+          shotUpdates.master_image_prompt = bananaImageStill.prompt_text;
+        }
+        if (veoPrompt?.timeline_json?.prompt) {
+          shotUpdates.video_prompt = veoPrompt.timeline_json.prompt;
+        }
+        if (seedancePrompt?.timeline_json?.shot_breakdown || seedancePrompt?.timeline_json?.prompt) {
+          shotUpdates.seedance_prompt = seedancePrompt.timeline_json?.shot_breakdown || seedancePrompt.timeline_json?.prompt;
+        }
+        if (Object.keys(shotUpdates).length > 0) {
+          await db.updateShot(shot.id, shotUpdates);
         }
       }
 
@@ -2107,7 +2098,6 @@ async function runPipelineForSceneImpl(
       }, runContext);
       log(8, 'Video Prompt Agent', `Shot #${shot.shot_number} error: ${err?.message || err}`, 'warn', 'S8');
     }
-  }
   }
 
   try {
@@ -2344,17 +2334,25 @@ async function generateAllScenesImpl(
   };
 
   // ==========================================
-  // EXECUTION PREFLIGHT V1 (S6-S8)
+  // EXECUTION PREFLIGHT V2 (S6-S8 Live Verification)
   // ==========================================
   const pendingScenes = scenes.filter((s) => !(s.pipeline_status === 'READY' || s.status === 'ready'));
   if (pendingScenes.length > 0) {
-    log(6, 'Execution Preflight', 'Menjalankan pra-pemeriksaan eksekusi (Execution Preflight v1) untuk Tahap S6-S8...', 'info');
+    log(6, 'Execution Preflight', 'Memeriksa ketersediaan & kuota model AI untuk Tahap S6-S8...', 'info');
     const preflightResult = await executionPreflight.checkExecutionPreflight(['S6', 'S7', 'S8']);
     
+    const readyModelsDisplay = preflightResult.readyModels && preflightResult.readyModels.length > 0
+      ? preflightResult.readyModels.join(', ')
+      : 'Standar AI Models';
+
+    const poolInfo = preflightResult.totalCredentialsInPool && preflightResult.totalCredentialsInPool > 1
+      ? ` (${preflightResult.totalCredentialsInPool} Key di Pool - Fast Rolling Siap)`
+      : '';
+
     log(
       6,
       'Execution Preflight',
-      `Preflight: ${preflightResult.viable ? 'Ada execution path yang saat ini belum diketahui exhausted.' : 'Pipeline diblokir sebelum AI request.'}`,
+      `Hasil Pra-Pemeriksaan: ${preflightResult.viable ? `Model AI Siap (${readyModelsDisplay}) pada kredensial "${preflightResult.activeCredentialName || 'Default'}"${poolInfo}. Multi-key failover aktif.` : 'Pipeline diblokir: Tidak ada model/kuota yang mencukupi.'}`,
       preflightResult.viable ? 'info' : 'error'
     );
 
@@ -2362,7 +2360,7 @@ async function generateAllScenesImpl(
       log(
         6,
         'Execution Preflight',
-        `Pipeline dihentikan lebih awal: ${preflightResult.reason}`,
+        `Pipeline dihentikan: ${preflightResult.reason}`,
         'error'
       );
       throw new Error(`Pipeline dihentikan lebih awal (Execution Preflight): ${preflightResult.reason}`);

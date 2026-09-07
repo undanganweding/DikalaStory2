@@ -31,7 +31,7 @@ import {
  * "Format Seedance" button could not express which duration contract was meant.
  * `banana_image` is not here: this panel is the Stage 8 *video* prompt panel.
  */
-const ROW_VIDEO_TARGETS: PromptTarget[] = ['veo', 'omni', 'seedance_10', 'seedance_30'];
+const ROW_VIDEO_TARGETS: PromptTarget[] = ['banana_image', 'veo', 'omni', 'seedance_10', 'seedance_30'];
 
 interface ShotRowProps {
   shot: Shot;
@@ -457,6 +457,49 @@ export const ShotRow: React.FC<ShotRowProps> = ({
             ) : activeVideoPrompt ? (
               <div className="space-y-3">
                 {/* Platform Prompt Content */}
+                {selectedTarget === 'banana_image' && (
+                  <div className="space-y-2.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-zinc-300">Prompt Gambar Master Frame (Banana Pro 2):</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleRegeneratePrompt('banana_image')}
+                          disabled={isRegenerating}
+                          className="text-[11px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 rounded flex items-center gap-1 cursor-pointer font-medium border border-zinc-700 disabled:opacity-50"
+                          title="Generate ulang prompt Banana Pro 2 untuk shot ini"
+                        >
+                          <RotateCw className={`w-3 h-3 ${isRegenerating ? 'animate-spin text-amber-400' : ''}`} />
+                          <span>Regenerate</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const promptToCopy = activeVideoPrompt?.timeline_json?.prompt || shot.master_image_prompt || '';
+                            if (promptToCopy) copyToClipboard(promptToCopy, `banana-prompt-${shot.id}`);
+                          }}
+                          className="text-[11px] bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded flex items-center gap-1 cursor-pointer font-medium"
+                        >
+                          {copiedKey === `banana-prompt-${shot.id}` ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              <span className="text-emerald-400">Tersalin</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Salin Prompt Image</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <pre className="p-3 bg-zinc-900 rounded-lg text-zinc-200 font-mono text-[11px] whitespace-pre-wrap leading-relaxed border border-zinc-800">
+                      {activeVideoPrompt?.timeline_json?.prompt || shot.master_image_prompt || 'Belum ada prompt master frame untuk shot ini.'}
+                    </pre>
+                  </div>
+                )}
+
                 {selectedTarget === 'veo' && (
                   <div className="space-y-2.5 text-xs">
                     <div className="flex items-center justify-between">

@@ -42,8 +42,6 @@ async function runRoutingIntegrityTests() {
   console.log(`Simulating HARD DAILY QUOTA on Credential #1 (${cred1Id})...`);
   await credentialService.updateCredential(cred1Id, {
     status: 'exhausted',
-    cooldownUntil: Date.now() + 86400000,
-    lastErrorMessage: 'GenerateRequestsPerDay perday quota exhausted',
   });
 
   const scoredB = await quotaRouter.scoreCredentials('google');
@@ -63,8 +61,6 @@ async function runRoutingIntegrityTests() {
   console.log(`Simulating HARD DAILY QUOTA on Credential #2 (${cred2Id})...`);
   await credentialService.updateCredential(cred2Id, {
     status: 'exhausted',
-    cooldownUntil: Date.now() + 86400000,
-    lastErrorMessage: 'GenerateContentInputTokensPerModelPerDay exhausted',
   });
 
   const scoredC = await quotaRouter.scoreCredentials('google');

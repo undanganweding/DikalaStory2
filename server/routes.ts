@@ -13,6 +13,7 @@ import {
   isPipelineInFlight,
   isInitializationInFlight,
 } from './orchestrator';
+import { runPipelineSimulation } from './pipeline_simulation_engine';
 import {
   AVAILABLE_MODELS,
   DEFAULT_GEMINI_MODEL,
@@ -479,6 +480,122 @@ apiRouter.post('/router/gemini-projects/:id/test', async (req: Request, res: Res
     res.status(500).json({ error: err.message });
   }
 });
+
+// Real-Time Google Gemini Quota & Project Monitor
+apiRouter.get('/gemini/quota-realtime', async (req: Request, res: Response) => {
+  try {
+    const selectedKeyId = (req.query.selectedKeyId as string) || undefined;
+    const data = await geminiProjectRouter.getRealtimeQuotaData(selectedKeyId);
+    res.json(data);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Real-Time Live Sync & Ping with Gemini API
+apiRouter.post('/gemini/sync-test', async (req: Request, res: Response) => {
+  try {
+    const { keyId, apiKey } = req.body;
+    if (keyId) {
+      const result = await geminiProjectRouter.testProject(keyId);
+      const data = await geminiProjectRouter.getRealtimeQuotaData(keyId);
+      return res.json({ test: result, quota: data });
+    }
+    if (apiKey) {
+      const { getGeminiAI } = require('./gemini');
+      const ai = getGeminiAI(apiKey);
+      const startTime = Date.now();
+      await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: 'quota_ping',
+      });
+      const latency = Date.now() - startTime;
+      return res.json({
+        test: { success: true, latency },
+        message: 'Google Gemini API Key valid & real-time quota sync berhasil!',
+      });
+    }
+    res.status(400).json({ error: 'Missing keyId or apiKey' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Gagal sinkronisasi kuota Gemini' });
+  }
+});
+
+// Select Active Gemini API Key for Session or Project
+apiRouter.post('/gemini/select-key', async (req: Request, res: Response) => {
+  try {
+    const { keyId, projectId } = req.body;
+    if (!keyId) return res.status(400).json({ error: 'keyId is required' });
+
+    const targetProject = geminiProjectRouter.getProject(keyId);
+    if (!targetProject) return res.status(404).json({ error: 'Gemini Project Key not found' });
+
+    // If projectId provided, update reasoning_config on the project
+    if (projectId) {
+      await db.updateProject(projectId, (p) => ({
+        ...p,
+        reasoning_config: {
+          provider_type: 'google',
+          provider_name: 'Google Gemini',
+          model_id: p.reasoning_config?.model_id || 'gemini-2.5-flash',
+          ...(p.reasoning_config || {}),
+          api_key: targetProject.api_key,
+        },
+      }));
+    }
+
+    // Set priority 1 for selected key in router
+    const projects = await geminiProjectRouter.listProjectsAsync();
+    for (const p of projects) {
+      if (p.project_id === keyId) {
+        await geminiProjectRouter.updateProject(p.project_id, { priority: 1, enabled: true });
+      } else if (p.priority === 1) {
+        await geminiProjectRouter.updateProject(p.project_id, { priority: 2 });
+      }
+    }
+
+    const data = await geminiProjectRouter.getRealtimeQuotaData(keyId);
+    res.json({ success: true, selectedKeyId: keyId, quota: data });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Quick Add / Register New Gemini API Key
+apiRouter.post('/gemini/add-key', async (req: Request, res: Response) => {
+  try {
+    const { keyName, apiKey, quotaRpm, quotaRpd, quotaTpm } = req.body;
+    if (!apiKey || !apiKey.trim()) {
+      return res.status(400).json({ error: 'Google Gemini API Key is required' });
+    }
+
+    const project_id = keyName && keyName.trim() ? keyName.trim().replace(/\s+/g, '-').toLowerCase() : `google-gemini-${Date.now().toString().slice(-4)}`;
+
+    await geminiProjectRouter.addProject({
+      project_id,
+      api_key: apiKey.trim(),
+      provider: 'google_gemini',
+      models_available: AVAILABLE_MODELS.map((m) => m.id),
+      quota: {
+        rpm: Number(quotaRpm) || 15,
+        rpd: Number(quotaRpd) || 1500,
+        tpm: Number(quotaTpm) || 1000000,
+      },
+      usage: { rpm_used: 0, tokens_used: 0, requests_today: 0 },
+      health: { status: 'healthy', error_rate: 0, success_rate: 100, latency: 200 },
+      priority: 1,
+      enabled: true,
+    });
+
+    const data = await geminiProjectRouter.getRealtimeQuotaData(project_id);
+    res.json({ success: true, keyId: project_id, quota: data });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Note: All /api/ai/gemini/* quota overview, probe-model, and set-primary-credential routes
+// are handled by aiInfrastructureRouter mounted at /api/ai above.
 
 apiRouter.get('/router/logs', (req: Request, res: Response) => {
   res.json({ logs: modelRouter.getLogs() });
@@ -1003,12 +1120,16 @@ apiRouter.post('/projects/:id/generate', async (req: Request, res: Response) => 
       });
     }
 
+    const isSimulation = Boolean(req.body.dryRun || req.body.is_simulation || req.body.simulation_mode || project.is_simulation);
     const concurrency = Number(req.body.concurrency) || 2;
     const runContext = {
-      runId: `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+      runId: isSimulation
+        ? `sim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+        : `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
       projectId: id,
       startedAt: new Date().toISOString(),
       concurrency,
+      dryRun: isSimulation,
     };
 
     // Immediately persist processing state so client and SSE queries immediately see the active status
@@ -1019,20 +1140,115 @@ apiRouter.post('/projects/:id/generate', async (req: Request, res: Response) => 
       error_message: null,
       active_run_id: runContext.runId,
       latest_run_id: runContext.runId,
+      is_simulation: isSimulation,
     });
 
     res.json({
       status: 'started',
-      message: 'Orchestrator pipeline dimulai.',
+      message: isSimulation
+        ? 'Uji simulasi pipeline (0-kuota) dimulai.'
+        : 'Orchestrator pipeline dimulai.',
       projectId: id,
       runId: runContext.runId,
+      isSimulation,
       project: updatedProject,
     });
 
-    runOrchestratedPipeline({
+    if (isSimulation) {
+      runPipelineSimulation({
+        projectId: id,
+        runContext,
+        onProgress: (stage, stageName, message, level) => {
+          broadcastSSE(id, {
+            type: 'progress',
+            stage,
+            stageName,
+            message,
+            level,
+            timestamp: new Date().toISOString(),
+            runId: runContext.runId,
+          });
+        },
+      }).then((result) => {
+        broadcastSSE(id, {
+          type: 'finished',
+          success: result.success,
+          error: result.error,
+          runId: result.runId ?? runContext.runId,
+          timestamp: new Date().toISOString(),
+          isSimulation: true,
+        });
+      });
+    } else {
+      runOrchestratedPipeline({
+        projectId: id,
+        runContext,
+        sceneConcurrency: concurrency,
+        onProgress: (stage, stageName, message, level) => {
+          broadcastSSE(id, {
+            type: 'progress',
+            stage,
+            stageName,
+            message,
+            level,
+            timestamp: new Date().toISOString(),
+            runId: runContext.runId,
+          });
+        },
+      }).then((result) => {
+        broadcastSSE(id, {
+          type: 'finished',
+          success: result.success,
+          error: result.error,
+          runId: result.runId ?? runContext.runId,
+          timestamp: new Date().toISOString(),
+        });
+      });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Dedicated Fast Simulation / Prototype Pipeline Endpoint (0-Quota Dry Run)
+apiRouter.post('/projects/:id/simulate', async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id;
+    const project = await db.getProject(id);
+    if (!project) {
+      return res.status(404).json({ error: 'Project tidak ditemukan.' });
+    }
+
+    const runContext = {
+      runId: `sim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      projectId: id,
+      startedAt: new Date().toISOString(),
+      dryRun: true,
+    };
+
+    const updatedProject = await db.saveProject({
+      ...project,
+      status: 'processing',
+      current_stage: 1,
+      error_message: null,
+      active_run_id: runContext.runId,
+      latest_run_id: runContext.runId,
+      is_simulation: true,
+      simulation_mode: true,
+    });
+
+    res.json({
+      status: 'started',
+      message: 'Uji simulasi prototipe pipeline (0-kuota) dimulai.',
+      projectId: id,
+      runId: runContext.runId,
+      isSimulation: true,
+      project: updatedProject,
+    });
+
+    runPipelineSimulation({
       projectId: id,
       runContext,
-      sceneConcurrency: concurrency,
       onProgress: (stage, stageName, message, level) => {
         broadcastSSE(id, {
           type: 'progress',
@@ -1051,6 +1267,7 @@ apiRouter.post('/projects/:id/generate', async (req: Request, res: Response) => 
         error: result.error,
         runId: result.runId ?? runContext.runId,
         timestamp: new Date().toISOString(),
+        isSimulation: true,
       });
     });
   } catch (err: any) {
@@ -1253,19 +1470,23 @@ apiRouter.post('/scenes/:id/run-pipeline', async (req: Request, res: Response) =
   }
 });
 
-// accepts both still target (banana_master_frame / banana_image) and video target (veo, omni, seedance)
+// accepts both still target (banana_master_frame / banana_image), video target (veo, omni, seedance), or global 'all'
 apiRouter.post('/scenes/:id/regenerate-prompt', async (req: Request, res: Response) => {
-  let promptTarget: PromptTarget;
+  const isGlobalAll = req.body?.target === 'all' || req.body?.target === 'global';
+  let promptTarget: PromptTarget = 'banana_master_frame';
   let requestedDuration: number | undefined;
-  try {
-    promptTarget = parsePromptTargetFromRequest(
-      req.body?.target ?? req.body?.platform ?? 'banana_master_frame'
-    );
-    requestedDuration = parseOptionalRequestedDuration(
-      req.body?.requestedDuration ?? req.body?.duration_sec
-    );
-  } catch (err: any) {
-    return sendPromptError(res, err, 'Target prompt tidak valid.');
+
+  if (!isGlobalAll) {
+    try {
+      promptTarget = parsePromptTargetFromRequest(
+        req.body?.target ?? req.body?.platform ?? 'banana_master_frame'
+      );
+      requestedDuration = parseOptionalRequestedDuration(
+        req.body?.requestedDuration ?? req.body?.duration_sec
+      );
+    } catch (err: any) {
+      return sendPromptError(res, err, 'Target prompt tidak valid.');
+    }
   }
 
   try {
@@ -1281,6 +1502,99 @@ apiRouter.post('/scenes/:id/regenerate-prompt', async (req: Request, res: Respon
     const characters = await db.getCharacters(projectId);
     const locations = await db.getLocations(projectId);
     const objects = await db.getObjects(projectId);
+
+    if (isGlobalAll) {
+      // 1. Regenerate Master Frame Still Prompt (Banana Pro 2)
+      const stage7Result = await runStage7MasterFrameAndImagePrompt({
+        scene,
+        foundation,
+        characters,
+        locations,
+        objects,
+        language: project?.prompt_language || 'id',
+        model: project?.ai_model === 'auto' ? undefined : project?.ai_model,
+        reasoningConfig: project?.reasoning_config,
+      });
+
+      const updatedScene = await db.updateScene(sceneId, {
+        master_image_prompt: stage7Result.compiledPromptText,
+        master_image_prompt_json: stage7Result.promptJson,
+        image_gen_status: 'success',
+        image_gen_error: null,
+      });
+
+      // 2. Regenerate All Cinematic Video Prompts (Veo 3, Omni, Seedance)
+      const shot = await db.getOrCreateVirtualShotForScene(sceneId);
+      const allSceneShots = await db.getShotsByScene(sceneId);
+      const shotIndex = allSceneShots.findIndex((s) => s.id === shot.id);
+
+      const stage8Result = await runStage8VideoPrompt({
+        scene: updatedScene || scene,
+        shot,
+        shotIndex: shotIndex >= 0 ? shotIndex : 0,
+        totalShotsInScene: allSceneShots.length || 1,
+        masterFrameImageUrl: updatedScene?.master_frame_image_url || scene.master_frame_image_url,
+        foundation,
+        characters,
+        locations,
+        videoModels: ['veo', 'gemini_omni'],
+        includeSeedance: true,
+        targets: ['veo', 'omni', 'seedance_10'],
+        language: project?.prompt_language || 'id',
+        model: project?.ai_model,
+        reasoningConfig: project?.reasoning_config,
+      });
+
+      const existingPrompts = await db.getVideoPromptsByShot(shot.id!);
+      const savedPrompts: any[] = [];
+      const shotUpdates: Partial<Shot> = {};
+
+      for (const newPrompt of stage8Result.prompts) {
+        const existingMatch = existingPrompts.find((p) =>
+          p.prompt_target
+            ? p.prompt_target === newPrompt.prompt_target
+            : p.target_platform === newPrompt.target_platform && p.target_platform !== 'seedance'
+        );
+        if (existingMatch) {
+          const updated = await db.saveSingleVideoPrompt({
+            ...existingMatch,
+            ...newPrompt,
+            id: existingMatch.id,
+          });
+          savedPrompts.push(updated);
+        } else {
+          const created = await db.saveSingleVideoPrompt({
+            ...newPrompt,
+            shot_id: shot.id!,
+            scene_id: sceneId,
+            project_id: projectId,
+            version: 1,
+          } as any);
+          savedPrompts.push(created);
+        }
+
+        if (newPrompt.target_platform === 'seedance') {
+          shotUpdates.seedance_prompt = newPrompt.timeline_json?.shot_breakdown || newPrompt.timeline_json?.prompt;
+        } else if (newPrompt.target_platform === 'veo') {
+          shotUpdates.video_prompt = newPrompt.timeline_json?.prompt;
+        }
+      }
+
+      if (Object.keys(shotUpdates).length > 0) {
+        await db.updateShot(shot.id!, shotUpdates);
+      }
+
+      const finalShot = await db.getShot(shot.id!);
+
+      return res.json({
+        success: true,
+        target: 'all',
+        scene: updatedScene || scene,
+        shot: finalShot,
+        prompts: savedPrompts,
+        compiledPromptText: stage7Result.compiledPromptText,
+      });
+    }
 
     if (isStillPromptTarget(promptTarget)) {
       // Duration + contract gates live inside Stage 7 and throw before returning,

@@ -112,7 +112,7 @@ export function resolveEffectiveModelForStage(
   if (preferences.mode === 'custom' && stage && preferences.stage_routing && preferences.stage_routing[stage]) {
     const customModelId = preferences.stage_routing[stage];
     return {
-      provider: 'google',
+      provider: preferences.primary_model?.provider || 'b_ai_mtr4zs1i',
       model_id: customModelId,
       display_name: customModelId,
     };
@@ -142,7 +142,7 @@ export function getDeterministicFallbacks(
 
   // Default Gemini family fallbacks if pool is empty or insufficient
   if (primary.provider === 'google' && candidates.length < maxFallbacks) {
-    const familyOrder = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.1-pro-preview', 'gemini-3.6-flash', 'gemini-2.5-pro'];
+    const familyOrder = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-2.5-pro', 'gemini-3.6-flash', 'gemini-3.5-flash'];
     for (const famModel of familyOrder) {
       if (famModel !== primary.model_id && !candidates.some(c => c.model_id === famModel)) {
         if (satisfiesTaskTier(famModel, taskTier)) {

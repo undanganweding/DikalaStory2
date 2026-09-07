@@ -278,12 +278,18 @@ NON-NEGOTIABLE HARD RULES:
   const userPrompt = `
 === DETAIL SCENE INDUK ===
 Scene #${scene.scene_number}: ${scene.title}
+Pola Sinematik: ${scene.scene_pattern || 'STANDARD'}
 Durasi Wajib: ${scene.duration_sec} detik
 Lokasi: ${scene.location_name} (${scene.time_of_day})
 Karakter Terlibat: ${scene.character_names.join(', ') || 'None'}
 Tujuan Naratif: ${scene.story_purpose}
 Tujuan Emosional: ${scene.emotional_objective}
-Peristiwa Scene: ${scene.event}
+Peristiwa Utama: ${scene.event}
+Aksi Visual Sinematik (Show Don't Tell): ${scene.visual_action || scene.event}
+${scene.narrator_vo ? `Voiceover Narator (Puitis): "${scene.narrator_vo}"` : ''}
+${scene.dialogue && scene.dialogue.length > 0 ? `Rancangan Dialog Karakter:\n${scene.dialogue.map((d: any) => `- ${d.character_name}: "${d.line}" [Subteks: ${d.emotional_subtext || '-'}, Delivery: ${d.delivery || '-'}]`).join('\n')}` : 'Dialog: Non-verbal / visual murni'}
+${scene.sound_design ? `Desain Suara: SFX=[${(scene.sound_design.sfx || []).join(', ')}], BGM=${scene.sound_design.bgm_mood || 'cinematic'}, Silence Cue=${Boolean(scene.sound_design.silence_cue)}` : ''}
+${scene.prophet_depiction_safeguard?.is_prophet_present ? `ATURAN ADAB & PROPHET DEPICTION LOCK: ${scene.prophet_depiction_safeguard.visual_rule}` : ''}
 Scene Tone: Preset=${sceneTone.preset || 'CUSTOM'}, Atmosphere=${sceneTone.atmosphere}, Pacing=${sceneTone.pacing}, Intensity=${sceneTone.intensity}/100, Tension=${sceneTone.dramatic_tension}/100
 
 === BIBLE KARAKTER TERKAIT ===
@@ -375,18 +381,30 @@ Kembalikan format JSON sesuai schema.
 
   // Normalize shot numbers and times if slight float rounding
   const rawShots = parsed.shots as DetectedShot[];
-  const normalizedShots: DetectedShot[] = rawShots.map((s, idx) => ({
-    shot_number: idx + 1,
-    start_time_sec: Number(s.start_time_sec),
-    end_time_sec: Number(s.end_time_sec),
-    duration_sec: Math.round(Number(s.duration_sec) * 10) / 10,
-    event_detail: s.event_detail || '',
-    character_action: s.character_action || '',
-    camera_note: s.camera_note || '',
-    dialogue: Array.isArray(s.dialogue) ? s.dialogue : [],
-    emotion: s.emotion || '',
-    audio_note: s.audio_note || '',
-  }));
+  const normalizedShots: DetectedShot[] = rawShots.map((s, idx) => {
+    const inheritedDialogue = (Array.isArray(s.dialogue) && s.dialogue.length > 0)
+      ? s.dialogue
+      : (Array.isArray(scene.dialogue) && scene.dialogue.length > 0
+          ? scene.dialogue.map((d: any) => ({ character_name: d.character_name, line: d.line }))
+          : []);
+
+    const defaultAudioNote = scene.sound_design
+      ? `SFX: ${(scene.sound_design.sfx || []).join(', ')}. BGM: ${scene.sound_design.bgm_mood || 'cinematic'}`
+      : '';
+
+    return {
+      shot_number: idx + 1,
+      start_time_sec: Number(s.start_time_sec),
+      end_time_sec: Number(s.end_time_sec),
+      duration_sec: Math.round(Number(s.duration_sec) * 10) / 10,
+      event_detail: s.event_detail || scene.visual_action || scene.event || '',
+      character_action: s.character_action || scene.visual_action || '',
+      camera_note: s.camera_note || '',
+      dialogue: inheritedDialogue,
+      emotion: s.emotion || scene.emotional_objective || '',
+      audio_note: s.audio_note || defaultAudioNote,
+    };
+  });
 
   return normalizedShots;
 }

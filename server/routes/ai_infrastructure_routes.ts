@@ -8,6 +8,7 @@ import { usageService } from '../ai_infrastructure/usage_service';
 import { observabilityService } from '../ai_infrastructure/observability_service';
 import { openaiCompatibleDriver } from '../ai_infrastructure/openai_compatible_driver';
 import { secretVault } from '../security/secret_vault';
+import { dailyExhaustedRegistry, isModelSuppressed, markModelSuppressed, extractRetryDelayMs, isDailyQuotaExhaustedError } from '../ai_infrastructure/ai_gateway';
 import { GoogleGenAI } from '@google/genai';
 import { globalAIQueue } from '../ai_infrastructure/rate_limiter_queue';
 import { db } from '../db';
@@ -227,7 +228,14 @@ aiInfrastructureRouter.post('/test-connection', async (req: Request, res: Respon
     const isGoogle = ['google-generative-ai', 'gemini', 'google'].includes(providerType);
 
     if (isGoogle) {
-      const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+      const ai = new GoogleGenAI({
+        apiKey: apiKey.trim(),
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
       const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash'];
       let response: any = null;
       let lastErr: any = null;
@@ -581,7 +589,7 @@ aiInfrastructureRouter.post('/providers/:id/discover-models', async (req: Reques
           displayName: m.displayName,
           tier: m.tier || (m.id.includes('pro') ? 'pro' : m.id.includes('lite') ? 'lite' : 'flash'),
           capabilities: m.capabilities,
-          enabled: true,
+          enabled: false,
         });
         addedModels.push(newModel);
       }
@@ -639,7 +647,8 @@ aiInfrastructureRouter.post('/models', async (req: Request, res: Response) => {
 aiInfrastructureRouter.patch('/models/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { providerId, enabled, tier, displayName, contextWindow, capabilities } = req.body;
+    const { providerId, provider_id, enabled, tier, displayName, contextWindow, capabilities } = req.body;
+    const targetProviderId = providerId || provider_id || (req.query.providerId as string) || (req.query.provider_id as string);
     const partial: any = {};
     if (enabled !== undefined) partial.enabled = Boolean(enabled);
     if (tier !== undefined) partial.tier = tier;
@@ -647,7 +656,7 @@ aiInfrastructureRouter.patch('/models/:id', async (req: Request, res: Response) 
     if (contextWindow !== undefined) partial.contextWindow = Number(contextWindow);
     if (capabilities !== undefined) partial.capabilities = capabilities;
 
-    const updated = await modelRegistryService.updateModel(id, partial, providerId || (req.query.providerId as string));
+    const updated = await modelRegistryService.updateModel(id, partial, targetProviderId);
     if (!updated) {
       return res.status(404).json({ error: 'Model not found.' });
     }
@@ -783,6 +792,32 @@ aiInfrastructureRouter.post('/credentials', async (req: Request, res: Response) 
       priority: newCred.priority,
       weight: newCred.weight,
       createdAt: newCred.createdAt,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4a. Reorder Credentials (Assign Contiguous 1..N Priorities)
+aiInfrastructureRouter.post('/credentials/reorder', async (req: Request, res: Response) => {
+  try {
+    const { orderedIds } = req.body;
+    if (!Array.isArray(orderedIds)) {
+      return res.status(400).json({ error: 'orderedIds must be an array of credential IDs.' });
+    }
+
+    const reordered = await credentialService.reorderCredentials(orderedIds);
+    res.json({
+      success: true,
+      message: 'Credential priority sequence updated successfully.',
+      credentials: reordered.map(c => ({
+        id: c.id,
+        name: c.name,
+        providerId: c.providerId,
+        priority: c.priority,
+        weight: c.weight,
+        status: c.status,
+      })),
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -963,7 +998,14 @@ aiInfrastructureRouter.post('/credentials/:id/test', async (req: Request, res: R
       responseSample = 'Connection verified successfully';
     } else if (isGoogleProtocol) {
       const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash'];
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
       let response: any = null;
       let lastErr: any = null;
       testModel = candidateModels[0];
@@ -992,7 +1034,14 @@ aiInfrastructureRouter.post('/credentials/:id/test', async (req: Request, res: R
     } else {
       // Generic fallback
       const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash'];
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
       let response: any = null;
       let lastErr: any = null;
       testModel = candidateModels[0];
@@ -1186,7 +1235,14 @@ aiInfrastructureRouter.post('/health/check-all', async (req: Request, res: Respo
           latencyMs = testRes.latencyMs;
           if (!testRes.success) throw new Error(testRes.error || 'Connection failed');
         } else {
-          const ai = new GoogleGenAI({ apiKey });
+          const ai = new GoogleGenAI({
+            apiKey,
+            httpOptions: {
+              headers: {
+                'User-Agent': 'aistudio-build',
+              },
+            },
+          });
           const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash'];
           let lastErr: any = null;
           let pingSuccess = false;
@@ -1279,3 +1335,471 @@ aiInfrastructureRouter.get('/observability/dashboard', async (req: Request, res:
     res.status(500).json({ error: err.message });
   }
 });
+
+// 10. Real-Time Quota & Telemetry Overview for All Saved AI Credentials
+aiInfrastructureRouter.get('/gemini/quota-overview', async (req: Request, res: Response) => {
+  try {
+    const allCreds = await credentialService.listCredentials();
+    const allProviders = await db.getProviders();
+    const providerMap = new Map(allProviders.map(p => [p.id, p]));
+
+    if (allCreds.length === 0) {
+      return res.json({
+        hasCredentials: false,
+        credentials: [],
+        selectedCredential: null,
+        models: [],
+        metrics: { requestsToday: 0, tokensToday: 0, successRate: 100 },
+      });
+    }
+
+    const requestedCredId = (req.query.credentialId as string) || '';
+    let activeCred = allCreds.find(c => c.id === requestedCredId);
+    if (!activeCred) {
+      // Prioritize active custom provider Priority 1 if available, otherwise lowest priority number
+      const p1Custom = allCreds.find(c => c.providerId !== 'google' && c.priority === 1 && c.status === 'active');
+      activeCred = p1Custom || [...allCreds].sort((a, b) => a.priority - b.priority)[0] || allCreds[0];
+    }
+
+    const activeProvider = providerMap.get(activeCred.providerId) || {
+      id: activeCred.providerId,
+      name: activeCred.providerId === 'google' ? 'Google Gemini' : activeCred.providerId,
+      isCustom: activeCred.providerId !== 'google',
+    };
+
+    const usages = await usageService.listUsage(500);
+    const credUsages = usages.filter(u => u.credentialId === activeCred?.id || (!u.credentialId && activeCred?.id === 'env_gemini_default'));
+
+    let tokensToday = 0;
+    let requestsToday = credUsages.length;
+    let successCount = 0;
+
+    for (const u of credUsages) {
+      tokensToday += u.totalTokens || ((u.promptTokens || 0) + (u.completionTokens || 0));
+      if (u.success) successCount++;
+    }
+
+    const successRate = requestsToday > 0 ? Math.round((successCount / requestsToday) * 100) : 100;
+
+    // Fetch registered models from database or defaults
+    const allDbModels = await db.getModels();
+    let targetModels: any[] = [];
+
+    // Defined standard Gemini models for cinematic engine with rich metadata
+    const standardGeminiCatalog: Record<string, { description: string; contextWindow: string; maxOutput: string; pricingTier: string; role: string }> = {
+      'gemini-3.7-flash': {
+        description: 'Fast Reasoning, Native 1M Token Context & High Speed JSON Extraction',
+        contextWindow: '1,048,576 tokens',
+        maxOutput: '8,192 tokens',
+        pricingTier: 'Standard / Free Tier (15 RPM / 1,500 RPD)',
+        role: 'Primary extraction for Stage 1 (Story), Stage 2 (Characters) & Stage 3 (Locations)',
+      },
+      'gemini-3.8-flash': {
+        description: 'Next-Gen Flash High-Throughput Orchestration & Fallback Engine',
+        contextWindow: '1,048,576 tokens',
+        maxOutput: '8,192 tokens',
+        pricingTier: 'Next-Gen Tier (15 RPM / 1,500 RPD)',
+        role: 'Primary Next-Gen Flash candidate in Fallback Chain',
+      },
+      'gemini-flash-latest': {
+        description: 'Official Google AI Studio Latest Flash Frontier Model',
+        contextWindow: '1,048,576 tokens',
+        maxOutput: '8,192 tokens',
+        pricingTier: 'Latest Tier (15 RPM / 1,500 RPD)',
+        role: 'High-speed adaptive candidate',
+      },
+      'gemini-3.6-flash': {
+        description: 'Stable Baseline Multimodal Flash Engine',
+        contextWindow: '1,048,576 tokens',
+        maxOutput: '8,192 tokens',
+        pricingTier: 'Baseline Tier (15 RPM / 1,500 RPD)',
+        role: 'Flash candidate in Fallback Chain',
+      },
+      'gemini-3.5-flash': {
+        description: 'Production Frontier Flash Engine',
+        contextWindow: '1,048,576 tokens',
+        maxOutput: '8,192 tokens',
+        pricingTier: 'Production Tier (15 RPM / 1,500 RPD)',
+        role: 'Flash fallback candidate in Fallback Chain',
+      },
+      'gemini-2.5-pro': {
+        description: 'Frontier Pro Reasoning with 2M Token Context Window',
+        contextWindow: '2,097,152 tokens',
+        maxOutput: '8,192 tokens',
+        pricingTier: 'Pro Tier (2 RPM / 50 RPD or PayG)',
+        role: 'Deep Narrative Continuity & Character Bibles',
+      },
+      'gemini-2.5-flash': {
+        description: 'Ultra High-Speed Structured Reasoning Engine',
+        contextWindow: '1,048,576 tokens',
+        maxOutput: '8,192 tokens',
+        pricingTier: 'Flash Tier (15 RPM / 1,500 RPD)',
+        role: 'Fast structured schema extraction',
+      },
+      'gemini-3.1-pro-preview': {
+        description: 'Deep Cinematic Dramaturgy & Subtext Dialogue (Preview)',
+        contextWindow: '1,048,576 tokens',
+        maxOutput: '8,192 tokens',
+        pricingTier: 'Pro Preview Tier',
+        role: 'Deep Dramaturgy for Stage 4 & Stage 5',
+      },
+      'gemini-3.1-flash-lite': {
+        description: 'Ultra-fast lightweight automation model',
+        contextWindow: '1,048,576 tokens',
+        maxOutput: '8,192 tokens',
+        pricingTier: 'Lite Tier',
+        role: 'Lightweight classification',
+      },
+      'gemini-3.5-flash-lite': {
+        description: 'Efficiency model for high-volume tasks',
+        contextWindow: '1,048,576 tokens',
+        maxOutput: '8,192 tokens',
+        pricingTier: 'Lite Tier',
+        role: 'Lightweight parsing',
+      },
+    };
+
+    if (activeCred.providerId === 'google') {
+      const googleModels = allDbModels.filter(m => m.providerId === 'google');
+      const modelMap = new Map<string, any>();
+      for (const [mId, meta] of Object.entries(standardGeminiCatalog)) {
+        modelMap.set(mId, {
+          id: mId,
+          displayName: mId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+          tier: mId.includes('pro') ? 'pro' : (mId.includes('lite') ? 'lite' : 'flash'),
+          enabled: !mId.includes('lite'),
+          ...meta,
+        });
+      }
+
+      for (const gm of googleModels) {
+        const existing = modelMap.get(gm.id) || {};
+        modelMap.set(gm.id, {
+          ...existing,
+          ...gm,
+          displayName: gm.displayName || existing.displayName || gm.id,
+          tier: gm.tier || existing.tier || 'flash',
+          enabled: gm.enabled !== false,
+        });
+      }
+      targetModels = Array.from(modelMap.values());
+    } else {
+      const providerDbModels = allDbModels.filter(m => m.providerId === activeCred.providerId);
+      if (providerDbModels.length > 0) {
+        targetModels = providerDbModels.map(m => ({
+          id: m.id,
+          displayName: m.displayName || m.id,
+          tier: ((m as any).tier || (m.id.includes('large') || m.id.includes('pro') ? 'pro' : 'flash')) as any,
+          description: (m as any).description || `Model ${m.displayName || m.id} pada provider ${activeProvider.name}`,
+          contextWindow: (m as any).contextWindow || '128k tokens',
+          maxOutput: (m as any).maxOutput || '8,192 tokens',
+          pricingTier: (m as any).pricingTier || 'Custom Tier',
+          role: (m as any).role || 'Cinematic & Narrative Processing',
+          enabled: m.enabled !== false,
+        }));
+      } else {
+        targetModels = [
+          {
+            id: 'custom-model',
+            displayName: 'Custom Model Default',
+            tier: 'flash' as const,
+            description: `Model default untuk provider ${activeProvider.name}`,
+            contextWindow: '128k tokens',
+            maxOutput: '8,192 tokens',
+            pricingTier: 'Custom Tier',
+            role: 'Custom Provider Worker',
+            enabled: true,
+          }
+        ];
+      }
+    }
+
+    const modelStatusList = targetModels.map(m => {
+      const cacheKey1 = `${activeCred!.name}:${m.id}`;
+      const cacheKey2 = `${activeCred!.id}:${m.id}`;
+      const isSuppressed = isModelSuppressed(cacheKey1) || isModelSuppressed(cacheKey2);
+      
+      let remainingCooldownSeconds = 0;
+      const exp1 = dailyExhaustedRegistry.get(cacheKey1);
+      const exp2 = dailyExhaustedRegistry.get(cacheKey2);
+      const activeExp = Math.max(exp1 || 0, exp2 || 0);
+      if (activeExp > Date.now()) {
+        remainingCooldownSeconds = Math.ceil((activeExp - Date.now()) / 1000);
+      }
+
+      // Check recent failure on this model
+      const modelUsages = credUsages.filter(u => u.model === m.id);
+      const modelRequests = modelUsages.length;
+      const modelSuccesses = modelUsages.filter(u => u.success).length;
+      const lastModelUsage = modelUsages[0];
+
+      // Determine Quota Level (abundant, moderate, low, exhausted)
+      let quotaLevel: 'abundant' | 'moderate' | 'low' | 'exhausted' = 'abundant';
+      if (isSuppressed || remainingCooldownSeconds > 0) {
+        quotaLevel = 'exhausted';
+      } else if (m.enabled === false) {
+        quotaLevel = 'exhausted';
+      } else if (modelRequests > 0 && modelSuccesses === 0) {
+        quotaLevel = 'low';
+      } else if (modelRequests > 20) {
+        quotaLevel = 'moderate';
+      }
+
+      return {
+        ...m,
+        status: isSuppressed ? 'cooldown' : (m.enabled === false ? 'disabled' : (modelRequests > 0 && modelSuccesses === 0 ? 'warning' : 'ready')),
+        quotaLevel,
+        isSuppressed,
+        remainingCooldownSeconds,
+        requestsToday: modelRequests,
+        successRate: modelRequests > 0 ? Math.round((modelSuccesses / modelRequests) * 100) : 100,
+        lastUsedAt: lastModelUsage ? lastModelUsage.timestamp : null,
+        lastError: lastModelUsage && !lastModelUsage.success ? lastModelUsage.errorMessage : null,
+      };
+    });
+
+    const enrichedCreds = allCreds.map(c => {
+      const prov = providerMap.get(c.providerId);
+      const provName = prov?.name || (c.providerId === 'google' ? 'Google Gemini' : c.providerId);
+      return {
+        id: c.id,
+        name: c.name,
+        maskedKey: c.maskedKey,
+        providerId: c.providerId,
+        providerName: provName,
+        priority: c.priority,
+        weight: c.weight,
+        status: c.status,
+        isPrimary: c.id === activeCred?.id,
+      };
+    });
+
+    res.json({
+      hasCredentials: true,
+      credentials: enrichedCreds,
+      selectedCredential: {
+        id: activeCred.id,
+        name: activeCred.name,
+        maskedKey: activeCred.maskedKey,
+        priority: activeCred.priority,
+        status: activeCred.status,
+        providerId: activeCred.providerId,
+        providerName: activeProvider.name,
+      },
+      provider: {
+        id: activeProvider.id,
+        name: activeProvider.name,
+        isCustom: Boolean((activeProvider as any).isCustom || activeProvider.id !== 'google'),
+      },
+      metrics: {
+        requestsToday,
+        tokensToday,
+        successRate,
+        activeModelsCount: modelStatusList.filter(m => m.status === 'ready').length,
+        suppressedModelsCount: modelStatusList.filter(m => m.isSuppressed).length,
+      },
+      models: modelStatusList,
+      timestamp: Date.now(),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 10b. Real-Time Model Probe (Ping Upstream for live quota & latency)
+aiInfrastructureRouter.post('/gemini/probe-model', async (req: Request, res: Response) => {
+  const startTime = Date.now();
+  try {
+    const { credentialId, modelId } = req.body;
+    if (!modelId) {
+      return res.status(400).json({ success: false, error: 'Model ID is required.' });
+    }
+
+    const allCreds = await credentialService.listCredentials();
+    let targetCred = allCreds.find(c => c.id === credentialId);
+    if (!targetCred) {
+      targetCred = [...allCreds].sort((a, b) => a.priority - b.priority)[0];
+    }
+
+    if (!targetCred) {
+      return res.status(400).json({ success: false, error: 'No active credential found in pool.' });
+    }
+
+    let rawApiKey = '';
+    try {
+      rawApiKey = secretVault.decryptSecret(targetCred.encryptedSecret);
+    } catch {
+      rawApiKey = (targetCred as any).secret || '';
+    }
+
+    if (!rawApiKey) {
+      return res.status(400).json({ success: false, error: 'Failed to resolve decrypted API key for credential.' });
+    }
+
+    let sampleOutput = 'Ready OK';
+    if (targetCred.providerId === 'google') {
+      const ai = new GoogleGenAI({
+        apiKey: rawApiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
+      const probeResponse = await ai.models.generateContent({
+        model: modelId,
+        contents: 'Ping quota check. Answer in 2 words: "Ready OK".',
+      });
+      sampleOutput = probeResponse.text?.trim() || 'Ready OK';
+    } else {
+      const allProviders = await db.getProviders();
+      const prov = allProviders.find(p => p.id === targetCred!.providerId);
+      const endpoint = prov?.baseUrl || 'https://api.custom-cinema-ai.studio/v1';
+      const wireRes = await openaiCompatibleDriver.executeChatCompletion({
+        baseUrl: endpoint,
+        apiKey: rawApiKey,
+        model: modelId,
+        prompt: 'Ping check: say OK',
+        maxTokens: 5,
+        timeoutMs: 8000,
+      });
+      sampleOutput = wireRes.text?.trim() || 'Ready OK';
+    }
+
+    const latencyMs = Date.now() - startTime;
+    const cacheKey1 = `${targetCred.name}:${modelId}`;
+    const cacheKey2 = `${targetCred.id}:${modelId}`;
+    dailyExhaustedRegistry.delete(cacheKey1);
+    dailyExhaustedRegistry.delete(cacheKey2);
+
+    await usageService.recordUsage({
+      providerId: targetCred.providerId,
+      credentialId: targetCred.id,
+      model: modelId,
+      task: 'quota_probe' as any,
+      agentName: 'QuotaProbe',
+      promptTokens: 10,
+      completionTokens: 5,
+      totalTokens: 15,
+      latencyMs,
+      success: true,
+    });
+
+    res.json({
+      success: true,
+      model: modelId,
+      credentialId: targetCred.id,
+      credentialName: targetCred.name,
+      latencyMs,
+      status: 'ready',
+      message: '200 OK — Kuota aktif & siap melayani request',
+      sampleOutput,
+      timestamp: Date.now(),
+    });
+  } catch (err: any) {
+    const latencyMs = Date.now() - startTime;
+    const errMsg = err?.message || JSON.stringify(err);
+    const retryDelayMs = extractRetryDelayMs(err);
+    const retryDelaySec = Math.round(retryDelayMs / 1000);
+
+    const { credentialId, modelId } = req.body;
+    const allCreds = await credentialService.listCredentials();
+    let targetCred = allCreds.find(c => c.id === credentialId) || allCreds[0];
+    
+    if (targetCred && modelId) {
+      const cacheKey1 = `${targetCred.name}:${modelId}`;
+      const cacheKey2 = `${targetCred.id}:${modelId}`;
+      const isTransientSpike = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('spikes in demand');
+      const suppressTtl = isTransientSpike ? 4000 : retryDelayMs;
+      markModelSuppressed(cacheKey1, suppressTtl);
+      markModelSuppressed(cacheKey2, suppressTtl);
+
+      await usageService.recordUsage({
+        providerId: targetCred.providerId,
+        credentialId: targetCred.id,
+        model: modelId,
+        task: 'quota_probe' as any,
+        agentName: 'QuotaProbe',
+        promptTokens: 10,
+        completionTokens: 0,
+        totalTokens: 10,
+        latencyMs,
+        success: false,
+        errorMessage: errMsg.substring(0, 300),
+      });
+    }
+
+    let quotaClassification = 'UNKNOWN_ERROR';
+    let userFriendlyMsg = errMsg;
+
+    if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+      if (errMsg.includes('FreeTier') || errMsg.includes('GenerateRequestsPerDay')) {
+        quotaClassification = 'DAILY_QUOTA_EXHAUSTED';
+        userFriendlyMsg = `Batas Kuota Harian Free Tier Tercapai (Limit: 20 RPD). Cooldown / Reset in ${retryDelaySec} detik.`;
+      } else {
+        quotaClassification = 'RPM_RATE_LIMITED';
+        userFriendlyMsg = `Rate Limit Per Menit (RPM) Tercapai. Cooldown selama ${retryDelaySec} detik.`;
+      }
+    } else if (errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE')) {
+      quotaClassification = 'HIGH_DEMAND_SPIKE';
+      userFriendlyMsg = 'Model upstream sedang mengalami lonjakan trafik (503 High Demand). Coba kembali sesaat lagi.';
+    } else if (errMsg.includes('401') || errMsg.includes('API_KEY_INVALID') || errMsg.includes('Unauthorized')) {
+      quotaClassification = 'INVALID_AUTH';
+      userFriendlyMsg = 'API Key tidak valid atau dinonaktifkan oleh provider.';
+    }
+
+    res.json({
+      success: false,
+      model: modelId,
+      credentialId: targetCred?.id,
+      credentialName: targetCred?.name,
+      latencyMs,
+      status: 'cooldown',
+      classification: quotaClassification,
+      message: userFriendlyMsg,
+      rawError: errMsg,
+      remainingCooldownSeconds: retryDelaySec,
+      timestamp: Date.now(),
+    });
+  }
+});
+
+// 10c. Set Primary Credential in the Pool
+aiInfrastructureRouter.post('/gemini/set-primary-credential', async (req: Request, res: Response) => {
+  try {
+    const { credentialId } = req.body;
+    if (!credentialId) {
+      return res.status(400).json({ error: 'Credential ID is required.' });
+    }
+
+    const allCreds = await credentialService.listCredentials();
+    const selected = allCreds.find(c => c.id === credentialId);
+
+    if (!selected) {
+      return res.status(404).json({ error: 'Credential not found in pool.' });
+    }
+
+    // Assign Priority 1 to chosen credential, and re-order other credentials under the same provider
+    const sameProviderCreds = allCreds.filter(c => c.providerId === selected.providerId);
+    await credentialService.updateCredential(selected.id, { priority: 1, weight: 100 });
+    let priorityCounter = 2;
+    for (const c of sameProviderCreds) {
+      if (c.id !== selected.id) {
+        await credentialService.updateCredential(c.id, {
+          priority: priorityCounter,
+          weight: Math.max(10, 100 - (priorityCounter - 1) * 20),
+        });
+        priorityCounter++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Kredensial "${selected.name}" berhasil dijadikan Kredensial Utama (Priority 1).`,
+      primaryCredentialId: selected.id,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+

@@ -23,7 +23,8 @@ import {
 } from './adaptive_router';
 import { credentialManager } from './credential_manager';
 import { quotaRouter } from './ai_infrastructure/quota_router';
-import { aiGateway } from './ai_infrastructure/ai_gateway';
+import { db } from './db';
+import { aiGateway, getDisabledModelIds } from './ai_infrastructure/ai_gateway';
 import { taskExecutor } from './ai_infrastructure/task_executor';
 import { geminiProjectRouter, TaskType as GTaskType } from './gemini_project_router';
 import {
@@ -64,10 +65,15 @@ export interface LLMCapabilities {
 }
 
 /**
-  Strip markdown code blocks or surrounding whitespace from AI JSON output
+  Strip markdown code blocks, think tags, or surrounding whitespace from AI JSON output
  */
 export function cleanJsonResponse(rawText: string): string {
+  if (!rawText || typeof rawText !== 'string') return '';
   let text = rawText.trim();
+
+  // Strip <think>...</think> reasoning tags emitted by reasoning models (e.g. DeepSeek-R1, Qwen, 9router proxies)
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
   if (text.startsWith('```')) {
     text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   }
@@ -90,7 +96,7 @@ export function cleanJsonResponse(rawText: string): string {
   const lastBracket = text.lastIndexOf(']');
   let endIndex = Math.max(lastBrace, lastBracket);
 
-  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+  if (startIndex !== -1 && endIndex !== -1 && endIndex >= startIndex) {
     text = text.slice(startIndex, endIndex + 1);
   }
 
@@ -99,58 +105,26 @@ export function cleanJsonResponse(rawText: string): string {
 
 /**
  * Safely parse JSON text from LLM responses, stripping code fences,
- * fixing unescaped newlines inside strings, and repairing truncated JSON objects.
+ * fixing unescaped newlines inside strings, escaping inner quotes, and repairing truncated JSON objects.
  */
 export function safeParseJSON<T = any>(rawText: string): T {
-  let cleaned = cleanJsonResponse(rawText);
+  const cleaned = cleanJsonResponse(rawText);
 
   // 1. Direct parse attempt
   try {
     return JSON.parse(cleaned);
   } catch (err1) {
-    // 2. Fix raw unescaped newlines/tabs inside double-quoted string literals
+    // 2. State-machine string repair: escapes raw newlines, tabs, and unescaped inner quotes inside strings
     try {
-      const sanitized = cleaned.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match) => {
-        return match
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\r')
-          .replace(/\t/g, '\\t');
-      });
-      return JSON.parse(sanitized);
+      const repairedStrings = repairJsonStrings(cleaned);
+      return JSON.parse(repairedStrings);
     } catch (err2) {
-      // 3. Attempt repair for truncated JSON string/object (e.g. from token cutoff)
-      let repaired = cleaned;
+      // 3. Balance open brackets and braces for truncated JSON
+      let repaired = repairJsonStrings(cleaned);
 
-      repaired = repaired.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, (match) => {
-        return match
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\r')
-          .replace(/\t/g, '\\t');
-      });
-
-      // Count unescaped double quotes to see if a string is unterminated
+      const stack: string[] = [];
       let inString = false;
       let escaped = false;
-      for (let i = 0; i < repaired.length; i++) {
-        const char = repaired[i];
-        if (char === '\\' && !escaped) {
-          escaped = true;
-          continue;
-        }
-        if (char === '"' && !escaped) {
-          inString = !inString;
-        }
-        escaped = false;
-      }
-
-      if (inString) {
-        repaired += '"';
-      }
-
-      // Balance open brackets and braces
-      const stack: string[] = [];
-      inString = false;
-      escaped = false;
       for (let i = 0; i < repaired.length; i++) {
         const char = repaired[i];
         if (char === '\\' && !escaped) {
@@ -173,9 +147,19 @@ export function safeParseJSON<T = any>(rawText: string): T {
         }
       }
 
+      if (inString) {
+        repaired += '"';
+      }
+
+      // Strip any trailing commas before balancing
+      repaired = repaired.replace(/,\s*$/, '');
+
       while (stack.length > 0) {
         repaired += stack.pop();
       }
+
+      // Strip trailing commas before closing braces/brackets
+      repaired = repaired.replace(/,\s*([\}\]])/g, '$1');
 
       try {
         return JSON.parse(repaired);
@@ -184,6 +168,78 @@ export function safeParseJSON<T = any>(rawText: string): T {
       }
     }
   }
+}
+
+/**
+ * State-machine parser that repairs raw unescaped newlines/tabs and inner quotes inside JSON strings.
+ */
+function repairJsonStrings(input: string): string {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    const code = input.charCodeAt(i);
+
+    if (escaped) {
+      result += char;
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      result += char;
+      continue;
+    }
+
+    if (char === '"') {
+      if (!inString) {
+        inString = true;
+        result += '"';
+      } else {
+        // Look ahead to see if this is truly the closing quote or an unescaped inner quote
+        let j = i + 1;
+        while (j < input.length && (input[j] === ' ' || input[j] === '\t' || input[j] === '\r' || input[j] === '\n')) {
+          j++;
+        }
+        const nextChar = j < input.length ? input[j] : '';
+        const isStructuralDelim = nextChar === ',' || nextChar === '}' || nextChar === ']' || nextChar === ':' || nextChar === '';
+
+        if (isStructuralDelim) {
+          inString = false;
+          result += '"';
+        } else {
+          // Unescaped inner quote inside string literal
+          result += '\\"';
+        }
+      }
+      continue;
+    }
+
+    if (inString) {
+      if (char === '\n') {
+        result += '\\n';
+      } else if (char === '\r') {
+        result += '\\r';
+      } else if (char === '\t') {
+        result += '\\t';
+      } else if (code < 32) {
+        result += ' ';
+      } else {
+        result += char;
+      }
+    } else {
+      result += char;
+    }
+  }
+
+  if (inString) {
+    result += '"';
+  }
+
+  return result;
 }
 
 function sanitizeErrorMessage(rawMsg: string, status: number): string {
@@ -347,6 +403,26 @@ async function executeSingleModelRequest(
 ): Promise<LLMGenerateResult> {
   const config = options.reasoningConfig;
   const providerType: ReasoningProviderType = config?.provider_type || 'google';
+
+  // Guard: Check if provider or models are disabled in Infrastructure Settings
+  try {
+    const disabledModelIds = await getDisabledModelIds();
+    const dbProviders = await db.getProviders();
+    const targetProv = dbProviders.find(p => p.id === providerType || p.type === providerType);
+    if (targetProv && targetProv.enabled === false) {
+      throw new Error(`Provider '${providerType}' is disabled in Infrastructure Settings.`);
+    }
+    const dbModels = await db.getModels();
+    const enabledProvModels = dbModels.filter(m => (m.providerId === providerType || (targetProv && m.providerId === targetProv.id)) && m.enabled !== false && !disabledModelIds.has(m.id));
+    if (enabledProvModels.length === 0 && dbModels.length > 0 && providerType === 'google') {
+      throw new Error(`All Gemini models for provider '${providerType}' have been disabled in Infrastructure Settings.`);
+    }
+  } catch (dbCheckErr: any) {
+    if (dbCheckErr?.message?.includes('disabled in Infrastructure Settings') || dbCheckErr?.message?.includes('disabled')) {
+      throw dbCheckErr;
+    }
+  }
+
   const MAX_ATTEMPTS = 3;
 
   // Determine key candidates: explicit override OR ordered keys from Credential Pool
@@ -783,6 +859,42 @@ export async function executeLLMRequest(
 
   const runId = (options.modelPreferences as any)?.runId || `run_${stage}_${options.entityId || 'global'}`;
 
+  // If explicitly configured with custom/external OpenAI-compatible provider (e.g. 9router, Tabitoken, Groq, OpenRouter) or ad-hoc config
+  if (
+    options.reasoningConfig &&
+    (options.reasoningConfig.provider_type !== 'google' || options.reasoningConfig.base_url || (options.reasoningConfig.api_key && options.reasoningConfig.api_key.trim().length > 0))
+  ) {
+    try {
+      const singleRes = await executeSingleModelRequest(options);
+      armoOrchestrator.recordTransition(
+        runId,
+        stage,
+        1,
+        requestedModel,
+        options.reasoningConfig.model_id || requestedModel,
+        options.reasoningConfig.model_id || requestedModel,
+        'custom_credential',
+        `Executed via direct provider: ${options.reasoningConfig.provider_name || options.reasoningConfig.provider_type}`,
+        'SUCCESS'
+      );
+      return singleRes;
+    } catch (directErr: any) {
+      const errorClassification = classifyARMOError(directErr);
+      armoOrchestrator.recordTransition(
+        runId,
+        stage,
+        1,
+        requestedModel,
+        requestedModel,
+        requestedModel,
+        'custom_credential',
+        `Direct provider failed: ${directErr.message}`,
+        `FAIL (${errorClassification.toUpperCase()})`
+      );
+      throw directErr;
+    }
+  }
+
   try {
     const gatewayResponse = await aiGateway.generate({
       model: requestedModel,
@@ -813,19 +925,57 @@ export async function executeLLMRequest(
       text: cleanedText,
     };
   } catch (err: any) {
-    const errorClassification = classifyARMOError(err);
-    armoOrchestrator.recordTransition(
-      runId,
-      stage,
-      1,
-      requestedModel,
-      requestedModel,
-      requestedModel,
-      'none',
-      `Failed via AI Gateway: ${err.message}`,
-      `FAIL (${errorClassification.toUpperCase()})`
-    );
-    throw err;
+    if (
+      err?.message?.includes('disabled in Infrastructure Settings') ||
+      err?.message?.includes('No eligible and capable providers') ||
+      err?.message?.includes('All candidate models') ||
+      err?.message?.includes('disabled')
+    ) {
+      const errorClassification = classifyARMOError(err);
+      armoOrchestrator.recordTransition(
+        runId,
+        stage,
+        1,
+        requestedModel,
+        requestedModel,
+        requestedModel,
+        'none',
+        `Failed via AI Gateway (Disabled): ${err.message}`,
+        `FAIL (${errorClassification.toUpperCase()})`
+      );
+      throw err;
+    }
+    // Fallback attempt via executeSingleModelRequest
+    try {
+      console.warn(`[AIGateway] Gateway invocation failed (${err?.message}). Attempting fallback execution...`);
+      const fallbackRes = await executeSingleModelRequest(options);
+      armoOrchestrator.recordTransition(
+        runId,
+        stage,
+        2,
+        requestedModel,
+        requestedModel,
+        requestedModel,
+        'fallback_driver',
+        'Fallback execution succeeded via single model driver',
+        'SUCCESS'
+      );
+      return fallbackRes;
+    } catch (fallbackErr: any) {
+      const errorClassification = classifyARMOError(err);
+      armoOrchestrator.recordTransition(
+        runId,
+        stage,
+        1,
+        requestedModel,
+        requestedModel,
+        requestedModel,
+        'none',
+        `Failed via AI Gateway & Fallback: ${err.message}`,
+        `FAIL (${errorClassification.toUpperCase()})`
+      );
+      throw err;
+    }
   }
 }
 
@@ -834,25 +984,32 @@ export async function executeLLMRequest(
  */
 export async function testLLMConnection(
   config: ReasoningConfig
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; latency?: number; textSample?: string }> {
+  const startTime = Date.now();
   try {
-    const result = await taskExecutor.executeTask({
-      taskId: 'general_reasoning',
-      reasoningConfig: config,
-      prompt: 'Ping test connection. Respond with JSON object: {"status": "ok"}',
-      systemInstruction: 'Output valid JSON strictly: {"status": "ok"}',
+    const result = await executeSingleModelRequest({
+      stage: 'TEST_CONNECTION',
+      prompt: 'Ping test connection. Respond with JSON object: {"status": "ok", "provider": "ready"}',
+      systemInstruction: 'Output valid JSON strictly: {"status": "ok", "provider": "ready"}',
       temperature: 0.1,
+      reasoningConfig: config,
+      model: config.model_id,
     });
+    const latency = Date.now() - startTime;
     if (!result.text) {
-      throw new Error('Respons kosong dari model');
+      throw new Error('Respons kosong dari model.');
     }
     return {
       success: true,
-      message: `Koneksi ke ${config.provider_name || config.provider_type} (${config.model_id}) berhasil! Respons: ${result.text.slice(0, 100)}`,
+      latency,
+      textSample: result.text.slice(0, 120),
+      message: `Koneksi ke ${config.display_name || config.provider_name || config.provider_type} (${config.model_id}) berhasil! [${latency}ms]`,
     };
   } catch (err: any) {
+    const latency = Date.now() - startTime;
     return {
       success: false,
+      latency,
       message: err?.message || 'Gagal terhubung ke provider model.',
     };
   }

@@ -1015,6 +1015,8 @@ export interface Project {
   quota_profiles?: UserQuotaProfile[];
   ai_call_budget?: AICallBudget | null;
   asset_graph?: AssetGraph | null;
+  is_simulation?: boolean;
+  simulation_mode?: boolean;
 }
 
 export interface FinalizationGateReport {
@@ -1215,12 +1217,59 @@ export interface ObjectBible {
   updated_at: string;
 }
 
+export type DramaticArcType =
+  | 'CLASSIC_ARC'
+  | 'MYSTERY'
+  | 'TRAGEDY'
+  | 'BIOGRAPHY'
+  | 'ADVENTURE'
+  | 'HISTORICAL_EVENT'
+  | 'SPIRITUAL_STRUGGLE'
+  | 'CUSTOM';
+
+export type EndingStrategyType =
+  | 'RESOLUTION'
+  | 'EMOTIONAL_PAYOFF'
+  | 'REVELATION'
+  | 'TRAGIC_AFTERMATH'
+  | 'LEGACY'
+  | 'SPIRITUAL_TRANSCENDENCE'
+  | 'CLIFFHANGER'
+  | 'OPEN_REFLECTION';
+
+export interface NarrativeStrategy {
+  genre: string;
+  subgenre?: string;
+  story_type: string;
+  narrative_goal: string;
+  protagonist: string;
+  opposing_force?: string;
+  central_conflict: string;
+  stakes: 'PERSONAL' | 'SURVIVAL' | 'MORAL' | 'SOCIETAL' | 'COSMIC';
+  tone: string;
+  dramatic_arc_type: DramaticArcType;
+  source_type: 'HISTORICAL_RELIGIOUS' | 'FICTIONAL' | 'BIOGRAPHICAL' | 'LITERARY_ADAPTATION';
+  is_historical_or_sacred: boolean;
+  format_mode: 'STANDALONE' | 'SERIALIZED';
+  ending_strategy: EndingStrategyType;
+  pacing: {
+    recommended_scene_count: number;
+    pacing_curve: 'RAPID_ESCALATING' | 'SLOW_BURN_REVELATION' | 'MEASURED_DRAMATIC' | 'DESCENDING_SPIRAL' | 'DYNAMIC';
+    dialogue_density: 'HIGH' | 'BALANCED' | 'MINIMAL' | 'ACTION_DOMINANT';
+    narration_strategy: 'NONE' | 'MINIMAL_POETIC' | 'CHRONICLER_WITNESS' | 'INTERNAL_MONOLOGUE';
+  };
+  act_functions: string[];
+  guidance_summary?: string;
+}
+
 export interface NarrativeBeats {
   beginning: string;
   development: string;
   climax: string;
   consequence: string;
   ending: string;
+  dramatic_arc_type?: DramaticArcType;
+  narrative_strategy?: NarrativeStrategy;
 }
 
 export interface MasterImagePrompt {
@@ -1264,6 +1313,59 @@ export interface Scene {
   emotional_objective: string;
   event: string;
   narrative_function: string;
+  // Cinematic Narrative Rework (Short Film & Generic Dramaturgical Structure)
+  scene_pattern?:
+    | 'HOOK'
+    | 'CONTEXT'
+    | 'ESCALATION'
+    | 'TURNING_POINT'
+    | 'PAYOFF'
+    | 'CLIFFHANGER'
+    | 'SETUP'
+    | 'INCITING_INCIDENT'
+    | 'QUESTION'
+    | 'INVESTIGATION'
+    | 'EVIDENCE'
+    | 'COMPLICATION'
+    | 'REVELATION'
+    | 'FALSE_HOPE'
+    | 'WARNING'
+    | 'DILEMMA'
+    | 'POINT_OF_NO_RETURN'
+    | 'CATASTROPHE'
+    | 'AFTERMATH'
+    | 'TEST'
+    | 'CRUCIBLE'
+    | 'TEMPTATION'
+    | 'ILLUMINATION'
+    | 'CONFRONTATION'
+    | 'CLIMAX'
+    | 'BREAKTHROUGH'
+    | 'RESOLUTION'
+    | 'REFLECTION'
+    | 'LEGACY'
+    | (string & {});
+  visual_action?: string;
+  dialogue?: Array<{
+    character_name: string;
+    line: string;
+    emotional_subtext?: string;
+    delivery?: string;
+  }>;
+  narrator_vo?: string | null;
+  sound_design?: {
+    sfx: string[];
+    bgm_mood: string;
+    silence_cue?: boolean;
+  };
+  historical_integrity?: {
+    tier: 'FACT' | 'DRAMATIZED_DIALOGUE' | 'NARRATIVE_BRIDGE' | 'FICTIONALIZED';
+    basis?: string;
+  };
+  prophet_depiction_safeguard?: {
+    is_prophet_present: boolean;
+    visual_rule: string;
+  };
   sequence_id?: string;
   act_id?: string;
   continuity_scope?: ContinuityScope;
@@ -1511,7 +1613,7 @@ export interface StageExecutionTelemetry {
 }
 
 export interface PipelineLogEvent {
-  timestamp: string;
+  timestamp: string | number;
   stage: number;
   stage_name: string;
   stage_code?: StageCode;
@@ -1521,6 +1623,7 @@ export interface PipelineLogEvent {
   duration_ms?: number;
   error_type?: ErrorClassification;
   run_id?: string;
+  data?: any;
 }
 
 export interface ProjectFullData {
@@ -2017,7 +2120,7 @@ export interface AICredential {
     firebaseProjectId?: string;
     clientEmail?: string;
   };
-  status: 'active' | 'rate_limited' | 'exhausted' | 'invalid_auth' | 'disabled';
+  status: 'active' | 'rate_limited' | 'exhausted' | 'invalid_auth' | 'disabled' | 'deleted';
   priority: number;
   weight: number;
   lastUsedAt?: number;
@@ -2040,11 +2143,14 @@ export interface AIModel {
 export interface AIUsage {
   id: string;
   credentialId: string;
-  modelId: string;
+  modelId?: string;
   providerId?: string;
   model?: string;
   requestType?: string;
   stage?: string;
+  task?: string;
+  agentName?: string;
+  errorMessage?: string;
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
@@ -2104,6 +2210,16 @@ export interface AITaskDefinition {
   recommendedFallbackStrategy: 'tier_downgrade' | 'cross_provider' | 'retry_with_reduced_context' | 'strict_quality';
 }
 
+export interface FallbackRouteItem {
+  type: 'same_provider_next_credential' | 'next_eligible_model' | 'next_provider';
+  providerId: string;
+  modelId: string;
+  credentialId?: string;
+  apiKey?: string;
+  score?: number;
+  description: string;
+}
+
 export interface TaskExecutionPlan {
   taskId: AITaskId;
   stageCode?: string;
@@ -2112,13 +2228,22 @@ export interface TaskExecutionPlan {
   credentialId: string;
   apiKey?: string;
   score: number;
+  priority?: number;
   reasons: string[];
+  fallbackPlan?: FallbackRouteItem[];
   candidateEvaluation?: {
     totalCandidates: number;
     eligibleCandidates: number;
     selectedModelTier: string;
     contextWindow: number;
     fallbackChain?: string[];
+    candidatesSummary?: Array<{
+      providerId: string;
+      modelId: string;
+      score: number;
+      priority: number;
+      tier?: string;
+    }>;
   };
   decisionTimestamp: number;
 }

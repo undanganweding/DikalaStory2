@@ -22,8 +22,15 @@ export const CANONICAL_AUDIO_PURITY_CONTRACT: AudioPurityContract = {
     'doors',
     'physical object interactions',
     'natural environmental ambience',
+    'diegetic Foley and ambient room acoustics',
   ],
   forbiddenAudio: [
+    'narration',
+    'voice-over',
+    'narrator voice',
+    'voiceover',
+    'VO',
+    'narasi',
     'background music',
     'BGM',
     'soundtrack',
@@ -43,9 +50,9 @@ export const CANONICAL_AUDIO_PURITY_CONTRACT: AudioPurityContract = {
 
 export const AUDIO_PURITY_CONSTRAINT_BLOCK = `[AUDIO PURITY CONSTRAINT]
 
-AUDIO MODE: DIEGETIC ONLY.
+AUDIO MODE: DIEGETIC ONLY (SFX, AMBIENT & CHARACTER DIALOGUE ONLY).
 
-Use only sound that naturally originates from the visible scene and physical actions.
+Use only natural sound originating from the visible scene, character speech, and physical actions. Strictly NO narration, NO voice-over, NO BGM.
 
 ALLOWED:
 - authentic character dialogue
@@ -60,9 +67,11 @@ ALLOWED:
 - animals
 - doors
 - physical object interactions
-- natural environmental ambience
+- natural environmental ambience and Foley SFX
 
 FORBIDDEN:
+- narration
+- voice-over / VO / narrator voice
 - background music
 - BGM
 - soundtrack
@@ -78,6 +87,7 @@ FORBIDDEN:
 - generated narrator voice
 - music-like ambience
 
+Do not add any narration or voiceover.
 Do not add any non-diegetic audio.
 Do not add music under any circumstance.`;
 
@@ -134,6 +144,11 @@ export function validateAudioPurityContract(
       'orchestral score',
       'cinematic music',
       'trailer music',
+      'narration:',
+      'narrator voice:',
+      'voiceover:',
+      'voice-over:',
+      'narasi voice over:',
     ];
 
     for (const term of forbiddenInPositive) {

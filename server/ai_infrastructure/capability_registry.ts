@@ -314,13 +314,13 @@ export const capabilityRegistry = {
       }
     }
 
-    // 2. Google provider natively supports all Gemini & Veo models
+    // 2. Google provider natively supports all Gemini, Imagen & Veo models
     const isGoogle = providerId === 'google' || provider?.type === 'gemini' || provider?.type === 'google-generative-ai' || provider?.type === 'google';
-    if (isGoogle && (modelId.startsWith('gemini') || modelId.startsWith('veo') || modelId === 'ops-5')) {
+    if (isGoogle && (modelId.startsWith('gemini') || modelId.startsWith('veo') || modelId.startsWith('imagen') || modelId === 'ops-5')) {
       return { capable: true };
     }
 
-    // 3. Check model-specific registry in AMM
+    // 3. Check model-specific registry in AMM if defined
     const modelDef = modelsRegistry[modelId];
     if (modelDef) {
       const provConfig = modelDef.providers[providerId];
@@ -342,60 +342,25 @@ export const capabilityRegistry = {
       if (Array.isArray(providerModelList) && providerModelList.includes(modelId)) {
         return { capable: true };
       }
-      // If it's a known static model with specific provider whitelist
-      if (Object.keys(modelDef.providers).length > 0 && !provConfig) {
-        return {
-          capable: false,
-          reason: `Provider '${providerId}' does not support model '${modelId}'`,
-        };
-      }
-    } else {
-      // If model is completely unknown in registry, check if provider explicitly advertises it
-      const providerModelList = provider?.supportedModels || provider?.models || provider?.models_available;
-      if (Array.isArray(providerModelList) && providerModelList.length > 0) {
-        if (!providerModelList.includes(modelId)) {
-          return {
-            capable: false,
-            reason: `Model '${modelId}' is not supported by provider '${providerId}'`,
-          };
-        }
-      } else {
-        // If provider is google, allow any gemini model
-        if (providerId === 'google' && (modelId.startsWith('gemini') || modelId.startsWith('veo'))) {
-          return { capable: true };
-        }
-        return {
-          capable: false,
-          reason: `Model '${modelId}' not found in capability registry`,
-        };
-      }
     }
 
-    // For custom providers or dynamic models in DB, capability is granted if provider satisfies required capability
+    // 4. For OpenAI-compatible / custom providers or dynamically registered models in database
+    const isCustomOrOpenAI = !isGoogle && (
+      provider?.type === 'openai-compatible' ||
+      Boolean(provider?.baseUrl) ||
+      provider?.type === 'custom' ||
+      providerId !== 'google'
+    );
+    if (isCustomOrOpenAI) {
+      return { capable: true };
+    }
+
+    // For any other provider or dynamic models, capability is granted if provider satisfies required capability
     return { capable: true };
   },
 
-  // Resolve native model name for a provider
+  // Resolve native model name for a provider (strictly returns the authoritative model name)
   resolveNativeModel(providerId: string, modelId: string): string {
-    const isGoogle = providerId === 'google' || providerId?.startsWith('sifa') || providerId?.startsWith('nupres') || modelId?.startsWith('gemini');
-    if (isGoogle) {
-      if (modelId === 'gemini-2.5-pro') {
-        return 'gemini-3.1-pro-preview';
-      }
-      if (modelId === 'gemini-2.5-flash') {
-        return 'gemini-3.6-flash';
-      }
-      if (
-        modelId === 'gemini-3.1-pro-preview' ||
-        modelId === 'gemini-3.6-flash' ||
-        modelId === 'gemini-3.7-flash' ||
-        modelId === 'gemini-2.0-flash' ||
-        modelId === 'gemini-1.5-pro' ||
-        modelId === 'gemini-1.5-flash'
-      ) {
-        return modelId;
-      }
-    }
     const modelDef = modelsRegistry[modelId];
     if (modelDef) {
       const provConfig = modelDef.providers[providerId];

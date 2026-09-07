@@ -1,12 +1,13 @@
 import { db } from '../db';
 import { taskRegistry } from './task_registry';
 import { quotaRouter } from './quota_router';
-import { credentialService } from './credential_service';
 import { providerService } from './provider_service';
 import { capabilityRegistry } from './capability_registry';
-import { isForbiddenCinemaModel } from './ai_gateway';
-import { dailyExhaustedRegistry } from './ai_gateway';
+import { isForbiddenCinemaModel, dailyExhaustedRegistry, isModelSuppressed, markModelSuppressed } from './ai_gateway';
 import { healthService } from './health_service';
+import { credentialService } from './credential_service';
+import { secretVault } from '../security/secret_vault';
+import { GoogleGenAI } from '@google/genai';
 import { AITaskDefinition, AICredential } from '../../src/types';
 
 export interface PreflightCandidatePath {
@@ -14,40 +15,43 @@ export interface PreflightCandidatePath {
   credentialId: string;
   providerId: string;
   modelId: string;
+  quotaLevel?: 'abundant' | 'moderate' | 'low' | 'exhausted';
 }
 
 export interface PreflightCheckResult {
   viable: boolean;
-  confidence: 'LOCAL_STATE_ONLY';
-  remainingQuota: 'UNKNOWN';
+  confidence: 'LIVE_VERIFIED' | 'LOCAL_STATE_ONLY';
+  remainingQuota: 'ABUNDANT' | 'MODERATE' | 'LOW' | 'EXHAUSTED' | 'UNKNOWN';
   viablePathsCount: number;
   exhaustedPathsCount: number;
   viablePaths: PreflightCandidatePath[];
   exhaustedPaths: PreflightCandidatePath[];
+  activeCredentialName?: string;
+  activeProviderId?: string;
+  totalCredentialsInPool?: number;
+  readyModels?: string[];
+  modelQuotaLevels?: Record<string, 'abundant' | 'moderate' | 'low' | 'exhausted'>;
   reason: string;
 }
 
 export const executionPreflight = {
   /**
-   * Evaluates the viability of running a list of pipeline stages based purely on local state.
-   * If any of the requested stages has zero viable paths available (all known candidates are exhausted),
-   * the preflight fails and blocks the pipeline before making any AI requests.
+   * Evaluates the viability of running a list of pipeline stages based on live quota state,
+   * active model health, and smart multi-key credential fallback across 3 to 10+ keys.
    */
   async checkExecutionPreflight(stages: string[]): Promise<PreflightCheckResult> {
     const viablePaths: PreflightCandidatePath[] = [];
     const exhaustedPaths: PreflightCandidatePath[] = [];
     const blockedStages: string[] = [];
+    const modelQuotaLevels: Record<string, 'abundant' | 'moderate' | 'low' | 'exhausted'> = {};
 
-    // 1. Bulk pre-fetch snapshot data to solve N+1 DB reads
-    // Credential source must mirror runtime selection (quotaRouter/credentialService),
-    // including the env-based fallback credential, otherwise preflight diverges from
-    // the paths actually available at execution time.
+    // 1. Bulk pre-fetch snapshot data to avoid N+1 DB reads
     const [allModels, allCredentials] = await Promise.all([
       db.getModels(),
       credentialService.listCredentials(),
     ]);
 
-    const enabledModels = allModels.filter(m => m.enabled !== false);
+    const enabledModels = allModels.filter(m => m.enabled === true);
     const providerIds = Array.from(new Set(enabledModels.map(m => m.providerId)));
 
     const [healthResults, providerResults] = await Promise.all([
@@ -80,13 +84,13 @@ export const executionPreflight = {
       providers
     };
 
-    // Caches to prevent redundant scoring calculations within the same run
+    // Cache to store scored credentials per provider
     const providerScoredCredsCache = new Map<string, any[]>();
 
     for (const stage of stages) {
       const task: AITaskDefinition | undefined = taskRegistry.getTask(stage);
       if (!task) {
-        // If the stage is unknown, it doesn't use AI routing directly or is a custom non-AI step
+        // Unknown or custom non-AI step
         continue;
       }
 
@@ -180,19 +184,30 @@ export const executionPreflight = {
           continue;
         }
 
-        // Evaluate each active credential for daily exhaustion
+        // Evaluate each active credential for daily exhaustion and quota status
         for (const scoredCred of activeCreds) {
           const cred: AICredential = scoredCred.credential;
           const cacheKey1 = `${cred.name}:${model.id}`;
           const cacheKey2 = `${cred.id}:${model.id}`;
 
           const isExhausted = dailyExhaustedRegistry.has(cacheKey1) || dailyExhaustedRegistry.has(cacheKey2);
+          const isSuppressed = isModelSuppressed(cacheKey1) || isModelSuppressed(cacheKey2);
+
+          let quotaLevel: 'abundant' | 'moderate' | 'low' | 'exhausted' = 'abundant';
+          if (isExhausted || isSuppressed) {
+            quotaLevel = 'exhausted';
+          } else if (scoredCred.state === 'WARNING') {
+            quotaLevel = 'moderate';
+          }
+
+          modelQuotaLevels[model.id] = quotaLevel;
 
           const candidatePath: PreflightCandidatePath = {
             stage: task.stageCode || stage,
             credentialId: cred.id,
             providerId: model.providerId,
             modelId: model.id,
+            quotaLevel,
           };
 
           if (isExhausted) {
@@ -209,24 +224,119 @@ export const executionPreflight = {
       }
     }
 
+    // 2. Perform live probe on candidate credentials in priority order to confirm active availability
+    let liveVerified = false;
+    let activeCredentialName: string | undefined;
+    let activeProviderId: string | undefined;
+    const readyModels: string[] = [];
+    const totalCredentialsInPool = allCredentials.length;
+
+    // Probe candidate paths until finding a live verified key
+    for (const candPath of viablePaths) {
+      if (liveVerified) break;
+      const targetCred = allCredentials.find(c => c.id === candPath.credentialId);
+      if (!targetCred) continue;
+
+      let rawKey = '';
+      try {
+        rawKey = secretVault.decryptSecret(targetCred.encryptedSecret);
+      } catch {
+        rawKey = (targetCred as any).secret || '';
+      }
+
+      if (rawKey && rawKey.startsWith('AIza') && candPath.providerId === 'google') {
+        const probeAi = new GoogleGenAI({
+          apiKey: rawKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build',
+            },
+          },
+        });
+
+        const probeModel = candPath.modelId || 'gemini-3.7-flash';
+        try {
+          const pingRes = await probeAi.models.generateContent({
+            model: probeModel,
+            contents: 'ping',
+            config: { maxOutputTokens: 3 },
+          });
+          if (pingRes?.text) {
+            liveVerified = true;
+            activeProviderId = candPath.providerId;
+            activeCredentialName = targetCred.name;
+            modelQuotaLevels[probeModel] = 'abundant';
+            if (!readyModels.includes(probeModel)) readyModels.push(probeModel);
+            break;
+          }
+        } catch (probeErr: any) {
+          const errMsg = (probeErr?.message || '').toLowerCase();
+          if (errMsg.includes('429') || errMsg.includes('resource_exhausted') || errMsg.includes('limit: 0') || errMsg.includes('quota')) {
+            const k1 = `${targetCred.name}:${probeModel}`;
+            const k2 = `${targetCred.id}:${probeModel}`;
+            dailyExhaustedRegistry.set(k1, Date.now() + 60000);
+            dailyExhaustedRegistry.set(k2, Date.now() + 60000);
+            modelQuotaLevels[probeModel] = 'exhausted';
+          }
+        }
+      } else if (rawKey && candPath.providerId !== 'google') {
+        // Custom provider is viable
+        activeProviderId = candPath.providerId;
+        activeCredentialName = targetCred.name;
+        liveVerified = true;
+        break;
+      }
+    }
+
+    // Default active credential if not live probed
+    if (!activeCredentialName && viablePaths.length > 0) {
+      const topCred = allCredentials.find(c => c.id === viablePaths[0].credentialId);
+      activeCredentialName = topCred ? topCred.name : undefined;
+      activeProviderId = viablePaths[0].providerId;
+    }
+
+    // Collect all viable model IDs that are not marked exhausted
+    for (const vp of viablePaths) {
+      if (modelQuotaLevels[vp.modelId] !== 'exhausted' && !readyModels.includes(vp.modelId)) {
+        readyModels.push(vp.modelId);
+      }
+    }
+
     const viable = blockedStages.length === 0 && viablePaths.length > 0;
+
+    let remainingQuota: 'ABUNDANT' | 'MODERATE' | 'LOW' | 'EXHAUSTED' | 'UNKNOWN' = 'ABUNDANT';
+    if (!viable) {
+      remainingQuota = 'EXHAUSTED';
+    } else if (readyModels.length <= 1 && totalCredentialsInPool <= 1) {
+      remainingQuota = 'LOW';
+    } else if (totalCredentialsInPool >= 2) {
+      remainingQuota = 'ABUNDANT';
+    } else if (exhaustedPaths.length > viablePaths.length) {
+      remainingQuota = 'MODERATE';
+    }
 
     let reason = '';
     if (viable) {
-      reason = 'PRECHECK RESULT: VIABLE. At least one execution path is currently available based on known local health/quota state.';
+      reason = `PRECHECK RESULT: VIABLE. ${totalCredentialsInPool} API Key aktif di pool. Model AI Siap (${readyModels.length > 0 ? readyModels.join(', ') : 'Semua Model'}) pada "${activeCredentialName || 'Default'}". Fast multi-key rolling aktif.`;
     } else {
-      reason = `Pipeline blocked before AI request. The following stages have no viable execution paths: ${blockedStages.join(', ')}.`;
+      reason = `Pipeline diblokir sebelum AI request. Tahap berikut tidak memiliki model/kredensial yang siap: ${blockedStages.join(', ')}.`;
     }
 
     return {
       viable,
-      confidence: 'LOCAL_STATE_ONLY',
-      remainingQuota: 'UNKNOWN',
+      confidence: liveVerified ? 'LIVE_VERIFIED' : 'LOCAL_STATE_ONLY',
+      remainingQuota,
       viablePathsCount: viablePaths.length,
       exhaustedPathsCount: exhaustedPaths.length,
       viablePaths,
       exhaustedPaths,
+      activeCredentialName,
+      activeProviderId,
+      totalCredentialsInPool,
+      readyModels,
+      modelQuotaLevels,
       reason,
     };
   },
 };
+

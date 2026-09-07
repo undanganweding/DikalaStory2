@@ -121,8 +121,8 @@ let failedCount = 0;
     // Inject mock candidate model exhaustion into the in-memory registry
     const cacheKey1 = `${mockCredential.name}:${mockModel.id}`;
     const cacheKey2 = `${mockCredential.id}:${mockModel.id}`;
-    dailyExhaustedRegistry.add(cacheKey1);
-    dailyExhaustedRegistry.add(cacheKey2);
+    dailyExhaustedRegistry.set(cacheKey1, Date.now() + 3600000);
+    dailyExhaustedRegistry.set(cacheKey2, Date.now() + 3600000);
 
     const result2 = await executionPreflight.checkExecutionPreflight(['S1', 'S2']);
 

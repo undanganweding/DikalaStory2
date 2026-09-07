@@ -2,6 +2,7 @@ import { executeTask, safeParseJSON } from '../llm_provider';
 import { Type } from '../gemini';
 import { ContextPackage, NarrativeBeats, ReasoningConfig, Scene } from '../../src/types';
 import { buildNarrativeVoiceInstruction, recommendSceneTone } from '../narrative_tone';
+import { determineNarrativeStrategy } from '../narrative_strategy_engine';
 
 export interface Stage5SceneBreakdownInput {
   narrativeBeats: NarrativeBeats;
@@ -20,6 +21,8 @@ export interface Stage5SceneBreakdownInput {
   // ones. When supplied, generated names are canonicalized against them.
   characterRoster?: string[];
   locationRoster?: string[];
+  customGuidance?: string;
+  targetSceneCount?: number;
 }
 
 export type DetectedScene = Omit<
@@ -356,6 +359,28 @@ export function ensureSufficientSceneCount(
   const isIndo = language === 'id';
   const expanded: DetectedScene[] = [...scenes];
 
+  const progressionDescriptors = isIndo
+    ? [
+        'Inisiasi & Konteks',
+        'Eskalasi Ketegangan',
+        'Perkembangan Aksi',
+        'Titik Balik Dramatis',
+        'Puncak Konfrontasi',
+        'Konsekuensi Aksi',
+        'Resolusi & Penutup',
+      ]
+    : [
+        'Initiation & Context',
+        'Rising Tension',
+        'Action Development',
+        'Dramatic Turning Point',
+        'Peak Confrontation',
+        'Action Consequence',
+        'Resolution & Payoff',
+      ];
+
+  let splitCounter = 0;
+
   while (expanded.length < minScenesRequired) {
     let maxIdx = 0;
     for (let i = 1; i < expanded.length; i++) {
@@ -367,12 +392,38 @@ export function ensureSufficientSceneCount(
     const halfDur = Math.max(5, Math.floor((targetScene.duration_sec || 10) / 2));
     const remDur = Math.max(5, (targetScene.duration_sec || 10) - halfDur);
 
+    splitCounter++;
+    const descA = progressionDescriptors[(splitCounter * 2) % progressionDescriptors.length];
+    const descB = progressionDescriptors[(splitCounter * 2 + 1) % progressionDescriptors.length];
+
+    const cleanBase = targetScene.title
+      .replace(/\s*\((?:Bagian|Part|Lanjutan|Continuation|Segmen|Fase)[^)]*\)/gi, '')
+      .replace(/\s*-\s*(?:Inisiasi|Eskalasi|Puncak|Resolusi|Setup|Escalation|Climax|Resolution|Konteks|Ketegangan|Aksi|Penutup|Titik Balik|Perkembangan|Babak)[^-\n]*$/gi, '')
+      .replace(/\s*:\s*(?:Inisiasi|Eskalasi|Puncak|Resolusi|Setup|Escalation|Climax|Resolution|Konteks|Ketegangan|Aksi|Penutup)[^:]*$/gi, '')
+      .trim();
+
+    const rawPurpose = (targetScene.story_purpose && targetScene.story_purpose !== 'undefined') ? targetScene.story_purpose : '';
+    const rawEvent = (targetScene.event && targetScene.event !== 'undefined') ? targetScene.event : '';
+    const rawVisual = (targetScene.visual_action && targetScene.visual_action !== 'undefined') ? targetScene.visual_action : '';
+
+    const cleanBasePurpose = (rawPurpose || rawEvent || cleanBase)
+      .replace(/\s*-\s*(?:Fase inisiasi|Puncak eskalasi|Initial initiation|Peak escalation)[^.]*\.?/gi, '')
+      .trim();
+    const cleanBaseEvent = (rawEvent || rawPurpose || cleanBase)
+      .replace(/\s*\((?:Fase permulaan|Puncak aksi|Initial setup|Peak action)[^)]*\)/gi, '')
+      .trim();
+    const cleanBaseVisual = (rawVisual || cleanBaseEvent)
+      .replace(/\s*-\s*(?:fokus visual awal|eskalasi visual dinamis|initial visual framing focus|dynamic visual escalation)\.?/gi, '')
+      .trim();
+    const dedupedSceneChars = Array.from(new Set((targetScene.character_names || []).filter(Boolean)));
+
     const part1: DetectedScene = {
       ...targetScene,
-      title: isIndo ? `${targetScene.title} (Bagian 1: Pengantar)` : `${targetScene.title} (Part 1: Setup)`,
-      story_purpose: isIndo
-        ? `${targetScene.story_purpose} - Fase inisiasi & ketegangan awal.`
-        : `${targetScene.story_purpose} - Initial initiation and tension setup.`,
+      title: `${cleanBase} - ${descA}`,
+      character_names: dedupedSceneChars,
+      story_purpose: cleanBasePurpose ? `${cleanBasePurpose} (${descA})` : `Menggambarkan ${cleanBase} pada fase ${descA.toLowerCase()}.`,
+      event: cleanBaseEvent ? `${cleanBaseEvent} (Fase: ${descA})` : `Peristiwa ${cleanBase.toLowerCase()} berlangsung dengan intensitas awal.`,
+      visual_action: cleanBaseVisual,
       narrative_function: targetScene.narrative_function?.toUpperCase().includes('CLIMAX')
         ? 'RISING_ACTION'
         : (targetScene.narrative_function || 'EXPOSITION'),
@@ -381,10 +432,11 @@ export function ensureSufficientSceneCount(
 
     const part2: DetectedScene = {
       ...targetScene,
-      title: isIndo ? `${targetScene.title} (Bagian 2: Resolusi)` : `${targetScene.title} (Part 2: Escalation)`,
-      story_purpose: isIndo
-        ? `${targetScene.story_purpose} - Puncak eskalasi & konsekuensi dramatis.`
-        : `${targetScene.story_purpose} - Peak escalation and dramatic payoff.`,
+      title: `${cleanBase} - ${descB}`,
+      character_names: dedupedSceneChars,
+      story_purpose: cleanBasePurpose ? `${cleanBasePurpose} (${descB})` : `Melanjutkan dinamika ${cleanBase} menuju fase ${descB.toLowerCase()}.`,
+      event: cleanBaseEvent ? `${cleanBaseEvent} (Kelanjutan: ${descB})` : `Peristiwa ${cleanBase.toLowerCase()} berkembang menuju titik ketegangan baru.`,
+      visual_action: cleanBaseVisual,
       narrative_function: targetScene.narrative_function || 'DEVELOPMENT',
       duration_sec: remDur,
     };
@@ -416,6 +468,7 @@ export function allocateAndNormalizeSceneDurations(
   if (scenes.length === 0) return scenes;
 
   const isFixed = Boolean(fixedSceneSec && fixedSceneSec > 0);
+  const isIndo = language === 'id';
   const effectiveCeiling = fixedSceneSec || maxSceneSec || targetTotalSec;
 
   if (isFixed && fixedSceneSec) {
@@ -439,15 +492,12 @@ export function allocateAndNormalizeSceneDurations(
         if (result.length > expectedCount) {
           result = result.slice(0, expectedCount);
         } else if (result.length < expectedCount) {
-          while (result.length < expectedCount) {
-            const last = result[result.length - 1];
-            result.push({
-              ...last,
-              scene_number: result.length + 1,
-              title: `${last.title} (Continuation)`,
-              duration_sec: fixedSceneSec,
-            });
-          }
+          result = ensureSufficientSceneCount(result, expectedCount, language);
+          result = result.map((s, idx) => ({
+            ...s,
+            scene_number: idx + 1,
+            duration_sec: fixedSceneSec,
+          }));
         }
         const newTotal = result.reduce((sum, s) => sum + s.duration_sec, 0);
         const rem = targetTotalSec - newTotal;
@@ -549,58 +599,150 @@ export async function runStage5SceneBreakdownAttempt(
 ): Promise<DetectedScene[]> {
   const isIndo = input.language === 'id';
 
+  // 1. Resolve Narrative Strategy
+  const strategy = input.narrativeBeats.narrative_strategy || determineNarrativeStrategy({
+    rawScript: `${input.narrativeBeats.beginning}\n${input.narrativeBeats.development}\n${input.narrativeBeats.climax}`,
+    targetDurationSec: input.totalDurationTargetSec,
+  });
+
   const isFixed = Boolean(input.fixedSceneDurationSec && input.fixedSceneDurationSec > 0);
   const effectiveCeiling = input.fixedSceneDurationSec || input.maxSceneDurationSec || 30;
   const minScenesRequired = Math.max(1, Math.ceil(input.totalDurationTargetSec / effectiveCeiling));
 
-  const targetAvgSceneDuration = isFixed
-    ? input.fixedSceneDurationSec!
-    : Math.min(25, Math.max(12, Math.round(effectiveCeiling * 0.75)));
-
-  const targetSceneCount = isFixed
-    ? Math.max(1, Math.round(input.totalDurationTargetSec / input.fixedSceneDurationSec!))
-    : Math.max(minScenesRequired, Math.round(input.totalDurationTargetSec / targetAvgSceneDuration));
+  // 2. Dynamic Target Scene Count (Pacing Engine)
+  const targetSceneCount = input.targetSceneCount && input.targetSceneCount > 0
+    ? input.targetSceneCount
+    : isFixed
+      ? Math.max(1, Math.round(input.totalDurationTargetSec / input.fixedSceneDurationSec!))
+      : Math.max(minScenesRequired, strategy.pacing?.recommended_scene_count || Math.round(input.totalDurationTargetSec / 25));
 
   const narrativeDoctrine = buildNarrativeVoiceInstruction(null, input.language);
   const groundingContext = input.contextPackage ? JSON.stringify(input.contextPackage, null, 2) : 'No grounding context available.';
+  
   const baseInstruction = isIndo
     ? isFixed
-      ? `Anda adalah Master 1st Assistant Director (1st AD) & Cinematic Timeline Allocator kelas dunia.
-Tugas Anda: Memecah cerita 5-Beat Narrative Structure menjadi urutan tepat ${targetSceneCount} Scene Breakdown sinematik.
+      ? `Anda adalah Master 1st Assistant Director (1st AD) & Cinematic Screenwriter kelas dunia.
+Tugas Anda: Memecah Struktur Naratif Sinematik menjadi urutan tepat ${targetSceneCount} Scene Breakdown berdurasi tetap ${input.fixedSceneDurationSec} detik.
 
-ATURAN SISTEM FIXED SCENE DURATION (MUTLAK):
-1. Sistem telah menetapkan durasi tetap (Fixed Scene Duration) sebesar ${input.fixedSceneDurationSec} detik per scene.
-2. Setiap scene WAJIB menggunakan durasi tepat ${input.fixedSceneDurationSec} detik. JANGAN mengubah durasi scene.
-3. Total target durasi: ${input.totalDurationTargetSec} detik (${targetSceneCount} scene x ${input.fixedSceneDurationSec}s).
-4. Fokuskan seluruh kreativitas Anda pada: konten adegan, dramatic beat, tujuan naratif, aksi dramatis, lokasi, karakter, dan fungsi naratif.
-5. scene_number harus berurutan 1, 2, 3, dst.`
-      : `Anda adalah Master 1st Assistant Director (1st AD) & Cinematic Timeline Allocator kelas dunia.
-Tugas Anda: Memecah cerita dari 5-Beat Narrative Structure menjadi urutan ${targetSceneCount} adegan sinematik (Scene Breakdown) yang presisi dengan alokasi durasi detik.
+STRATEGI DRAMATURGI SINEMATIK:
+- Dramatic Arc Archetype: ${strategy.dramatic_arc_type}
+- Genre / Subgenre: ${strategy.genre} (${strategy.subgenre})
+- Stakes: ${strategy.stakes}
+- Ending Strategy: ${strategy.ending_strategy}
+- Fungsi Babak: ${strategy.act_functions.join(' -> ')}
 
-ATURAN ALOKASI DURASI & STRUKTUR NARATIF (MUTLAK):
-1. TARGET TOTAL DURASI NARATIF PROYEK: TEPAT ${input.totalDurationTargetSec} DETIK. Jumlah durasi seluruh scene (sum of duration_sec) WAJIB TEPAT SAMA DENGAN ${input.totalDurationTargetSec} DETIK (toleransi 0 detik).
-2. DISTINKSI CONTAINER VS DURASI NARATIF: Batas container platform (misal 30s) adalah batasan teknis klip per adegan, BUKAN total durasi film. Film ini berdurasi ${input.totalDurationTargetSec} detik dan membutuhkan urutan adegan yang lengkap (${targetSceneCount} scene, minimal ${minScenesRequired} scene).
-3. BATAS DURASI PER SCENE: Setiap scene harus berdurasi antara 5 detik sampai maksimal ${effectiveCeiling} detik (<= ${effectiveCeiling}s per scene).
-4. ALOKASI BOBOT DRAMATIS: Alokasikan durasi berdasarkan BOBOT NARATIF (Climax, Pivotal Choices, dan Emotional Highs WAJIB mendapatkan alokasi durasi lebih panjang dan dramatis dibanding scene transisi/eksposisi pendek). JANGAN membagi durasi secara rata.
-5. scene_number harus berurutan 1, 2, 3, dst.`
+DOKTRIN NARRATIVE SHORT FILM SINEMATIK:
+1. "DRAMA FIRST, INFORMATION SECOND" (UNIT DRAMATIS VITAL):
+   - JANGAN PERNAH membuat adegan berupa deskripsi paragraf rangkuman atau teks ensiklopedia sejarah!
+   - Setiap adegan WAJIB menjadi UNIT DRAMATIS dengan aksi fisik nyata (visual_action), gestur tubuh, kontak mata, dan interaksi langsung antar-karakter.
+2. PEMISAHAN MUTLAK 'story_purpose' DAN 'event':
+   - story_purpose: Maksud dramatis & pergeseran psikologis/emosional adegan (MENGAPA adegan ini penting dalam busur cerita). DILARANG MENULIS ULANG EVENT!
+   - event: Kejadian dramatis fisik & aksi nyata di layar (APA yang terjadi di layar secara konkret).
+3. SALURAN AUDIO-VISUAL & DIALOG AKTIF (dialogue):
+   - Ketika dua atau lebih karakter berinteraksi/berbincang/mengambil keputusan (misal: Abdul Muttalib & Aminah, atau Abdul Muttalib & Pembesar Quraisy), WAJIB sertakan dialog aktif dalam array 'dialogue'!
+   - Dialog harus memiliki subteks emosional (emotional_subtext) dan penjiwaan vocal (delivery).
+   - Voice-over (narrator_vo) SANGAT MINIMAL, puitis, dan HANYA jika diperlukan. DILARANG menarasikan apa yang sudah terlihat di layar.
+4. POLA DRAMATIS PER ADEGAN (scene_pattern):
+   - Pilih scene_pattern yang tepat secara dramatis untuk tiap adegan: HOOK, SETUP, INCITING_INCIDENT, QUESTION, INVESTIGATION, EVIDENCE, COMPLICATION, REVELATION, WARNING, DILEMMA, POINT_OF_NO_RETURN, CATASTROPHE, AFTERMATH, TEST, CRUCIBLE, TEMPTATION, ILLUMINATION, ESCALATION, CONFRONTATION, TURNING_POINT, CLIMAX, BREAKTHROUGH, RESOLUTION, PAYOFF, REFLECTION, LEGACY, CLIFFHANGER.
+5. KECERDASAN ENDING (${strategy.ending_strategy}):
+   - Adegan terakhir (Scene ${targetSceneCount}) WAJIB mencerminkan strategi ending terpilih (${strategy.ending_strategy}). JANGAN memaksakan cliffhanger jika cerita menuntut kepuasan resolusi, kedukaan tragis, atau refleksi spiritual!
+${strategy.is_historical_or_sacred ? `6. PENGUNCIAN PENGGAMBARAN NABI MUHAMMAD ﷺ: Wajah Nabi Muhammad ﷺ TIDAK PERNAH digambarkan. Bayi selalu terbedong rapi membelakangi kamera tanpa halo supernatural.
+7. INTEGRITAS HISTORIS: Klasifikasikan tier FACT, DRAMATIZED_DIALOGUE, NARRATIVE_BRIDGE, atau FICTIONALIZED.` : '6. INTEGRITAS HISTORIS: Cerita fiksi/dramatis; klasifikasikan tier FICTIONALIZED atau NARRATIVE_BRIDGE. is_prophet_present: false.'}
+8. DESAIN SUARA: Sertakan SFX konkret dan nuansa BGM.
+9. ATURAN JUDUL: Beri setiap adegan judul unik tanpa penanda lanjutan seperti "(Bagian 1)" atau "(Lanjutan)".
+10. PROGRESIVITAS NARATIF MUTLAK & ANTI-DUPLIKASI:
+    - Setiap adegan WAJIB memiliki judul, 'story_purpose', 'event', 'visual_action', dan 'dialogue' yang BENAR-BENAR UNIK dan BERBEDA dari adegan lainnya.
+    - DILARANG KERAS menyalin atau mengulang alur kejadian, tujuan adegan, atau dialog yang sama di beberapa adegan sekaligus!
+    - Distribusikan secara proporsional 5 babak naratif (Beginning -> Development -> Climax -> Consequence -> Ending) ke sepanjang urutan adegan 1 sampai ${targetSceneCount}. Setiap adegan berturut-turut harus bergerak maju secara kronologis dan meningkatkan tensi dramatis.`
+      : `Anda adalah Master 1st Assistant Director (1st AD) & Cinematic Screenwriter kelas dunia.
+Tugas Anda: Memecah Struktur Naratif Sinematik menjadi urutan TEPAT ${targetSceneCount} Scene Breakdown sinematik dengan alokasi durasi detik yang presisi.
+
+STRATEGI DRAMATURGI SINEMATIK:
+- Dramatic Arc Archetype: ${strategy.dramatic_arc_type}
+- Genre / Subgenre: ${strategy.genre} (${strategy.subgenre})
+- Stakes: ${strategy.stakes}
+- Ending Strategy: ${strategy.ending_strategy}
+- Fungsi Babak: ${strategy.act_functions.join(' -> ')}
+
+DOKTRIN NARRATIVE SHORT FILM SINEMATIK:
+1. "DRAMA FIRST, INFORMATION SECOND" (UNIT DRAMATIS VITAL):
+   - JANGAN PERNAH membuat adegan berupa deskripsi paragraf rangkuman atau teks ensiklopedia sejarah!
+   - Setiap adegan WAJIB menjadi UNIT DRAMATIS dengan aksi fisik nyata (visual_action), gestur tubuh, kontak mata, dan interaksi langsung antar-karakter.
+2. PEMISAHAN MUTLAK 'story_purpose' DAN 'event':
+   - story_purpose: Maksud dramatis & pergeseran psikologis/emosional adegan (MENGAPA adegan ini penting dalam busur cerita). DILARANG MENULIS ULANG EVENT!
+   - event: Kejadian dramatis fisik & aksi nyata di layar (APA yang terjadi di layar secara konkret).
+3. SALURAN AUDIO-VISUAL & DIALOG AKTIF (dialogue):
+   - Ketika dua atau lebih karakter berinteraksi/berbincang/mengambil keputusan (misal: Abdul Muttalib & Aminah, atau Abdul Muttalib & Pembesar Quraisy), WAJIB sertakan dialog aktif dalam array 'dialogue'!
+   - Dialog harus memiliki subteks emosional (emotional_subtext) dan penjiwaan vocal (delivery).
+   - Voice-over (narrator_vo) SANGAT MINIMAL, puitis, dan HANYA jika diperlukan. DILARANG menarasikan apa yang sudah terlihat di layar.
+4. POLA DRAMATIS PER ADEGAN (scene_pattern):
+   - Pilih scene_pattern yang tepat secara dramatis untuk tiap adegan: HOOK, SETUP, INCITING_INCIDENT, QUESTION, INVESTIGATION, EVIDENCE, COMPLICATION, REVELATION, WARNING, DILEMMA, POINT_OF_NO_RETURN, CATASTROPHE, AFTERMATH, TEST, CRUCIBLE, TEMPTATION, ILLUMINATION, ESCALATION, CONFRONTATION, TURNING_POINT, CLIMAX, BREAKTHROUGH, RESOLUTION, PAYOFF, REFLECTION, LEGACY, CLIFFHANGER.
+   - Seluruh urutan dari Scene 1 sampai Scene ${targetSceneCount} WAJIB dibuat lengkap dan terinci (total tepat ${targetSceneCount} objek adegan).
+5. KECERDASAN ENDING (${strategy.ending_strategy}):
+   - Adegan terakhir (Scene ${targetSceneCount}) WAJIB mencerminkan strategi ending terpilih (${strategy.ending_strategy}). JANGAN memaksakan cliffhanger jika cerita menuntut kepuasan resolusi, kedukaan tragis, atau refleksi spiritual!
+${strategy.is_historical_or_sacred ? `6. PENGUNCIAN PENGGAMBARAN NABI MUHAMMAD ﷺ: Wajah Nabi Muhammad ﷺ TIDAK PERNAH digambarkan. Bayi selalu terbedong rapi membelakangi kamera tanpa halo supernatural.
+7. INTEGRITAS HISTORIS: Klasifikasikan tier FACT, DRAMATIZED_DIALOGUE, NARRATIVE_BRIDGE, atau FICTIONALIZED.` : '6. INTEGRITAS HISTORIS: Cerita fiksi/dramatis; klasifikasikan tier FICTIONALIZED atau NARRATIVE_BRIDGE. is_prophet_present: false.'}
+8. DESAIN SUARA: Sertakan efek suara fisik (SFX) dan suasana musik latar (BGM).
+9. ATURAN JUDUL: Beri setiap adegan judul unik tanpa penanda lanjutan seperti "(Bagian 1)" atau "(Lanjutan)".
+10. PROGRESIVITAS NARATIF MUTLAK & ANTI-DUPLIKASI:
+    - Setiap adegan WAJIB memiliki judul, 'story_purpose', 'event', 'visual_action', dan 'dialogue' yang BENAR-BENAR UNIK dan BERBEDA dari adegan lainnya.
+    - DILARANG KERAS menyalin atau mengulang alur kejadian, tujuan adegan, atau dialog yang sama di beberapa adegan sekaligus!
+    - Distribusikan secara proporsional 5 babak naratif (Beginning -> Development -> Climax -> Consequence -> Ending) ke sepanjang urutan adegan 1 sampai ${targetSceneCount}. Setiap adegan berturut-turut harus bergerak maju secara kronologis dan meningkatkan tensi dramatis.
+11. ALOKASI DURASI (MUTLAK): Total durasi seluruh adegan HARUS TEPAT ${input.totalDurationTargetSec} DETIK. Bobot dramatis terbesar (Turning Point/Climax) mendapat durasi lebih panjang.`
     : isFixed
-    ? `You are a world-class 1st Assistant Director (1st AD) & Cinematic Timeline Allocator.
-Your task: Deconstruct the 5-Beat Narrative Structure into an exact sequence of ${targetSceneCount} cinematic Scenes.
+    ? `You are a world-class 1st Assistant Director (1st AD) & Cinematic Screenwriter.
+Your task: Deconstruct the Cinematic Narrative Structure into an exact sequence of ${targetSceneCount} cinematic Scenes with fixed duration of ${input.fixedSceneDurationSec}s.
 
-FIXED SCENE DURATION SYSTEM CONSTRAINT (NON-NEGOTIABLE):
-1. The system has assigned a fixed duration of ${input.fixedSceneDurationSec} seconds. Every scene MUST use exactly ${input.fixedSceneDurationSec} seconds. Do not change scene duration.
-2. Target total duration: ${input.totalDurationTargetSec} seconds (${targetSceneCount} scenes x ${input.fixedSceneDurationSec}s).
-3. Focus entirely on scene content, dramatic beat, narrative purpose, visual action, location, cast, and narrative function.
-4. scene_number must be sequential 1, 2, 3...`
-    : `You are a world-class 1st Assistant Director (1st AD) & Cinematic Timeline Allocator.
-Your task: Deconstruct the 5-Beat Narrative Structure into a sequenced cinematic Scene Breakdown of ${targetSceneCount} scenes with exact second allocations.
+CINEMATIC DRAMATURGICAL STRATEGY:
+- Dramatic Arc Archetype: ${strategy.dramatic_arc_type}
+- Genre / Subgenre: ${strategy.genre} (${strategy.subgenre})
+- Stakes: ${strategy.stakes}
+- Ending Strategy: ${strategy.ending_strategy}
+- Act Functions: ${strategy.act_functions.join(' -> ')}
 
-STRICT NARRATIVE DURATION & STRUCTURE RULES:
-1. TOTAL PROJECT NARRATIVE DURATION: EXACTLY ${input.totalDurationTargetSec} SECONDS. The sum of duration_sec across all scenes MUST EXACTLY EQUAL ${input.totalDurationTargetSec} SECONDS (0s tolerance).
-2. CONTAINER VS NARRATIVE DISTINCTION: A platform generation container limit (e.g. 30s) is a technical clip constraint per scene, NOT the project duration. The project narrative spans ${input.totalDurationTargetSec} seconds across ${targetSceneCount} scenes (minimum ${minScenesRequired} scenes).
-3. SCENE DURATION BOUNDS: Every scene duration must be between 5s and a maximum ceiling of ${effectiveCeiling}s (Max <= ${effectiveCeiling}s per scene).
-4. ALLOCATE BY NARRATIVE WEIGHT: Climax, critical decisions, and heavy emotional beats MUST receive larger time allocations than quick expository or transition scenes. Do NOT distribute evenly.
-5. scene_number must be sequential 1, 2, 3...`;
+CINEMATIC SHORT FILM DOCTRINE:
+1. "DRAMA FIRST, INFORMATION SECOND" (DRAMATIC UNITS):
+   - NEVER produce dry history textbook narration paragraphs. Focus on physical action (visual_action), blocking, eye contact, micro-gestures, and active dramatic units.
+2. DISTINCT 'story_purpose' vs 'event':
+   - story_purpose: The psychological / emotional intent and narrative purpose (WHY this scene exists).
+   - event: The concrete physical dramatic occurrence happening on screen (WHAT happens).
+3. ACTIVE DIALOGUE (dialogue):
+   - When characters are present and interacting, provide rich, natural character speech with emotional subtext and vocal delivery.
+4. MINIMAL VO (narrator_vo): Only when poetic reflection is needed; never narrate what is visually evident.
+5. ENDING INTELLIGENCE: Match the ending strategy (${strategy.ending_strategy}). Do NOT force cliffhangers unless serialized!
+${strategy.is_historical_or_sacred ? '6. PROPHET DEPICTION LOCK: No facial features for the Prophet Muhammad ﷺ; swaddled infant with no halos.\n7. HISTORICAL INTEGRITY & AUDIO: Define epistemic tier and specific SFX/BGM cues.' : '6. FICTIONAL INTEGRITY: Mark tier as FICTIONALIZED; is_prophet_present: false.'}
+8. TITLES: Unique titles for every scene without continuation markers like (Part 1).
+9. ABSOLUTE PROGRESSION & ANTI-DUPLICATION MANDATE:
+   - Every single scene MUST have completely unique and distinct title, event, story_purpose, visual_action, and dialogue.
+   - NEVER repeat or clone events, purposes, or character conversations across different scenes.
+   - Progressively distribute the 5 narrative beats (Beginning -> Development -> Climax -> Consequence -> Ending) chronologically from Scene 1 to Scene ${targetSceneCount}. Each consecutive scene must represent a forward narrative step and escalate the dramatic conflict.`
+    : `You are a world-class 1st Assistant Director (1st AD) & Cinematic Screenwriter.
+Your task: Deconstruct the Cinematic Narrative Structure into a sequenced cinematic Scene Breakdown of ${targetSceneCount} scenes summing exactly to ${input.totalDurationTargetSec}s.
+
+CINEMATIC DRAMATURGICAL STRATEGY:
+- Dramatic Arc Archetype: ${strategy.dramatic_arc_type}
+- Genre / Subgenre: ${strategy.genre} (${strategy.subgenre})
+- Stakes: ${strategy.stakes}
+- Ending Strategy: ${strategy.ending_strategy}
+- Act Functions: ${strategy.act_functions.join(' -> ')}
+
+CINEMATIC SHORT FILM DOCTRINE:
+1. "DRAMA FIRST, INFORMATION SECOND" (DRAMATIC UNITS):
+   - NEVER produce dry history textbook narration paragraphs. Focus on physical action (visual_action), blocking, eye contact, micro-gestures, and active dramatic units.
+2. DISTINCT 'story_purpose' vs 'event':
+   - story_purpose: The psychological / emotional intent and narrative purpose (WHY this scene exists).
+   - event: The concrete physical dramatic occurrence happening on screen (WHAT happens).
+3. ACTIVE DIALOGUE (dialogue):
+   - When characters are present and interacting, provide rich, natural character speech with emotional subtext and vocal delivery.
+4. MINIMAL VO (narrator_vo): Only when poetic reflection is needed; never narrate what is visually evident.
+5. ENDING INTELLIGENCE: Match the ending strategy (${strategy.ending_strategy}). Do NOT force cliffhangers unless serialized!
+${strategy.is_historical_or_sacred ? '6. PROPHET DEPICTION LOCK: No facial features for the Prophet Muhammad ﷺ; swaddled infant with no halos.\n7. HISTORICAL INTEGRITY & AUDIO: Define epistemic tier and specific SFX/BGM cues.' : '6. FICTIONAL INTEGRITY: Mark tier as FICTIONALIZED; is_prophet_present: false.'}
+8. TITLES: Unique titles for every scene without continuation markers like (Part 1).
+9. ABSOLUTE PROGRESSION & ANTI-DUPLICATION MANDATE:
+   - Every single scene MUST have completely unique and distinct title, event, story_purpose, visual_action, and dialogue.
+   - NEVER repeat or clone events, purposes, or character conversations across different scenes.
+   - Progressively distribute the 5 narrative beats (Beginning -> Development -> Climax -> Consequence -> Ending) chronologically from Scene 1 to Scene ${targetSceneCount}. Each consecutive scene must represent a forward narrative step and escalate the dramatic conflict.
+10. DURATION: Total duration across all scenes MUST EQUAL EXACTLY ${input.totalDurationTargetSec} SECONDS.`;
 
   const canonicalEventInstruction = isIndo
     ? `\n\nKONTRAK FIELD KANONIK (MUTLAK): SETIAP scene WAJIB memiliki field JSON canonical "event". Nilainya WAJIB berupa deskripsi bermakna dan tidak kosong tentang aksi atau peristiwa dramatis yang terjadi dalam scene tersebut. Field "dramatic_action", "narrative_goal", "narrative_beat", atau field serupa TIDAK BOLEH menggantikan "event". Jangan gunakan nilai placeholder seperti "-", "N/A", atau "none".`
@@ -634,34 +776,41 @@ NON-NEGOTIABLE RULES:
     : '';
 
   let prompt = isFixed
-    ? `Pecah narasi berikut menjadi tepat ${targetSceneCount} Scene dengan durasi tetap ${input.fixedSceneDurationSec} detik per scene (Total: ${input.totalDurationTargetSec} detik):
-
-=== 5-BEAT NARRATIVE STRUCTURE ===
-Beginning: ${input.narrativeBeats.beginning}
-Development: ${input.narrativeBeats.development}
-Climax: ${input.narrativeBeats.climax}
-Consequence: ${input.narrativeBeats.consequence}
-Ending: ${input.narrativeBeats.ending}
+    ? `Pecah narasi berikut menjadi TEPAT ${targetSceneCount} SCENE (scene_number: 1 sampai ${targetSceneCount}) dengan durasi tetap ${input.fixedSceneDurationSec} detik per scene (Total: ${input.totalDurationTargetSec} detik).
+Array JSON WAJIB memiliki tepat ${targetSceneCount} elemen objek adegan lengkap dan unik. DILARANG KERAS menghasilkan kurang dari ${targetSceneCount} adegan!
 
 === PRODUCTION CONSTRAINTS ===
 Target Total Duration: ${input.totalDurationTargetSec} detik (EXACT)
-Fixed Scene Duration: ${input.fixedSceneDurationSec} detik per scene (System Assigned)`
-    : `Pecah narasi berikut menjadi urutan ${targetSceneCount} Scene (minimal ${minScenesRequired} scene) dengan total durasi TEPAT ${input.totalDurationTargetSec} detik dan durasi per scene antara 5 hingga ${effectiveCeiling} detik:
+Exact Scene Count: ${targetSceneCount} scenes (MANDATORY: scene_number 1 to ${targetSceneCount})
+Fixed Scene Duration: ${input.fixedSceneDurationSec} detik per scene (System Assigned)
 
 === 5-BEAT NARRATIVE STRUCTURE ===
 Beginning: ${input.narrativeBeats.beginning}
 Development: ${input.narrativeBeats.development}
 Climax: ${input.narrativeBeats.climax}
 Consequence: ${input.narrativeBeats.consequence}
-Ending: ${input.narrativeBeats.ending}
+Ending: ${input.narrativeBeats.ending}`
+    : `Pecah narasi berikut menjadi urutan TEPAT ${targetSceneCount} SCENE (scene_number: 1 sampai ${targetSceneCount}) dengan total durasi TEPAT ${input.totalDurationTargetSec} detik dan durasi per scene antara 5 hingga ${effectiveCeiling} detik.
+Array JSON WAJIB memiliki tepat ${targetSceneCount} elemen objek adegan lengkap dan unik. DILARANG KERAS hanya menghasilkan 5 adegan atau kurang dari ${targetSceneCount} adegan!
 
 === PRODUCTION CONSTRAINTS ===
 Target Total Narrative Duration: ${input.totalDurationTargetSec} detik (EXACT total across all scenes)
-Recommended Scene Count: ${targetSceneCount} scenes (minimum ${minScenesRequired} scenes)
+Exact Scene Count: ${targetSceneCount} scenes (MANDATORY: scene_number 1 to ${targetSceneCount})
 Max Scene Duration Ceiling: ${effectiveCeiling} detik per scene
-Distinction: Batas container rendering bukan total film. Semua adegan jika dijumlahkan harus mencapai tepat ${input.totalDurationTargetSec}s.`;
+Distinction: Batas container rendering bukan total film. Semua adegan jika dijumlahkan harus mencapai tepat ${input.totalDurationTargetSec}s.
+
+=== 5-BEAT NARRATIVE STRUCTURE ===
+Beginning: ${input.narrativeBeats.beginning}
+Development: ${input.narrativeBeats.development}
+Climax: ${input.narrativeBeats.climax}
+Consequence: ${input.narrativeBeats.consequence}
+Ending: ${input.narrativeBeats.ending}`;
 
   prompt += rosterInstruction;
+
+  if (input.customGuidance) {
+    prompt += `\n\n=== PANDUAN STRUKTUR & DRAMATIC PROGRESSION KHUSUS (WAJIB DIIKUTI TIAP SCENE) ===\n${input.customGuidance}\n\nPASTIKAN menghasilkan urutan lengkap dari Scene 1 sampai Scene ${targetSceneCount} sesuai panduan di atas!`;
+  }
 
   if (input.feedbackPrompt) {
     prompt += isIndo
@@ -702,10 +851,14 @@ CORRECTIVE STRUCTURAL & DURATION GUIDELINES:
       type: Type.OBJECT,
       properties: {
         scene_number: { type: Type.INTEGER, description: 'Sequential scene number (1, 2, 3...)' },
-        title: { type: Type.STRING, description: 'Descriptive scene title (e.g., INT. ABANDONED LAB - THE AWAKENING)' },
+        title: { type: Type.STRING, description: 'Descriptive scene title without continuation tags (e.g., INT. RUMAH AMINAH - KESAKSIAN AWAL)' },
         duration_sec: {
           type: Type.INTEGER,
           description: `Exact allocated scene duration in seconds (must be integer between 5 and ${effectiveCeiling}, and all scenes sum to ${input.totalDurationTargetSec})`,
+        },
+        scene_pattern: {
+          type: Type.STRING,
+          description: 'Dramatic beat pattern suited to genre arc: HOOK, SETUP, INCITING_INCIDENT, QUESTION, INVESTIGATION, EVIDENCE, COMPLICATION, REVELATION, WARNING, DILEMMA, POINT_OF_NO_RETURN, CATASTROPHE, AFTERMATH, TEST, CRUCIBLE, TEMPTATION, ILLUMINATION, ESCALATION, CONFRONTATION, TURNING_POINT, CLIMAX, BREAKTHROUGH, RESOLUTION, PAYOFF, REFLECTION, LEGACY, CLIFFHANGER',
         },
         story_purpose: { type: Type.STRING, description: 'Core narrative purpose of this specific scene' },
         location_name: {
@@ -728,11 +881,72 @@ CORRECTIVE STRUCTURAL & DURATION GUIDELINES:
           type: Type.STRING,
           description: 'Narrative function (e.g., Inciting Incident, Escalation, Climax Beat 1, Resolution)',
         },
+        visual_action: {
+          type: Type.STRING,
+          description: "Show, Don't Tell: Concrete physical blocking, visual gestures, props, micro-reactions, eye contact, and atmospheric motion. Never state historical facts; show tangible actions.",
+        },
+        dialogue: {
+          type: Type.ARRAY,
+          description: 'Character dialogue lines. Active spoken dialogue with subtext and character intention. Empty if purely visual.',
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              character_name: { type: Type.STRING, description: 'Speaker name from character roster' },
+              line: { type: Type.STRING, description: 'Spoken line' },
+              emotional_subtext: { type: Type.STRING, description: 'Inner emotional intention behind the line' },
+              delivery: { type: Type.STRING, description: 'Vocal delivery: berbisik, tegas, bergetar, tenang, dll.' },
+            },
+            required: ['character_name', 'line'],
+          },
+        },
+        narrator_vo: {
+          type: Type.STRING,
+          description: 'Minimal poetic voiceover. NEVER narrate what the camera shows. Empty string if not needed.',
+        },
+        sound_design: {
+          type: Type.OBJECT,
+          description: 'Sound effects and background music design',
+          properties: {
+            sfx: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: 'Specific foley/sound effect cues (e.g. derap pasir, hembusan angin malam, denting lonceng)',
+            },
+            bgm_mood: { type: Type.STRING, description: 'Musical atmosphere (e.g. ketegangan senyap, gesekan cello sendu)' },
+            silence_cue: { type: Type.BOOLEAN, description: 'True if there is a sudden dramatic silence drop' },
+          },
+          required: ['sfx', 'bgm_mood'],
+        },
+        historical_integrity: {
+          type: Type.OBJECT,
+          description: 'Epistemic classification of this scene',
+          properties: {
+            tier: {
+              type: Type.STRING,
+              description: 'Epistemic classification: FACT, DRAMATIZED_DIALOGUE, NARRATIVE_BRIDGE, or FICTIONALIZED',
+            },
+            basis: { type: Type.STRING, description: 'Historical source basis or dramatization rationale' },
+          },
+          required: ['tier'],
+        },
+        prophet_depiction_safeguard: {
+          type: Type.OBJECT,
+          description: 'Reverence safeguard when Prophet Muhammad ﷺ is present',
+          properties: {
+            is_prophet_present: { type: Type.BOOLEAN, description: 'Whether the Prophet Muhammad ﷺ is present in this scene' },
+            visual_rule: {
+              type: Type.STRING,
+              description: 'Visual framing safeguard (e.g., Swaddled infant, face turned away, no divine glow, camera behind shoulder)',
+            },
+          },
+          required: ['is_prophet_present', 'visual_rule'],
+        },
       },
       required: [
         'scene_number',
         'title',
         'duration_sec',
+        'scene_pattern',
         'story_purpose',
         'location_name',
         'time_of_day',
@@ -740,6 +954,7 @@ CORRECTIVE STRUCTURAL & DURATION GUIDELINES:
         'emotional_objective',
         'event',
         'narrative_function',
+        'visual_action',
       ],
     },
   };
@@ -751,6 +966,8 @@ CORRECTIVE STRUCTURAL & DURATION GUIDELINES:
     systemInstruction,
     temperature: 0.2,
     responseSchema,
+    maxOutputTokens: 8192,
+    timeoutMs: 180000,
     reasoningConfig: input.reasoningConfig,
     projectPolicy: {
       mode: input.model ? 'pin' : 'auto',
@@ -785,61 +1002,71 @@ CORRECTIVE STRUCTURAL & DURATION GUIDELINES:
       {
         scene_number: 1,
         title: isIndo ? 'Adegan 1 - Titik Awal' : 'Scene 1 - The Opening',
+        scene_pattern: 'HOOK',
         story_purpose: beats.beginning,
         location_name: defaultLocation,
         time_of_day: 'DAY',
         character_names: defaultChars,
         emotional_objective: 'Establish stakes and world',
         event: beats.beginning,
-        narrative_function: 'EXPOSITION',
+        visual_action: beats.beginning,
+        narrative_function: 'HOOK',
         duration_sec: Math.min(effectiveCeiling, 15),
       },
       {
         scene_number: 2,
         title: isIndo ? 'Adegan 2 - Eskalasi Konflik' : 'Scene 2 - Rising Action',
+        scene_pattern: 'CONTEXT',
         story_purpose: beats.development,
         location_name: defaultLocation,
         time_of_day: 'DAY',
         character_names: defaultChars,
         emotional_objective: 'Escalate core drama',
         event: beats.development,
-        narrative_function: 'DEVELOPMENT',
+        visual_action: beats.development,
+        narrative_function: 'CONTEXT',
         duration_sec: Math.min(effectiveCeiling, 20),
       },
       {
         scene_number: 3,
         title: isIndo ? 'Adegan 3 - Puncak Klimaks' : 'Scene 3 - The Climax',
+        scene_pattern: 'ESCALATION',
         story_purpose: beats.climax,
         location_name: defaultLocation,
         time_of_day: 'DUSK',
         character_names: defaultChars,
         emotional_objective: 'Peak emotional impact',
         event: beats.climax,
-        narrative_function: 'CLIMAX',
+        visual_action: beats.climax,
+        narrative_function: 'ESCALATION',
         duration_sec: Math.min(effectiveCeiling, 25),
       },
       {
         scene_number: 4,
         title: isIndo ? 'Adegan 4 - Dampak & Pilihan' : 'Scene 4 - Repercussions',
+        scene_pattern: 'TURNING_POINT',
         story_purpose: beats.consequence,
         location_name: defaultLocation,
         time_of_day: 'NIGHT',
         character_names: defaultChars,
         emotional_objective: 'Process crucial decisions',
         event: beats.consequence,
-        narrative_function: 'CONSEQUENCE',
+        visual_action: beats.consequence,
+        narrative_function: 'TURNING_POINT',
         duration_sec: Math.min(effectiveCeiling, 20),
       },
       {
         scene_number: 5,
         title: isIndo ? 'Adegan 5 - Resolusi Akhir' : 'Scene 5 - Final Resolution',
+        scene_pattern: 'PAYOFF',
         story_purpose: beats.ending,
         location_name: defaultLocation,
         time_of_day: 'DAWN',
         character_names: defaultChars,
         emotional_objective: 'Deliver enduring resonance',
         event: beats.ending,
-        narrative_function: 'RESOLUTION',
+        visual_action: beats.ending,
+        narrative_function: 'PAYOFF',
         duration_sec: Math.min(effectiveCeiling, 15),
       },
     ];
@@ -852,11 +1079,83 @@ CORRECTIVE STRUCTURAL & DURATION GUIDELINES:
       assignedDuration = input.fixedSceneDurationSec;
     }
     const recommendedTone = sc.scene_tone || recommendSceneTone(sc);
+    const patternFallback: any = idx === 0 ? 'HOOK' : idx === 1 ? 'CONTEXT' : idx === 2 ? 'ESCALATION' : idx === parsed.length - 2 ? 'TURNING_POINT' : 'PAYOFF';
+    const isProphetRef = (sc.character_names || []).some((n: string) => /muhammad|rasulullah|bayi|infant/i.test(n));
+
+    const resolvedEvent = (sc.event && sc.event.trim() !== '-' && sc.event.trim() !== '--' && sc.event.trim() !== '---' && sc.event.trim() !== '')
+      ? sc.event.trim()
+      : (sc.visual_action?.trim() || sc.story_purpose?.trim() || sc.title?.trim() || 'Aksi dramatis adegan');
+
+    const resolvedVisual = (sc.visual_action && sc.visual_action.trim() !== '-' && sc.visual_action.trim() !== '')
+      ? sc.visual_action.trim()
+      : (resolvedEvent || sc.story_purpose?.trim() || 'Aksi visual terfokus');
+
+    let resolvedLocation = (sc.location_name || '').trim();
+    if (locationRoster.length > 0) {
+      const isGeneric = !resolvedLocation || /latar|sinematik|lokasi|tempat/i.test(resolvedLocation) || !locationRoster.includes(resolvedLocation);
+      if (isGeneric) {
+        const fuzzyMatch = locationRoster.find(loc => resolvedLocation && loc.toLowerCase().includes(resolvedLocation.toLowerCase()));
+        resolvedLocation = fuzzyMatch || locationRoster[0];
+      }
+    }
+
+    let resolvedPurpose = (typeof sc.story_purpose === 'string' && sc.story_purpose.trim() !== '')
+      ? sc.story_purpose.trim()
+      : (sc.narrative_function || sc.title || 'Pengembangan narasi adegan sinematik.');
+
+    if (resolvedPurpose === resolvedEvent) {
+      resolvedPurpose = isIndo
+        ? `Membangkitkan fokus dramatis dan pergeseran emosional atas peristiwa: ${resolvedEvent}`
+        : `Drive emotional resonance and narrative stakes for: ${resolvedEvent}`;
+    }
+
     return {
       ...sc,
       scene_number: idx + 1,
       duration_sec: assignedDuration,
       scene_tone: recommendedTone,
+      scene_pattern: sc.scene_pattern || patternFallback,
+      location_name: resolvedLocation || sc.location_name,
+      event: resolvedEvent,
+      story_purpose: resolvedPurpose,
+      visual_action: resolvedVisual,
+      dialogue: (() => {
+        let rawDialogue = sc.dialogue || (sc as any).character_dialogue || (sc as any).dialogue_field || [];
+        if (!Array.isArray(rawDialogue)) {
+          rawDialogue = [];
+        }
+        return rawDialogue.map((d: any) => {
+          const character_name = String(d.character_name || d.character || d.speaker || '').trim();
+          const line = String(d.line || d.dialogue || d.text || '').trim();
+          const emotional_subtext = String(d.emotional_subtext || d.subtext || 'NONE').trim();
+          const delivery = String(d.delivery || d.tone || 'NONE').trim();
+          return { character_name, line, emotional_subtext, delivery };
+        }).filter(d => d.character_name && d.line);
+      })(),
+      narrator_vo: typeof sc.narrator_vo === 'string' ? sc.narrator_vo : ((sc as any).vo || (sc as any).voiceover || null),
+      sound_design: (() => {
+        const rawSound = sc.sound_design || (sc as any).sound || {};
+        let resolvedSfx = Array.isArray(rawSound.sfx) ? rawSound.sfx : (Array.isArray((sc as any).sfx) ? (sc as any).sfx : ['ambient desert breeze']);
+        let resolvedBgm = rawSound.bgm_mood || rawSound.bgm || (sc as any).bgm || 'solemn contemplative strings';
+        if (typeof resolvedSfx === 'string') {
+          resolvedSfx = [resolvedSfx];
+        }
+        return {
+          sfx: resolvedSfx,
+          bgm_mood: resolvedBgm,
+          silence_cue: Boolean(rawSound.silence_cue),
+        };
+      })(),
+      historical_integrity: sc.historical_integrity || {
+        tier: 'DRAMATIZED_DIALOGUE',
+        basis: 'Sirah Nabawiyah & Authentic Historical Records',
+      },
+      prophet_depiction_safeguard: sc.prophet_depiction_safeguard || {
+        is_prophet_present: isProphetRef,
+        visual_rule: isProphetRef
+          ? 'Swaddled infant held close without showing face, no artificial halos/glow, sacred reverence maintained.'
+          : 'Standard dignified cinematic framing.',
+      },
     };
   });
 
@@ -943,6 +1242,42 @@ export function validateSceneSemanticPayload(
           : `Scene #${scene.scene_number} has non-array 'character_names'.`,
         correctivePrompt: `Scene #${scene.scene_number} has invalid character_names. Provide an array of character names.`
       };
+    }
+
+    // 5. Ensure visual_action is populated with concrete physical action
+    if (!scene.visual_action || typeof scene.visual_action !== 'string' || scene.visual_action.trim() === '') {
+      scene.visual_action = scene.event || scene.story_purpose || 'Kamera menyorot aksi dramatis karakter.';
+    }
+  }
+
+  // 6. Check and auto-repair duplicate titles or events
+  if (scenes.length > 1) {
+    const seenTitles = new Map<string, number>();
+    const seenEvents = new Map<string, number>();
+
+    for (let i = 0; i < scenes.length; i++) {
+      const sc = scenes[i];
+      const normTitle = (sc.title || `Adegan ${i + 1}`).trim().toLowerCase();
+      const normEvent = (sc.event || '').trim().toLowerCase();
+
+      const countT = seenTitles.get(normTitle) || 0;
+      if (countT > 0 && normTitle) {
+        const suffix = isIndo ? `(Bagian ${countT + 1})` : `(Segment ${countT + 1})`;
+        sc.title = `${sc.title} ${suffix}`;
+      }
+      seenTitles.set(normTitle, countT + 1);
+
+      const countE = seenEvents.get(normEvent) || 0;
+      if (countE > 0 && normEvent) {
+        const evSuffix = isIndo
+          ? `(Perkembangan Aksi Lanjutan Bagian ${countE + 1})`
+          : `(Continued Action Phase ${countE + 1})`;
+        sc.event = `${sc.event} ${evSuffix}`;
+        if (sc.visual_action) {
+          sc.visual_action = `${sc.visual_action} ${evSuffix}`;
+        }
+      }
+      seenEvents.set(normEvent, countE + 1);
     }
   }
 

@@ -19,10 +19,10 @@ export function buildGlobalSceneVideoPrompt(sc: Scene, scShots: Shot[]): string 
       const framing = sh.shot_type || sh.camera?.framing || 'Medium Shot';
       const cameraMove = sh.camera_movement || sh.camera?.movement || 'Static';
       const visual = sh.visual_description || sh.character_action || sh.event_detail || sh.action || 'Cinematic action';
-      const voStr = sh.audio_narration ? `\n  Audio/Narration: "${sh.audio_narration}"` : '';
+      const sfxStr = sh.sound_effects ? `\n  Ambient/SFX: "${sh.sound_effects}"` : '';
       const dialogueStr = sh.dialogue ? `\n  Dialogue: "${sh.dialogue}"` : '';
 
-      return `• SHOT ${shotNumStr} [Duration: ${durSec}.0s | Framing: ${framing} | Camera: ${cameraMove}]\n  Visual Action: ${visual}${voStr}${dialogueStr}`;
+      return `• SHOT ${shotNumStr} [Duration: ${durSec}.0s | Framing: ${framing} | Camera: ${cameraMove}]\n  Visual Action: ${visual}${sfxStr}${dialogueStr}`;
     })
     .join('\n\n');
 
@@ -41,7 +41,7 @@ DRAMATIC PURPOSE: ${purpose}
 CONTINUOUS SHOT TIMELINE SEQUENCE:
 ${shotBreakdowns}
 
-[AUDIO PURITY CONSTRAINT]: Native/diegetic soundscapes, character speech, room acoustics, and environmental action SFX ONLY. Strictly NO background music, NO BGM, NO soundtrack.
+[AUDIO PURITY CONSTRAINT]: Native diegetic soundscapes, Foley action SFX, room acoustics, and character speech ONLY. Strictly NO narration, NO voice-over (VO), NO background music, NO BGM, NO soundtrack.
 
 [NEGATIVE PROMPT / PROMPT LARANGAN]
 ${sceneNeg}`;

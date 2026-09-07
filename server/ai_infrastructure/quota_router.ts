@@ -1,4 +1,4 @@
-import { credentialService } from './credential_service';
+import { credentialService, isTestCredential } from './credential_service';
 import { healthService } from './health_service';
 import { usageService } from './usage_service';
 import { providerService } from './provider_service';
@@ -137,17 +137,7 @@ export const quotaRouter = {
     if (cred.status === 'exhausted') {
       quotaState = 'QUOTA_EXHAUSTED';
     } else if (cred.status === 'active') {
-      if (snapshot) {
-        // Bypass expensive DB query (usageService.listUsage) in preflight
-        quotaState = 'QUOTA_AVAILABLE';
-      } else {
-        // If there are recorded successes in usages, we consider it QUOTA_AVAILABLE, else QUOTA_UNKNOWN
-        const usages = await usageService.listUsage(100);
-        const credUsages = usages.filter(u => u.credentialId === credentialId);
-        if (credUsages.some(u => u.success)) {
-          quotaState = 'QUOTA_AVAILABLE';
-        }
-      }
+      quotaState = 'QUOTA_AVAILABLE';
     }
 
     // 3. Rate Limit State
@@ -250,8 +240,9 @@ export const quotaRouter = {
       ? snapshot.allCredentials
       : await credentialService.listCredentials();
     const creds = allCreds.filter((c: any) => c.providerId === providerId);
+    const hasDirectKey = Boolean(provider && ((provider as any).apiKey || (provider as any).api_key || (provider as any).baseUrl || provider.type === 'openai-compatible'));
 
-    if (creds.length === 0) {
+    if (creds.length === 0 && !hasDirectKey) {
       return {
         healthState: 'UNAVAILABLE',
         quotaState: 'QUOTA_EXHAUSTED',
@@ -259,6 +250,16 @@ export const quotaRouter = {
         eligibility: false,
         lastCheckedAt: Date.now(),
         failureReason: 'No credentials configured',
+      };
+    }
+
+    if (creds.length === 0 && hasDirectKey) {
+      return {
+        healthState: 'HEALTHY',
+        quotaState: 'QUOTA_AVAILABLE',
+        circuitState: 'CLOSED',
+        eligibility: true,
+        lastCheckedAt: Date.now(),
       };
     }
 
@@ -305,6 +306,29 @@ export const quotaRouter = {
     const allCreds = snapshot
       ? snapshot.allCredentials
       : await credentialService.listCredentials();
+    const credsForProvider = allCreds.filter((c: any) => c.providerId === providerId);
+
+    if (credsForProvider.length === 0) {
+      const providerObj = snapshot
+        ? snapshot.providers?.get(providerId)
+        : await providerService.getProvider(providerId);
+      const directKey = (providerObj as any)?.apiKey || (providerObj as any)?.api_key || 'configured';
+      return [{
+        credential: {
+          id: `cred_${providerId}`,
+          providerId,
+          name: providerObj?.name || providerId,
+          status: 'active',
+          apiKey: directKey,
+        } as any,
+        healthStatus: 'healthy',
+        successRate: 100,
+        avgLatencyMs: 100,
+        state: 'ACTIVE',
+        score: 1000,
+      }];
+    }
+
     const scored: ScoredCredential[] = [];
 
     for (const cred of allCreds) {
@@ -323,9 +347,23 @@ export const quotaRouter = {
       // Score strictly by priority (cred.priority: lower number = higher priority)
       const priority = cred.priority || 1;
       const statePenalty = state === 'WARNING' ? 5 : 0;
+
+      // Check if candidate models on this credential are currently in cooldown suppression
+      let allModelsSuppressed = false;
+      try {
+        const { isModelSuppressed } = await import('./ai_gateway');
+        const candidateModels = ['gemini-3.7-flash', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-pro-preview'];
+        allModelsSuppressed = candidateModels.every(m => {
+          const k1 = `${cred.name}:${m}`;
+          const k2 = `${cred.id}:${m}`;
+          return isModelSuppressed(k1) || isModelSuppressed(k2);
+        });
+      } catch {}
+
+      const cooldownPenalty = allModelsSuppressed ? 50 : 0;
       
       // Compute a fully deterministic score where highest priority has highest score
-      const totalScore = 1000 - (priority * 10) - statePenalty;
+      const totalScore = 1000 - (priority * 10) - statePenalty - cooldownPenalty;
 
       scored.push({
         credential: cred,
@@ -346,7 +384,7 @@ export const quotaRouter = {
     return scored;
   },
 
-  // Determine Active Provider under Strict Provider Priority (Priority 1: Custom, Priority 2: Google)
+  // Determine Active Provider under Strict Provider Priority (Priority 1: Custom, Priority 2: Google if enabled)
   async determineActiveProvider(): Promise<string> {
     const providers = await providerService.listProviders();
     const customProviders = providers.filter(p => p.id !== 'google' && p.enabled);
@@ -358,17 +396,23 @@ export const quotaRouter = {
       }
     }
 
-    // Priority 2: Fallback to Google
+    // Priority 2: Google (only if enabled)
+    const googleProv = providers.find(p => p.id === 'google');
+    if (googleProv && googleProv.enabled !== false) {
+      return 'google';
+    }
+
+    if (customProviders.length > 0) {
+      return customProviders[0].id;
+    }
+
     return 'google';
   },
 
   // Select best credential with smart fallback chain
   async selectCredential(providerId: string, preScored?: ScoredCredential[]): Promise<RouterSelectionResult> {
     let scored = (preScored && preScored.length > 0) ? preScored : await this.scoreCredentials(providerId);
-    if (scored.length === 0 && providerId !== 'google') {
-      scored = await this.scoreCredentials('google');
-    }
-    if (scored.length === 0) {
+    if (scored.length === 0 && providerId === 'google') {
       if (process.env.GEMINI_API_KEY) {
         return {
           credentialId: 'env_gemini_default',
@@ -379,6 +423,8 @@ export const quotaRouter = {
           fallbackChain: ['env_gemini_default'],
         };
       }
+    }
+    if (scored.length === 0) {
       throw new Error(`QuotaRouter: No available healthy credentials for provider: ${providerId}`);
     }
 

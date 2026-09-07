@@ -39,7 +39,7 @@ export interface SceneWorkspaceProps {
   selectedShotId?: string;
   onSelectShot?: (shotId: string) => void;
   onRunScenePipeline: (sceneId: string) => void;
-  onRegenerateScenePrompt: (sceneId: string) => void;
+  onRegenerateScenePrompt: (sceneId: string, target?: PromptTarget) => void;
   onUpdateSceneImage: (sceneId: string, imageUrl: string | null) => void;
   onUpdateShotImage?: (shotId: string, imageUrl: string | null) => void;
   onRunShotPrompt?: (shotId: string, target: PromptTarget) => void;

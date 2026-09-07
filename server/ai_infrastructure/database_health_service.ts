@@ -4,7 +4,7 @@ import { usageService } from './usage_service';
 
 export interface DatabaseHealthReport {
   timestamp: string;
-  database: 'supabase' | 'firestore' | 'memory';
+  database: 'supabase' | 'memory';
   connectionStatus: 'connected' | 'degraded' | 'disconnected';
   connectionPool: {
     maxConnections: number;

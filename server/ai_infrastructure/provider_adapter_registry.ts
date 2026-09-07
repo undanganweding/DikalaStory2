@@ -73,7 +73,14 @@ export function normalizeLegacyProtocol(value?: string | null): string {
 
 const googleGenerativeAIAdapter: ProviderExecutionAdapter = {
   async execute({ provider, apiKey, model, prompt, systemInstruction, temperature, maxTokens, timeoutMs, responseSchema }) {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
     const startTime = Date.now();
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('AI Request Timeout')), timeoutMs || 30000)
@@ -108,7 +115,14 @@ const googleGenerativeAIAdapter: ProviderExecutionAdapter = {
   async testConnection(provider, apiKey) {
     const startTime = Date.now();
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
       const candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest', 'gemini-3.7-flash', 'gemini-3.6-flash'];
       let lastErr: any = null;
       let ok = false;
@@ -136,7 +150,14 @@ const googleGenerativeAIAdapter: ProviderExecutionAdapter = {
   },
 
   async discoverModels(provider, apiKey) {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
     const response: any = await ai.models.list();
     const models = (response.page || response.models || response || [])
       .filter((m: any) => m && m.name)

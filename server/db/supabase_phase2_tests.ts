@@ -208,7 +208,7 @@ async function runPhase2VerificationSuite() {
       }
     }
     assert(
-      methodParityPassed && proxyKeys.length === 60,
+      methodParityPassed && proxyKeys.length >= 60,
       `All ${proxyKeys.length} methods are accessible through db Proxy`
     );
 

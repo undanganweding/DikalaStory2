@@ -23,6 +23,10 @@ import {
   CheckSquare,
   Square,
   AlertOctagon,
+  GripVertical,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown,
 } from 'lucide-react';
 
 export const ProjectsWorkspace: React.FC = () => {
@@ -80,9 +84,14 @@ export const ProjectsWorkspace: React.FC = () => {
     }
   }, [providerOptions, providerId]);
 
-  // Filtered credentials
+  // Drag and drop / reordering state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
+
+  // Filtered credentials (sorted strictly by unique priority ascending: 1, 2, 3...)
   const filteredCredentials = useMemo(() => {
-    return credentials.filter((c: any) => {
+    const list = credentials.filter((c: any) => {
       const matchSearch =
         !searchQuery.trim() ||
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -92,7 +101,119 @@ export const ProjectsWorkspace: React.FC = () => {
       const matchProv = providerFilter === 'all' || (c.providerId || 'google') === providerFilter;
       return matchSearch && matchProv;
     });
+
+    return [...list].sort((a: any, b: any) => {
+      const pA = typeof a.priority === 'number' && !isNaN(a.priority) ? a.priority : 9999;
+      const pB = typeof b.priority === 'number' && !isNaN(b.priority) ? b.priority : 9999;
+      if (pA !== pB) return pA - pB;
+      const wA = typeof a.weight === 'number' && !isNaN(a.weight) ? a.weight : 0;
+      const wB = typeof b.weight === 'number' && !isNaN(b.weight) ? b.weight : 0;
+      if (wA !== wB) return wB - wA;
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    });
   }, [credentials, searchQuery, providerFilter]);
+
+  const handleOpenAddModal = () => {
+    if (credentialsError) {
+      setActionError('Writes are disabled while database connection is degraded.');
+      return;
+    }
+    setAddError(null);
+    setPriority(credentials.length + 1);
+    setShowAddModal(true);
+  };
+
+  // Persist reordered sequence to backend (Priority 1 = top item, Priority 2 = next, etc.)
+  const saveReorder = async (reorderedList: any[]) => {
+    try {
+      setIsReordering(true);
+      setActionError(null);
+      const orderedIds = reorderedList.map((c: any) => c.id);
+      const res = await fetch('/api/ai/credentials/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderedIds }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to update priority sequence');
+      }
+
+      setActionSuccess(`Urutan prioritas API Key berhasil diperbarui (${reorderedList.length} key berurutan tanpa duplikat).`);
+      await refresh();
+    } catch (err: any) {
+      setActionError(err.message || 'Gagal menyimpan urutan prioritas API Key');
+      await refresh();
+    } finally {
+      setIsReordering(false);
+    }
+  };
+
+  // Move item by swapping in visible list and adjusting global credentials
+  const handleMoveItem = async (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    if (fromIndex >= filteredCredentials.length || toIndex >= filteredCredentials.length) return;
+
+    // Build the new global ordered list
+    const currentList = [...credentials].sort((a: any, b: any) => {
+      const pA = typeof a.priority === 'number' ? a.priority : 9999;
+      const pB = typeof b.priority === 'number' ? b.priority : 9999;
+      return pA - pB;
+    });
+
+    const itemToMove = filteredCredentials[fromIndex];
+    const targetItem = filteredCredentials[toIndex];
+    if (!itemToMove || !targetItem) return;
+
+    const fullFromIndex = currentList.findIndex((c: any) => c.id === itemToMove.id);
+    const fullTargetIndex = currentList.findIndex((c: any) => c.id === targetItem.id);
+    if (fullFromIndex === -1 || fullTargetIndex === -1) return;
+
+    const updated = [...currentList];
+    const [removed] = updated.splice(fullFromIndex, 1);
+    updated.splice(fullTargetIndex, 0, removed);
+
+    await saveReorder(updated);
+  };
+
+  // HTML5 Drag & Drop handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = (index: number) => {
+    if (dragOverIndex === index) {
+      setDragOverIndex(null);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    setDragOverIndex(null);
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      return;
+    }
+    const fromIdx = draggedIndex;
+    setDraggedIndex(null);
+    await handleMoveItem(fromIdx, targetIndex);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
 
   // Handle Select All / Toggle Item
   const handleToggleSelectAll = () => {
@@ -280,14 +401,7 @@ export const ProjectsWorkspace: React.FC = () => {
           )}
 
           <button
-            onClick={() => {
-              if (credentialsError) {
-                setActionError('Writes are disabled while database connection is degraded.');
-                return;
-              }
-              setAddError(null);
-              setShowAddModal(true);
-            }}
+            onClick={handleOpenAddModal}
             disabled={!!credentialsError}
             className={`flex items-center gap-2 px-3.5 py-2 text-xs font-mono font-bold rounded-lg transition ${
               credentialsError
@@ -424,7 +538,7 @@ export const ProjectsWorkspace: React.FC = () => {
             <div>
               <h3 className="text-rose-200 text-sm font-bold">Durable Storage Connection Degraded</h3>
               <p className="text-zinc-400 text-xs mt-1 leading-relaxed">
-                The control plane cannot retrieve key configurations from the production Firestore database due to active quota limits or connectivity issues.
+                The control plane cannot retrieve key configurations from the production Supabase database due to active quota limits or connectivity issues.
               </p>
               <div className="mt-3 bg-black/40 p-2.5 rounded border border-rose-500/20 text-[11px] text-rose-300 font-bold max-w-2xl select-all break-all whitespace-pre-wrap">
                 Error Details: {credentialsError}
@@ -456,7 +570,7 @@ export const ProjectsWorkspace: React.FC = () => {
           </p>
           {credentials.length === 0 && (
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={handleOpenAddModal}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-bold rounded-lg transition inline-flex items-center gap-2 mt-2"
             >
               <Plus className="w-4 h-4" /> Add API Key Now
@@ -465,7 +579,28 @@ export const ProjectsWorkspace: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredCredentials.map((cred: any) => {
+          {/* Priority Reordering Notice Banner */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-zinc-900/60 border border-indigo-500/20 rounded-xl px-4 py-2.5 text-xs font-mono text-zinc-300 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                <ArrowUpDown className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold text-white">Kelola Urutan Prioritas:</span>{' '}
+                <span className="text-zinc-400">
+                  Tarik kartu ke atas/bawah (<span className="text-indigo-300">drag & drop</span>) atau gunakan tombol panah (▲/▼). Posisi paling atas otomatis Prioritas 1, berikutnya Prioritas 2, dst. tanpa angka kembar.
+                </span>
+              </div>
+            </div>
+            {isReordering && (
+              <div className="flex items-center gap-1.5 text-indigo-400 font-bold shrink-0 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/30">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Menyimpan urutan...</span>
+              </div>
+            )}
+          </div>
+
+          {filteredCredentials.map((cred: any, idx: number) => {
             const isTesting = testingId === cred.id;
             const isDeleting = deletingId === cred.id;
             const isSelected = selectedIds.includes(cred.id);
@@ -474,16 +609,84 @@ export const ProjectsWorkspace: React.FC = () => {
             return (
               <div
                 key={cred.id}
-                className={`bg-zinc-900/80 border rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition text-xs font-mono ${
-                  isSelected
+                draggable={!isReordering}
+                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragOver={(e) => handleDragOver(e, idx)}
+                onDragLeave={() => handleDragLeave(idx)}
+                onDrop={(e) => handleDrop(e, idx)}
+                onDragEnd={handleDragEnd}
+                className={`bg-zinc-900/80 border rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all duration-150 text-xs font-mono cursor-default select-none ${
+                  draggedIndex === idx
+                    ? 'opacity-40 border-dashed border-indigo-500 bg-indigo-950/20 scale-[0.99]'
+                    : dragOverIndex === idx
+                    ? 'border-indigo-400 ring-2 ring-indigo-500/40 bg-indigo-950/40 translate-y-0.5'
+                    : isSelected
                     ? 'border-indigo-500/60 bg-indigo-950/20'
                     : 'border-white/5 hover:border-indigo-500/30'
                 }`}
               >
-                {/* Left: Checkbox + Provider, Name, Key */}
+                {/* Left: Drag Handle, Priority Badge, Checkbox, Key Details */}
                 <div className="flex items-start gap-3 min-w-[280px]">
+                  {/* Drag Handle & Move Up/Down Controls */}
+                  <div className="flex items-center gap-1 shrink-0 mt-1">
+                    <div
+                      className="p-1.5 text-zinc-500 hover:text-indigo-300 hover:bg-white/5 rounded cursor-grab active:cursor-grabbing transition"
+                      title="Tarik ke atas atau ke bawah untuk mengubah urutan prioritas"
+                    >
+                      <GripVertical className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveItem(idx, idx - 1);
+                        }}
+                        disabled={idx === 0 || isReordering}
+                        className="p-0.5 text-zinc-500 hover:text-indigo-300 hover:bg-white/5 rounded disabled:opacity-20 disabled:hover:text-zinc-500 transition"
+                        title="Pindah Prioritas ke Atas"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveItem(idx, idx + 1);
+                        }}
+                        disabled={idx === filteredCredentials.length - 1 || isReordering}
+                        className="p-0.5 text-zinc-500 hover:text-indigo-300 hover:bg-white/5 rounded disabled:opacity-20 disabled:hover:text-zinc-500 transition"
+                        title="Pindah Prioritas ke Bawah"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Priority Indicator Badge */}
+                  <div className="shrink-0 mt-1.5">
+                    {cred.priority === 1 ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm flex items-center gap-1">
+                        <Zap className="w-3 h-3 text-emerald-400 fill-emerald-400" />
+                        #1 UTAMA
+                      </span>
+                    ) : cred.priority === 2 ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
+                        #2 SECONDARY
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium uppercase tracking-wider bg-zinc-800 text-zinc-400 border border-white/10 flex items-center gap-1">
+                        #{cred.priority ?? (idx + 1)} BACKUP
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Checkbox */}
                   <button
-                    onClick={() => handleToggleSelect(cred.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleSelect(cred.id);
+                    }}
                     className="mt-2 text-zinc-500 hover:text-zinc-200 transition"
                   >
                     {isSelected ? (
@@ -513,7 +716,7 @@ export const ProjectsWorkspace: React.FC = () => {
 
                     {/* Badges / Weights */}
                     <div className="flex items-center gap-3 text-[11px] text-zinc-400 pl-1 pt-1">
-                      <span>Priority: <strong className="text-zinc-200">{cred.priority ?? 1}</strong></span>
+                      <span>Priority: <strong className="text-white font-bold">{cred.priority ?? (idx + 1)}</strong></span>
                       <span>•</span>
                       <span>Weight: <strong className="text-zinc-200">{cred.weight ?? 10}</strong></span>
                       <span>•</span>
@@ -792,15 +995,16 @@ export const ProjectsWorkspace: React.FC = () => {
               {/* Priority & Weight */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-mono text-zinc-400 mb-1.5">Priority Order</label>
+                  <label className="block text-xs font-mono text-zinc-400 mb-1.5">Priority Order (1 = Utama)</label>
                   <input
                     type="number"
                     min="1"
-                    max="10"
+                    max={Math.max(1, credentials.length + 1)}
                     value={priority}
-                    onChange={(e) => setPriority(Number(e.target.value))}
+                    onChange={(e) => setPriority(Math.max(1, Number(e.target.value)))}
                     className="w-full bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none focus:border-indigo-500"
                   />
+                  <p className="text-[10px] text-zinc-500 mt-1">Otomatis diurutkan tanpa ada angka kembar.</p>
                 </div>
                 <div>
                   <label className="block text-xs font-mono text-zinc-400 mb-1.5">Weight (Quota Ratio)</label>

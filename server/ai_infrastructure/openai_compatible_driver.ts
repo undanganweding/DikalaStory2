@@ -103,7 +103,7 @@ export const openaiCompatibleDriver = {
    * Executes a standard OpenAI-compatible /v1/chat/completions request
    */
   async executeChatCompletion(params: OpenAICompatibleExecutionParams): Promise<OpenAICompatibleExecutionResult> {
-    const { baseUrl, apiKey, model, prompt, systemInstruction, temperature = 0.7, maxTokens = 2048, timeoutMs = 30000 } = params;
+    const { baseUrl, apiKey, model, prompt, systemInstruction, temperature = 0.7, maxTokens = 2048, timeoutMs = 45000 } = params;
 
     const validation = this.validateBaseUrl(baseUrl);
     if (!validation.isValid || !validation.normalizedUrl) {
@@ -144,16 +144,43 @@ export const openaiCompatibleDriver = {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+    const maskedKey = apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(Math.max(0, apiKey.length - 4))}` : 'none';
+    console.log(`\n🌐 [WIRE DISPATCH: OPENAI-COMPATIBLE]`);
+    console.log(`  endpoint: ${endpointUrl}`);
+    console.log(`  model:    ${model}`);
+    console.log(`  auth:     Bearer ${maskedKey}`);
+    console.log(`  timeout:  ${timeoutMs}ms`);
+
     try {
-      const response = await fetch(endpointUrl, {
+      let response = await fetch(endpointUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': apiKey ? `Bearer ${apiKey}` : 'Bearer sk-custom-token',
         },
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
+
+      // Fallback if provider/proxy (like 9router or older models) rejects response_format
+      if (!response.ok && payload.response_format && (response.status === 400 || response.status === 422)) {
+        const rawErr = await response.text();
+        if (rawErr.toLowerCase().includes('response_format') || rawErr.toLowerCase().includes('json_object') || rawErr.toLowerCase().includes('unsupported')) {
+          delete payload.response_format;
+          response = await fetch(endpointUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': apiKey ? `Bearer ${apiKey}` : 'Bearer sk-custom-token',
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          });
+        } else {
+          const sanitizedStatus = this.mapHttpStatus(response.status, rawErr);
+          throw new Error(`OpenAI-compatible provider error (${response.status}): ${sanitizedStatus}`);
+        }
+      }
 
       const latencyMs = Date.now() - startTime;
 
@@ -172,8 +199,11 @@ export const openaiCompatibleDriver = {
         }
 
         const sanitizedStatus = this.mapHttpStatus(response.status, errBodyText);
+        console.log(`  ❌ WIRE ERROR: HTTP ${response.status} - ${sanitizedStatus} (${latencyMs}ms)\n`);
         throw new Error(`OpenAI-compatible provider error (${response.status}): ${sanitizedStatus}`);
       }
+
+      console.log(`  ✅ WIRE RESPONSE: HTTP 200 OK (${latencyMs}ms)\n`);
 
       let json: any;
       try {
@@ -182,7 +212,23 @@ export const openaiCompatibleDriver = {
       } catch (parseErr: any) {
         throw new Error(`OpenAI-compatible provider returned invalid JSON: ${parseErr?.message || String(parseErr)}`);
       }
-      const text = json.choices?.[0]?.message?.content || json.choices?.[0]?.text || '';
+      
+      const choice = json.choices?.[0];
+      let text = '';
+      if (typeof choice?.message?.content === 'string') {
+        text = choice.message.content;
+      } else if (typeof choice?.message?.reasoning_content === 'string') {
+        text = choice.message.reasoning_content;
+      } else if (typeof choice?.text === 'string') {
+        text = choice.text;
+      } else if (typeof choice?.message === 'string') {
+        text = choice.message;
+      }
+
+      // Strip <think>...</think> reasoning tags if emitted by reasoning models like DeepSeek-R1 / Qwen
+      if (text.includes('<think>')) {
+        text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      }
 
       // Extract or estimate tokens
       const promptTokens = json.usage?.prompt_tokens ?? Math.round(prompt.length / 4);
@@ -215,18 +261,31 @@ export const openaiCompatibleDriver = {
       throw new Error(`Invalid Base URL: ${validation.error}`);
     }
 
-    const endpointUrl = this.resolveModelsUrl(validation.normalizedUrl);
+    const cleanBase = validation.normalizedUrl;
+    let endpointUrl = this.resolveModelsUrl(cleanBase);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(endpointUrl, {
+      let response = await fetch(endpointUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': apiKey ? `Bearer ${apiKey}` : 'Bearer sk-custom-token',
         },
         signal: controller.signal,
       });
+
+      // If /models returned 404 and cleanBase does not have /v1, attempt cleanBase/v1/models
+      if (response.status === 404 && !cleanBase.endsWith('/v1')) {
+        endpointUrl = `${cleanBase}/v1/models`;
+        response = await fetch(endpointUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': apiKey ? `Bearer ${apiKey}` : 'Bearer sk-custom-token',
+          },
+          signal: controller.signal,
+        });
+      }
 
       if (!response.ok) {
         let errText = '';

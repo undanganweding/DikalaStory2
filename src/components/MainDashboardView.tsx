@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Project, PipelineLogEvent } from '../types';
+import { GeminiRealtimeQuotaPanel } from './GeminiRealtimeQuotaPanel';
 
 interface MainDashboardViewProps {
   projects: Project[];
@@ -188,11 +189,14 @@ export const MainDashboardView: React.FC<MainDashboardViewProps> = ({
               Tersimpan &amp; Sinkron
             </div>
             <div className="text-[11px] text-slate-400 font-medium mt-1 truncate">
-              Real-time Firestore &amp; Storage
+              Real-time Supabase Database
             </div>
           </div>
         </div>
       </div>
+
+      {/* Real-Time Gemini AI Quota & Model Status Monitor */}
+      <GeminiRealtimeQuotaPanel />
 
       {/* Main Grid: Ongoing Projects + Quick Access + Log Terminal (Compact) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

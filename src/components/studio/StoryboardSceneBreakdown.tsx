@@ -36,6 +36,8 @@ import {
 import {
   getPersistedScenePrompt,
   PersistedPrompt,
+  getPersistedPrompt,
+  PROMPT_EMPTY_MESSAGE,
 } from '../../lib/prompt_targets';
 import { DenseShotRow } from './DenseShotRow';
 import { CompactShotRow } from './CompactShotRow';
@@ -56,7 +58,7 @@ export interface StoryboardSceneBreakdownProps {
   selectedShotId?: string;
   onSelectShot?: (shotId: string) => void;
   onRunScenePipeline: (sceneId: string) => void;
-  onRegenerateScenePrompt: (sceneId: string) => void;
+  onRegenerateScenePrompt: (sceneId: string, target?: PromptTarget | 'all' | 'global') => void;
   onUpdateSceneImage: (sceneId: string, imageUrl: string | null) => void;
   onUpdateShotImage?: (shotId: string, imageUrl: string | null) => void;
   onRunShotPrompt?: (shotId: string, target: PromptTarget) => void;
@@ -142,6 +144,9 @@ export const StoryboardSceneBreakdown: React.FC<StoryboardSceneBreakdownProps> =
   const resolvedActiveShotId = activeShotSelection || (currentShots.length > 0 ? (currentShots[0].id || `shot-${currentScene.id}-0`) : null);
   const isProcessing = processingSceneId === currentScene?.id;
 
+  // Auto-regeneration tracker
+  const autoRegenAttemptedRef = React.useRef<Set<string>>(new Set());
+
   // Timeline calculation
   const shotsTotalDuration = currentShots.reduce((acc, sh) => acc + (sh.duration_sec || 0), 0);
   const sceneAuthoritativeDuration = currentScene?.duration_sec || 10;
@@ -154,10 +159,130 @@ export const StoryboardSceneBreakdown: React.FC<StoryboardSceneBreakdownProps> =
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  // Narrative VO, Dialogue & Audio summaries for active scene
+  const allSceneVO = [
+    ...(currentScene?.narrator_vo ? [currentScene.narrator_vo] : []),
+    ...currentShots
+      .map((sh) => sh.audio_narration)
+      .filter((vo): vo is string => Boolean(vo && vo.trim().length > 0)),
+  ];
+  const sceneVOItems = Array.from(new Set(allSceneVO));
+
+  const allSceneDialogues = [
+    ...(Array.isArray(currentScene?.dialogue) ? currentScene.dialogue : []),
+    ...currentShots.flatMap((sh) => sh.dialogue || []),
+  ].filter((d) => d && d.line);
+
+  const hasDialogue = allSceneDialogues.length > 0;
+  const dialogueSpeakers = Array.from(
+    new Set(allSceneDialogues.map((d) => d.character_name).filter(Boolean))
+  );
+
+  // Characters & Locations related to active scene
+  const sceneCharacters = characters.filter((c) =>
+    c?.name &&
+    currentScene?.character_names?.some((name) =>
+      name && name.toLowerCase().includes((c.name || '').toLowerCase())
+    )
+  );
+  const sceneLocations = locations.filter((l) =>
+    currentScene?.location_name && l?.name
+      ? currentScene.location_name.toLowerCase().includes(l.name.toLowerCase()) ||
+        l.name.toLowerCase().includes(currentScene.location_name.toLowerCase())
+      : false
+  );
+  const matchingLocation = sceneLocations[0] || locations.find((l) =>
+    l.name && currentScene?.location_name && (
+      currentScene.location_name.toLowerCase().includes(l.name.toLowerCase()) ||
+      l.name.toLowerCase().includes(currentScene.location_name.toLowerCase())
+    )
+  ) || null;
+
+  // Setting-aware lighting
+  const tod = (currentScene?.time_of_day || '').toUpperCase();
+  const isNight = tod.includes('NIGHT') || tod.includes('MALAM');
+  const isSunset = tod.includes('SUNSET') || tod.includes('SENJA') || tod.includes('DUSK') || tod.includes('SORE');
+  const isDawn = tod.includes('DAWN') || tod.includes('FAJAR') || tod.includes('SUBUH');
+  const isMorning = tod.includes('MORNING') || tod.includes('PAGI');
+  const isDay = tod.includes('DAY') || tod.includes('SIANG') || tod.includes('NOON');
+  const isInterior = (currentScene?.title || '').toUpperCase().includes('INT.') || 
+                     (currentScene?.location_name || '').toLowerCase().includes('kamar') ||
+                     (currentScene?.location_name || '').toLowerCase().includes('rumah') ||
+                     (currentScene?.location_name || '').toLowerCase().includes('bilik') ||
+                     (currentScene?.location_name || '').toLowerCase().includes('masjid');
+
+  const resolvedLighting =
+    currentScene?.lighting ||
+    currentScene?.master_image_prompt_json?.lighting ||
+    (matchingLocation?.lighting_atmosphere ? matchingLocation.lighting_atmosphere : null) ||
+    (isInterior
+      ? (isNight
+          ? 'Pendar Lentera Minyak Zaitun, Api Obor Berkedip & Pendar Rembulan Lembut'
+          : isSunset
+          ? 'Pendar Jingga Senja Menerobos Kisi Jendela, Kontras Lembut Bilik Tradisional'
+          : isDawn
+          ? 'Fajar Keemasan Sejuk Menyusup Kisi Kayu/Kain, Partikel Debu Udara Lembut'
+          : isMorning
+          ? 'Sinar Pagi Alami Celah Bilik, Refleksi Hangat Tirai Linen (Volumetric Rays)'
+          : 'Sinar Matahari Siang Menembus Kisi Kayu, Kontras Alami Dinding Tanah Liat')
+      : (isNight
+          ? 'Lentera Pasar Tradisional, Obor Pelataran & Pendar Rembulan Gurun Alami'
+          : isSunset
+          ? 'Golden Hour Senja Lembayung Jingga, Bayangan Panjang Hangat Arsitektur Kuno'
+          : isDawn
+          ? 'Fajar Keemasan Berembun (Soft Golden Dawn), Siluet Horison Gurun Sejuk'
+          : isMorning
+          ? 'Sinar Mentari Pagi Hangat Alami, Bayangan Tajam Bersih Arsitektur Kuno'
+          : isDay
+          ? 'Sinar Terik Siang Gurun Otentik 35mm, Kontras Alami Berpadu Naungan Kanopi'
+          : 'Pencahayaan Sinematik Terarah Alami (Cinematic Natural 35mm)'));
+
+  // Setting-aware soundscape
+  const locationText = `${currentScene?.location_name || ''} ${currentScene?.title || ''}`.toLowerCase();
+  const resolvedSfx =
+    currentScene?.sound_design?.sfx && currentScene.sound_design.sfx.length > 0
+      ? currentScene.sound_design.sfx.slice(0, 3).join(', ')
+      : currentShots.find((s) => s.sound_effects)?.sound_effects ||
+        ((matchingLocation as any)?.ambient_sounds && Array.isArray((matchingLocation as any).ambient_sounds)
+          ? (matchingLocation as any).ambient_sounds.slice(0, 3).join(', ')
+          : (typeof (matchingLocation as any)?.ambient_sounds === 'string' ? (matchingLocation as any).ambient_sounds : null)) ||
+        (locationText.includes('pasar') || locationText.includes('market')
+          ? 'Keriuhan tawar-menawar pasar Madinah, langkah sandal di tanah kering, derap unta, denting timbangan'
+          : locationText.includes('masjid') || locationText.includes('nabawi')
+          ? 'Gemersik jubah linen para sahabat, langkah hening di atas kerikil, semilir angin gurun teduh'
+          : locationText.includes('gurun') || locationText.includes('desert') || locationText.includes('jalan')
+          ? 'Deru angin gurun tandus, gemerincing kekang tali unta kafilah, desah langkah di hamparan pasir'
+          : locationText.includes('rumah') || locationText.includes('bilik') || locationText.includes('kamar')
+          ? 'Suasana hening intim, desis sumbu lentera minyak zaitun, embusan angin celah tirai linen'
+          : currentShots.find((s) => s.audio_note)?.audio_note ||
+            'Atmosfer lingkungan historis autentik, langkah kaki alami, gesekan kain jubah linen');
+
   /**
    * Scene-level `banana_master_frame` read path.
    */
   const readScenePrompt = (sc: Scene): PersistedPrompt => {
+    if (sc.master_image_prompt && sc.master_image_prompt.trim().length > 0) {
+      return {
+        state: 'ready',
+        text: sc.master_image_prompt.trim(),
+        hasPrompt: true,
+        resolvedDurationSec: 10,
+        row: null,
+      };
+    }
+
+    // Fallback: use first shot's master_image_prompt if scene-level is empty
+    const firstShot = currentShots[0] || null;
+    if (firstShot && firstShot.master_image_prompt && firstShot.master_image_prompt.trim().length > 0) {
+      return {
+        state: 'ready',
+        text: firstShot.master_image_prompt.trim(),
+        hasPrompt: true,
+        resolvedDurationSec: 10,
+        row: null,
+      };
+    }
+
     const persisted = getPersistedScenePrompt(sc);
     if (persisted.hasPrompt) return persisted;
 
@@ -174,8 +299,131 @@ export const StoryboardSceneBreakdown: React.FC<StoryboardSceneBreakdownProps> =
     return persisted;
   };
 
+  const [activePromptTab, setActivePromptTab] = React.useState<PromptTarget>('banana_master_frame');
+
+  // Synthesize prompt fallback on-the-fly so UI is never blank
+  const buildSynthesizedPromptForTab = (tab: PromptTarget): string => {
+    if (!currentScene) return PROMPT_EMPTY_MESSAGE;
+    const charNames = currentScene.character_names?.join(', ') || 'Tokoh Historis';
+    const locName = currentScene.location_name || 'Latar Sinematik Historis';
+    const actionDesc = currentScene.event || currentScene.story_purpose || currentScene.title || 'Aksi sinematik dramatis';
+
+    if (tab === 'banana_master_frame') {
+      return `Master Frame Still Prompt (Google Banana Pro 2):
+Cinematic 35mm anamorphic photograph, photorealistic historical master shot.
+Subject: ${charNames} in authentic 7th-century garments (unbleached woven linen jubah robe, natural cotton headwrap).
+Setting: ${locName}, authentic clay architecture, weathered textures, rough wooden beams.
+Lighting: ${resolvedLighting}.
+Action: ${actionDesc}.
+Cinematic grading, Kodak Vision3 250D color profile, authentic film grain, highly detailed 8K composition.
+--no modern clothes, no distortion, no text, no synthetic CGI artifacts`;
+    }
+
+    if (tab === 'omni') {
+      return `Omni Video Prompt (10s Continuous Shot):
+Setting: ${locName}.
+Lighting: ${resolvedLighting}.
+Cinematic Sequence: ${actionDesc}.
+Camera Dynamics: Steady eye-level 35mm camera, gentle tracking following natural character movements with realistic momentum.
+Audio & Ambience: ${resolvedSfx}. Dialogue/Speech diegetic only.
+Constraint: Native continuous timeline, photorealistic temporal stability, 24fps film look.`;
+    }
+
+    if (tab === 'veo') {
+      return `Google Veo 3 Video Prompt (10s High Realism):
+Cinematic 35mm lens, 24fps photorealistic motion.
+Environment: ${locName} under ${resolvedLighting}.
+Character & Motion: ${charNames} engaging in ${actionDesc}. Authentic fluid fabric physics on linen robes, natural wind draft, subtle facial micro-expressions.
+Soundscape: ${resolvedSfx}.
+--no warping, no unnatural speed-up, no morphing`;
+    }
+
+    // seedance_10 or seedance_30
+    return `Seedance Multi-Beat Video Prompt (10s Timeline Breakdown):
+[00:00 - 00:03] Establishing Shot: Wide atmospheric view of ${locName} bathed in ${resolvedLighting}.
+[00:03 - 00:07] Focus Shot: Smooth tracking camera on ${charNames}, depicting: ${actionDesc}.
+[00:07 - 00:10] Climax/Reaction Shot: Dynamic close-up capturing authentic emotion and environment detail.
+Sound & Foley SFX: ${resolvedSfx}.`;
+  };
+
+  const resolveActiveSceneLevelPrompt = (): { text: string; hasPrompt: boolean; state: string } => {
+    if (!currentScene) {
+      return {
+        text: PROMPT_EMPTY_MESSAGE,
+        hasPrompt: false,
+        state: 'idle',
+      };
+    }
+
+    if (activePromptTab === 'banana_master_frame') {
+      const res = readScenePrompt(currentScene);
+      if (res.hasPrompt && res.text.trim().length > 0) {
+        return {
+          text: res.text,
+          hasPrompt: true,
+          state: res.state,
+        };
+      }
+      return {
+        text: buildSynthesizedPromptForTab('banana_master_frame'),
+        hasPrompt: true,
+        state: 'synthesized',
+      };
+    }
+
+    const virtualShot = currentShots[0] || null;
+    if (virtualShot) {
+      const videoPromptList = videoPrompts && videoPrompts[virtualShot.id] ? videoPrompts[virtualShot.id] : [];
+      const persisted = getPersistedPrompt(virtualShot, activePromptTab, videoPromptList);
+      if (persisted.hasPrompt && persisted.text.trim().length > 0) {
+        return {
+          text: persisted.text,
+          hasPrompt: true,
+          state: 'ready',
+        };
+      }
+      if (activePromptTab === 'veo' && virtualShot.video_prompt && virtualShot.video_prompt.trim().length > 0) {
+        return {
+          text: virtualShot.video_prompt.trim(),
+          hasPrompt: true,
+          state: 'ready',
+        };
+      }
+      if (activePromptTab.startsWith('seedance') && virtualShot.seedance_prompt && virtualShot.seedance_prompt.trim().length > 0) {
+        return {
+          text: virtualShot.seedance_prompt.trim(),
+          hasPrompt: true,
+          state: 'ready',
+        };
+      }
+    }
+
+    // Check all scene shots video prompts as fallback
+    for (const sh of currentShots) {
+      const promptsForShot = videoPrompts && videoPrompts[sh.id] ? videoPrompts[sh.id] : [];
+      const match = promptsForShot.find(
+        (p) => p.prompt_target === activePromptTab || (activePromptTab === 'omni' && p.target_platform === 'gemini_omni') || (activePromptTab === 'veo' && p.target_platform === 'veo')
+      );
+      const promptText = match?.timeline_json?.prompt || (match as any)?.prompt_text;
+      if (promptText && promptText.trim().length > 0) {
+        return {
+          text: promptText.trim(),
+          hasPrompt: true,
+          state: 'ready',
+        };
+      }
+    }
+
+    return {
+      text: buildSynthesizedPromptForTab(activePromptTab),
+      hasPrompt: true,
+      state: 'synthesized',
+    };
+  };
+
   /**
    * Build global video prompt for the scene (combines all shots into a continuous shot sequence with durations).
+   * Note: Strictly excludes narration; only includes visual actions, ambient/SFX, and character dialogue.
    */
   const buildGlobalSceneVideoPrompt = (sc: Scene, scShots: Shot[]): string => {
     const scNumStr = String(sc.scene_number || 1).padStart(2, '0');
@@ -190,10 +438,10 @@ export const StoryboardSceneBreakdown: React.FC<StoryboardSceneBreakdownProps> =
         const framing = sh.shot_type || sh.camera?.framing || 'Medium Shot';
         const cameraMove = sh.camera_movement || sh.camera?.movement || 'Static';
         const visual = sh.visual_description || sh.character_action || sh.event_detail || sh.action || 'Cinematic action';
-        const voStr = sh.audio_narration ? `\n  Audio/Narration: "${sh.audio_narration}"` : '';
+        const sfxStr = sh.sound_effects ? `\n  Ambient/SFX: "${sh.sound_effects}"` : '';
         const dialogueStr = sh.dialogue ? `\n  Dialogue: "${sh.dialogue}"` : '';
 
-        return `• SHOT ${shotNumStr} [Duration: ${durSec}.0s | Framing: ${framing} | Camera: ${cameraMove}]\n  Visual Action: ${visual}${voStr}${dialogueStr}`;
+        return `• SHOT ${shotNumStr} [Duration: ${durSec}.0s | Framing: ${framing} | Camera: ${cameraMove}]\n  Visual Action: ${visual}${sfxStr}${dialogueStr}`;
       })
       .join('\n\n');
 
@@ -212,28 +460,11 @@ DRAMATIC PURPOSE: ${purpose}
 CONTINUOUS SHOT TIMELINE SEQUENCE:
 ${shotBreakdowns}
 
+[AUDIO PURITY CONSTRAINT]: Native diegetic soundscapes, Foley action SFX, room acoustics, and character speech ONLY. Strictly NO narration, NO voice-over (VO), NO background music, NO BGM, NO soundtrack.
+
 [NEGATIVE PROMPT / PROMPT LARANGAN]
 ${sceneNeg}`;
   };
-
-  // Narrative VO & Dialogue summaries for active scene
-  const sceneVOItems = currentShots
-    .map((sh) => sh.audio_narration)
-    .filter((vo): vo is string => Boolean(vo && vo.trim().length > 0));
-  const hasDialogue = currentShots.some((sh) => sh.dialogue && sh.dialogue.length > 0);
-
-  // Characters & Locations related to active scene
-  const sceneCharacters = characters.filter((c) =>
-    c?.name &&
-    currentScene?.character_names?.some((name) =>
-      name && name.toLowerCase().includes((c.name || '').toLowerCase())
-    )
-  );
-  const sceneLocations = locations.filter((l) =>
-    currentScene?.location_name && l?.name
-      ? currentScene.location_name.toLowerCase().includes(l.name.toLowerCase())
-      : false
-  );
 
   const getCharacterBananaPrompt = (c: CharacterBible) => {
     if (c.master_portrait_prompt && c.master_portrait_prompt.trim().length > 0)
@@ -451,12 +682,13 @@ ${sceneNeg}`;
                 </button>
 
                 <button
-                  onClick={() => onRegenerateScenePrompt(currentScene.id)}
+                  onClick={() => onRegenerateScenePrompt(currentScene.id, 'all')}
                   disabled={isProcessing}
-                  className="min-h-[36px] sm:min-h-[30px] px-2.5 py-1.5 rounded-lg text-xs bg-[#1C1E32] hover:bg-[#252844] border border-[#2B2E4A] text-slate-200 font-semibold transition flex items-center gap-1.5"
+                  className="min-h-[36px] sm:min-h-[30px] px-3 py-1.5 rounded-lg text-xs bg-cyan-600/30 hover:bg-cyan-600/40 border border-cyan-500/50 text-cyan-200 font-bold transition flex items-center gap-1.5 shadow-sm"
+                  title="Regenerate Semua Prompt Adegan Secara Global (Banana Master Frame + Veo + Omni + Seedance)"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isProcessing ? 'animate-spin' : ''}`} />
-                  <span>Regen</span>
+                  <RefreshCw className={`w-3.5 h-3.5 ${isProcessing ? 'animate-spin text-cyan-400' : 'text-cyan-400'}`} />
+                  <span>{isProcessing ? 'Regen...' : 'Regen Global (Semua)'}</span>
                 </button>
 
                 <button
@@ -479,10 +711,11 @@ ${sceneNeg}`;
                   <span>Story Beat &amp; Dramatic Purpose</span>
                 </div>
                 <p className="text-slate-200 text-xs leading-relaxed">
-                  {currentScene.story_purpose ||
-                    currentScene.narrative_function ||
-                    currentScene.event ||
-                    'Pengembangan narasi adegan.'}
+                  {currentScene.story_purpose && currentScene.story_purpose !== 'undefined' && currentScene.story_purpose.trim() !== ''
+                    ? currentScene.story_purpose
+                    : (currentScene.narrative_function && currentScene.narrative_function !== 'undefined'
+                        ? `${currentScene.narrative_function}: ${currentScene.event || currentScene.title || 'Pengembangan alur dramatis adegan.'}`
+                        : (currentScene.event || currentScene.title || 'Pengembangan narasi adegan.'))}
                 </p>
               </div>
 
@@ -509,26 +742,63 @@ ${sceneNeg}`;
               </div>
 
               {/* Visual Direction & Audio Summary */}
-              <div className="bg-[#121424] border border-[#1F233B] p-3 rounded-xl space-y-1.5">
-                <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-cyan-400/90 font-bold">
-                  <Eye className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Visual &amp; Audio</span>
-                </div>
-                <div className="text-[10px] text-slate-300 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Pencahayaan:</span>
-                    <span className="text-slate-200">{currentScene.lighting || 'Cinematic Natural'}</span>
+              <div className="bg-[#121424] border border-[#1F233B] p-3 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-cyan-400/90 font-bold">
+                    <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Visual &amp; Audio Sinematik</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Narasi (VO):</span>
-                    <span className={sceneVOItems.length > 0 ? 'text-emerald-300 font-bold' : 'text-slate-500'}>
-                      {sceneVOItems.length > 0 ? `${sceneVOItems.length} Narasi ✓` : '—'}
+                  {currentShots.length > 0 && (
+                    <span className="text-[9px] font-mono text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                      {currentShots.length} Shot
+                    </span>
+                  )}
+                </div>
+                <div className="text-[10px] text-slate-300 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-slate-500 shrink-0 font-medium">Pencahayaan:</span>
+                    <span className="text-slate-200 text-right font-medium leading-tight" title={resolvedLighting}>
+                      {resolvedLighting}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Dialog:</span>
-                    <span className={hasDialogue ? 'text-amber-300 font-bold' : 'text-slate-500'}>
-                      {hasDialogue ? 'Dialog Ada ✓' : '—'}
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-slate-500 shrink-0 font-medium">Narasi (VO):</span>
+                    <span
+                      className={
+                        sceneVOItems.length > 0
+                          ? 'text-emerald-300 font-semibold text-right leading-tight'
+                          : 'text-slate-400 text-right italic'
+                      }
+                      title={sceneVOItems.join(' | ') || 'Diegetik Murni'}
+                    >
+                      {sceneVOItems.length > 0
+                        ? `"${sceneVOItems[0].length > 55 ? sceneVOItems[0].slice(0, 53) + '...' : sceneVOItems[0]}"`
+                        : (currentScene.narrative_function
+                            ? `Diegetik: ${currentScene.narrative_function}`
+                            : 'Diegetik Murni (Aksi Visual)')}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-slate-500 shrink-0 font-medium">Dialog:</span>
+                    <span
+                      className={
+                        hasDialogue
+                          ? 'text-amber-300 font-semibold text-right leading-tight'
+                          : 'text-slate-400 text-right italic'
+                      }
+                      title={allSceneDialogues.map(d => `${d.character_name}: ${d.line}`).join(' | ') || 'Non-Verbal'}
+                    >
+                      {hasDialogue
+                        ? `${allSceneDialogues[0].character_name ? allSceneDialogues[0].character_name + ': ' : ''}"${allSceneDialogues[0].line.length > 40 ? allSceneDialogues[0].line.slice(0, 38) + '...' : allSceneDialogues[0].line}"`
+                        : (currentScene.character_names && currentScene.character_names.length > 0
+                            ? `Non-Verbal (${currentScene.character_names.join(', ')})`
+                            : 'Non-Verbal / Visual Aksi')}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-2 pt-1 border-t border-[#191D33]">
+                    <span className="text-slate-500 shrink-0 font-medium">Suasana SFX:</span>
+                    <span className="text-cyan-300/90 text-right text-[9px] leading-tight" title={resolvedSfx}>
+                      {resolvedSfx}
                     </span>
                   </div>
                 </div>
@@ -561,14 +831,44 @@ ${sceneNeg}`;
                 </button>
               </div>
 
-              {/* Master Banana Image Prompt Box */}
-              <div className="md:col-span-2 bg-[#121424] border border-[#212338] rounded-xl p-3 flex flex-col justify-between space-y-2 shadow-md">
-                <div className="flex items-center justify-between border-b border-[#1E2034] pb-1.5">
+              {/* Master Banana Image Prompt Box (Dynamic Multi-Tab Panel) */}
+              <div className="md:col-span-2 bg-[#121424] border border-[#212338] rounded-xl p-3 flex flex-col justify-between space-y-3 shadow-md">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#1E2034] pb-2 gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-amber-300">
                     <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Google Banana Pro Master Frame Prompt</span>
+                    <span>
+                      {activePromptTab === 'banana_master_frame'
+                        ? 'Google Banana Pro Master Frame Prompt'
+                        : activePromptTab === 'omni'
+                        ? 'Omni Video Prompt'
+                        : activePromptTab === 'veo'
+                        ? 'Google Veo 3 Video Prompt'
+                        : 'Seedance Video Prompt'}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-auto">
+                    {/* Regenerate Active Prompt Tab */}
+                    <button
+                      onClick={() => onRegenerateScenePrompt(currentScene.id, activePromptTab)}
+                      disabled={isProcessing}
+                      className="px-2 py-0.5 rounded bg-amber-500 hover:bg-amber-400 text-black text-[10px] font-extrabold flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={`Regenerate prompt khusus ${activePromptTab === 'banana_master_frame' ? 'Banana Pro 2' : activePromptTab === 'omni' ? 'Omni' : activePromptTab === 'veo' ? 'Google Veo 3' : 'Seedance'}`}
+                    >
+                      <RefreshCw className={`w-2.5 h-2.5 ${isProcessing ? 'animate-spin' : ''}`} />
+                      <span>Regen Tab</span>
+                    </button>
+
+                    {/* Regenerate All Prompts Globally */}
+                    <button
+                      onClick={() => onRegenerateScenePrompt(currentScene.id, 'all')}
+                      disabled={isProcessing}
+                      className="px-2 py-0.5 rounded bg-cyan-600/30 hover:bg-cyan-600/40 border border-cyan-500/40 text-cyan-200 text-[10px] font-bold flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Regenerate SEMUA prompt adegan ini (Banana Master Frame + Veo + Omni + Seedance)"
+                    >
+                      <RefreshCw className={`w-2.5 h-2.5 ${isProcessing ? 'animate-spin text-cyan-400' : 'text-cyan-400'}`} />
+                      <span>Regen Global</span>
+                    </button>
+
                     <button
                       onClick={() => {
                         const globalVideoPrompt = buildGlobalSceneVideoPrompt(currentScene, currentShots);
@@ -584,36 +884,89 @@ ${sceneNeg}`;
                       )}
                       <span>{copiedId === `box-video-global-${currentScene.id}` ? 'Tersalin!' : 'Salin Video Scene'}</span>
                     </button>
+
                     <button
                       onClick={() => setIsMasterPromptFocusOpen(true)}
-                      disabled={!readScenePrompt(currentScene).hasPrompt}
+                      disabled={!resolveActiveSceneLevelPrompt().hasPrompt}
                       className="px-2 py-0.5 rounded bg-[#1C1E32] hover:bg-[#252844] text-slate-300 hover:text-white text-[10px] font-mono flex items-center gap-1 transition border border-[#2B2E4A] disabled:opacity-40 disabled:cursor-not-allowed"
                       title="Buka Prompt di Focus Window"
                     >
                       <Maximize2 className="w-2.5 h-2.5" />
                       <span>Focus</span>
                     </button>
+
                     <button
-                      onClick={() => handleCopy(readScenePrompt(currentScene).text, `box-${currentScene.id}`)}
-                      disabled={!readScenePrompt(currentScene).hasPrompt}
+                      onClick={() => handleCopy(resolveActiveSceneLevelPrompt().text, `box-${currentScene.id}-${activePromptTab}`)}
+                      disabled={!resolveActiveSceneLevelPrompt().hasPrompt}
                       className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[10px] font-bold flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      {copiedId === `box-${currentScene.id}` ? (
+                      {copiedId === `box-${currentScene.id}-${activePromptTab}` ? (
                         <Check className="w-2.5 h-2.5 text-emerald-400" />
                       ) : (
                         <Copy className="w-2.5 h-2.5" />
                       )}
-                      <span>{copiedId === `box-${currentScene.id}` ? 'Tersalin!' : 'Salin'}</span>
+                      <span>{copiedId === `box-${currentScene.id}-${activePromptTab}` ? 'Tersalin!' : 'Salin'}</span>
                     </button>
                   </div>
                 </div>
 
+                {/* 4 Tabs representing different prompt engines/targets */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 border-b border-[#1E2034]/50 pb-2">
+                  <button
+                    onClick={() => setActivePromptTab('banana_master_frame')}
+                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center border transition flex flex-col justify-center items-center ${
+                      activePromptTab === 'banana_master_frame'
+                        ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 shadow-sm'
+                        : 'bg-[#0E101D] border-[#1D1F34] hover:bg-[#16182B] text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <span className="block text-slate-400/80 font-mono text-[8px] uppercase tracking-wider mb-0.5">IMAGE</span>
+                    <span>Banana Pro 2</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActivePromptTab('omni')}
+                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center border transition flex flex-col justify-center items-center ${
+                      activePromptTab === 'omni'
+                        ? 'bg-purple-500/10 border-purple-500/40 text-purple-300 shadow-sm'
+                        : 'bg-[#0E101D] border-[#1D1F34] hover:bg-[#16182B] text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <span className="block text-slate-400/80 font-mono text-[8px] uppercase tracking-wider mb-0.5">VIDEO</span>
+                    <span>Omni</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActivePromptTab('veo')}
+                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center border transition flex flex-col justify-center items-center ${
+                      activePromptTab === 'veo'
+                        ? 'bg-blue-500/10 border-blue-500/40 text-blue-300 shadow-sm'
+                        : 'bg-[#0E101D] border-[#1D1F34] hover:bg-[#16182B] text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <span className="block text-slate-400/80 font-mono text-[8px] uppercase tracking-wider mb-0.5">VIDEO</span>
+                    <span>Google Veo 3</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActivePromptTab('seedance_10')}
+                    className={`px-2 py-1.5 rounded-lg text-[10px] font-bold text-center border transition flex flex-col justify-center items-center ${
+                      activePromptTab === 'seedance_10'
+                        ? 'bg-pink-500/10 border-pink-500/40 text-pink-300 shadow-sm'
+                        : 'bg-[#0E101D] border-[#1D1F34] hover:bg-[#16182B] text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <span className="block text-slate-400/80 font-mono text-[8px] uppercase tracking-wider mb-0.5">VIDEO</span>
+                    <span>Seedance</span>
+                  </button>
+                </div>
+
                 <p
                   className={`font-mono text-[11px] leading-relaxed whitespace-pre-wrap select-all bg-[#090A14] p-2.5 rounded-lg border border-[#1A1C2E] flex-1 max-h-24 overflow-y-auto ${
-                    readScenePrompt(currentScene).hasPrompt ? 'text-slate-300' : 'text-slate-500 italic'
+                    resolveActiveSceneLevelPrompt().hasPrompt ? 'text-slate-300' : 'text-slate-500 italic'
                   }`}
                 >
-                  {readScenePrompt(currentScene).text}
+                  {resolveActiveSceneLevelPrompt().text}
                 </p>
               </div>
             </div>
@@ -1119,10 +1472,11 @@ ${sceneNeg}`;
                 Story Beat &amp; Fungsi Naratif
               </h4>
               <p className="text-slate-200 text-sm leading-relaxed">
-                {currentScene.story_purpose ||
-                  currentScene.narrative_function ||
-                  currentScene.event ||
-                  'Pengembangan alur cerita.'}
+                {currentScene.story_purpose && currentScene.story_purpose !== 'undefined' && currentScene.story_purpose.trim() !== ''
+                  ? currentScene.story_purpose
+                  : (currentScene.narrative_function && currentScene.narrative_function !== 'undefined'
+                      ? `${currentScene.narrative_function}: ${currentScene.event || currentScene.title || 'Pengembangan alur dramatis adegan.'}`
+                      : (currentScene.event || currentScene.title || 'Pengembangan alur cerita.'))}
               </p>
             </div>
 
@@ -1152,18 +1506,22 @@ ${sceneNeg}`;
                 <h4 className="text-[11px] font-mono uppercase text-cyan-400 font-bold">
                   Arahan Visual &amp; Atmosfer
                 </h4>
-                <div className="space-y-1 text-slate-300 text-[11px]">
-                  <div>
+                <div className="space-y-1.5 text-slate-300 text-[11px]">
+                  <div className="flex items-center justify-between">
                     <span className="text-slate-500">Lokasi:</span>{' '}
-                    <strong>{currentScene.location_name || 'Latar Sinematik'}</strong>
+                    <strong className="text-slate-200">{currentScene.location_name || 'Latar Sinematik'}</strong>
                   </div>
-                  <div>
+                  <div className="flex items-center justify-between">
                     <span className="text-slate-500">Waktu:</span>{' '}
-                    <strong>{currentScene.time_of_day || 'Day'}</strong>
+                    <strong className="text-amber-300">{currentScene.time_of_day || 'Day'}</strong>
                   </div>
-                  <div>
-                    <span className="text-slate-500">Pencahayaan:</span>{' '}
-                    <strong>{currentScene.lighting || 'Cinematic Ambient'}</strong>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-slate-500 shrink-0">Pencahayaan:</span>{' '}
+                    <strong className="text-cyan-200 text-right">{resolvedLighting}</strong>
+                  </div>
+                  <div className="flex items-start justify-between gap-2 pt-1 border-t border-[#20243C]">
+                    <span className="text-slate-500 shrink-0">Suasana SFX / BGM:</span>{' '}
+                    <span className="text-slate-300 text-right text-[10px]">{resolvedSfx}</span>
                   </div>
                 </div>
               </div>
@@ -1204,17 +1562,24 @@ ${sceneNeg}`;
 
                     {sh.audio_narration && (
                       <div className="text-[11px] text-amber-200/90 italic bg-black/30 p-2 rounded border-l-2 border-amber-500/60">
-                        VO: "{sh.audio_narration}"
+                        <span className="font-bold text-amber-400 not-italic mr-1.5">VO:</span>"{sh.audio_narration}"
                       </div>
                     )}
 
                     {sh.dialogue && sh.dialogue.length > 0 && (
-                      <div className="text-[11px] text-indigo-200 bg-black/30 p-2 rounded space-y-0.5">
+                      <div className="text-[11px] text-indigo-200 bg-black/30 p-2 rounded space-y-0.5 border-l-2 border-indigo-500/60">
                         {sh.dialogue.map((d, dIdx) => (
                           <div key={dIdx}>
                             <strong className="text-indigo-400">{d.character_name}:</strong> "{d.line}"
                           </div>
                         ))}
+                      </div>
+                    )}
+
+                    {sh.sound_effects && (
+                      <div className="text-[10px] text-cyan-200/90 font-mono bg-black/20 px-2 py-1 rounded border border-cyan-500/20 flex items-center gap-1.5">
+                        <span className="text-cyan-400 font-bold">SFX:</span>
+                        <span>{sh.sound_effects}</span>
                       </div>
                     )}
                   </div>
@@ -1225,35 +1590,43 @@ ${sceneNeg}`;
         </FocusWindow>
       )}
 
-      {/* Focus Window for Master Frame Prompt */}
+      {/* Focus Window for Master Frame & Video Prompts */}
       {currentScene && (
         <FocusWindow
           isOpen={isMasterPromptFocusOpen}
           onClose={() => setIsMasterPromptFocusOpen(false)}
-          title={`Master Frame Prompt • Adegan ${currentScene.scene_number}`}
+          title={
+            activePromptTab === 'banana_master_frame'
+              ? `Master Frame Prompt • Adegan ${currentScene.scene_number}`
+              : activePromptTab === 'omni'
+              ? `Omni Video Prompt • Adegan ${currentScene.scene_number}`
+              : activePromptTab === 'veo'
+              ? `Google Veo 3 Video Prompt • Adegan ${currentScene.scene_number}`
+              : `Seedance Video Prompt • Adegan ${currentScene.scene_number}`
+          }
           subtitle={
             currentScene.title ||
             currentScene.location_name ||
-            'Google Banana Pro Master Frame Reference'
+            'Google Banana Pro Reference'
           }
           icon={<Sparkles className="w-4 h-4 text-amber-400" />}
           footerActions={
             <button
               onClick={() =>
-                handleCopy(readScenePrompt(currentScene).text, `focus-master-${currentScene.id}`)
+                handleCopy(resolveActiveSceneLevelPrompt().text, `focus-master-${currentScene.id}-${activePromptTab}`)
               }
-              disabled={!readScenePrompt(currentScene).hasPrompt}
+              disabled={!resolveActiveSceneLevelPrompt().hasPrompt}
               className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-lg flex items-center gap-1.5 transition disabled:opacity-40"
             >
-              {copiedId === `focus-master-${currentScene.id}` ? (
+              {copiedId === `focus-master-${currentScene.id}-${activePromptTab}` ? (
                 <Check className="w-3.5 h-3.5 text-black" />
               ) : (
                 <Copy className="w-3.5 h-3.5" />
               )}
               <span>
-                {copiedId === `focus-master-${currentScene.id}`
+                {copiedId === `focus-master-${currentScene.id}-${activePromptTab}`
                   ? 'Prompt Tersalin!'
-                  : 'Salin Master Prompt'}
+                  : 'Salin Prompt'}
               </span>
             </button>
           }
@@ -1262,14 +1635,22 @@ ${sceneNeg}`;
             <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-[#21243E] pb-2">
               <span>
                 Target Engine:{' '}
-                <strong className="text-amber-300 font-sans">Google Banana Pro Master Frame</strong>
+                <strong className="text-amber-300 font-sans">
+                  {activePromptTab === 'banana_master_frame'
+                    ? 'Google Banana Pro Master Frame'
+                    : activePromptTab === 'omni'
+                    ? 'Omni'
+                    : activePromptTab === 'veo'
+                    ? 'Google Veo 3'
+                    : 'Seedance'}
+                </strong>
               </span>
               <span>
                 Rasio: <strong className="text-cyan-300">16:9 Cinema Scope</strong>
               </span>
             </div>
             <p className="p-3 bg-black/40 rounded-lg border border-[#1E2033] text-slate-200 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap select-all">
-              {readScenePrompt(currentScene).text}
+              {resolveActiveSceneLevelPrompt().text}
             </p>
           </div>
         </FocusWindow>

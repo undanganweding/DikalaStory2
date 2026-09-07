@@ -730,7 +730,7 @@ export function resolveShotContext(
     dialogue: Array.isArray(shot.dialogue)
       ? shot.dialogue.map((d) => ({ speaker: (d as any).character_name || (d as any).speaker || 'Unknown', line: d.line || '' }))
       : [],
-    audioNote: shot.audio_note || shot.audio_narration,
+    audioNote: shot.audio_note || shot.sound_effects || 'Natural environmental ambient sounds and diegetic physical sound effects',
   };
 }
 

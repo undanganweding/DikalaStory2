@@ -21,7 +21,7 @@ class AIBudgetRegistry {
     return this.asyncLocalStorage;
   }
 
-  initializeBudget(projectId: string, limit: number = 15): void {
+  initializeBudget(projectId: string, limit: number = 50): void {
     this.budgets.set(projectId, {
       callsUsed: 0,
       limit,

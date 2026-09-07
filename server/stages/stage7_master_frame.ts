@@ -95,20 +95,24 @@ export async function runStage7MasterFrameAndImagePrompt(
   );
 
   // Execute Master Frame Compilation via AI Task Router
-  await executeTask({
-    taskId: 'master_frame_generation',
-    stageCode: 'S7',
-    prompt: `Compile Master Frame Visual Prompt for Scene #${scene.scene_number}: ${scene.title || 'Scene'}. Era: ${foundation?.era || 'Historic'}. Location: ${scene.location_name || 'Set'}. Characters: ${scene.character_names?.join(', ') || 'N/A'}. Event: ${scene.event || 'Action'}`,
-    systemInstruction: `You are an expert cinematic visual prompter and cinematographer. Format Master Frame and visual stylization parameters for diffusion models.`,
-    reasoningConfig: input.reasoningConfig,
-    projectPolicy: {
-      mode: input.reasoningConfig?.execution_policy?.mode || (input.model ? 'pin' : 'auto'),
-      quality: input.reasoningConfig?.execution_policy?.quality || 'high',
-      priority: input.reasoningConfig?.execution_policy?.priority || 'quality',
-      pinnedModelId: input.reasoningConfig?.execution_policy?.pinnedModelId || input.model,
-      pinnedProviderId: input.reasoningConfig?.execution_policy?.pinnedProviderId || input.reasoningConfig?.provider_name || input.reasoningConfig?.provider_type,
-    },
-  });
+  try {
+    await executeTask({
+      taskId: 'master_frame_generation',
+      stageCode: 'S7',
+      prompt: `Compile Master Frame Visual Prompt for Scene #${scene.scene_number}: ${scene.title || 'Scene'}. Era: ${foundation?.era || 'Historic'}. Location: ${scene.location_name || 'Set'}. Characters: ${scene.character_names?.join(', ') || 'N/A'}. Event: ${scene.event || 'Action'}`,
+      systemInstruction: `You are an expert cinematic visual prompter and cinematographer. Format Master Frame and visual stylization parameters for diffusion models.`,
+      reasoningConfig: input.reasoningConfig,
+      projectPolicy: {
+        mode: input.reasoningConfig?.execution_policy?.mode || (input.model ? 'pin' : 'auto'),
+        quality: input.reasoningConfig?.execution_policy?.quality || 'high',
+        priority: input.reasoningConfig?.execution_policy?.priority || 'quality',
+        pinnedModelId: input.reasoningConfig?.execution_policy?.pinnedModelId || input.model,
+        pinnedProviderId: input.reasoningConfig?.execution_policy?.pinnedProviderId || input.reasoningConfig?.provider_name || input.reasoningConfig?.provider_type,
+      },
+    });
+  } catch (err: any) {
+    console.warn(`[Stage 7] AI execution task warning (${err?.message || err}). Proceeding with authoritative deterministic master frame synthesis.`);
+  }
 
   let masterFrameText = adaptBananaMasterFrame(masterData);
   let imagePromptText = adaptBananaImagePrompt(masterData);

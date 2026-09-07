@@ -595,6 +595,78 @@ export class GeminiProjectRouter {
   public getLogs(): GeminiRequestLog[] {
     return this.logs;
   }
+
+  public async getRealtimeQuotaData(activeKeyId?: string) {
+    await this.syncProjects();
+    const projects = Array.from(this.projects.values());
+    const now = Date.now();
+
+    const formattedKeys = projects.map((p) => {
+      let cooldownSec = 0;
+      if (p.cooldown_until) {
+        const diff = new Date(p.cooldown_until).getTime() - now;
+        if (diff > 0) cooldownSec = Math.ceil(diff / 1000);
+      }
+
+      const modelsHealth: Record<string, { status: string; cooldown_sec: number }> = {};
+      if (p.health.model_health) {
+        for (const [mId, mHealth] of Object.entries(p.health.model_health)) {
+          let mCooldownSec = 0;
+          if (mHealth.cooldown_until) {
+            const diff = new Date(mHealth.cooldown_until).getTime() - now;
+            if (diff > 0) mCooldownSec = Math.ceil(diff / 1000);
+          }
+          modelsHealth[mId] = {
+            status: mCooldownSec > 0 ? 'rate_limited' : mHealth.status,
+            cooldown_sec: mCooldownSec,
+          };
+        }
+      }
+
+      const isSelected = activeKeyId ? p.project_id === activeKeyId : p.priority === 1;
+
+      return {
+        id: p.project_id,
+        masked_key: p.api_key ? (p.api_key.startsWith('AIza') ? `AIza...${p.api_key.slice(-4)}` : `${p.api_key.slice(0, 4)}...${p.api_key.slice(-4)}`) : '••••••••',
+        provider: 'google_gemini' as const,
+        priority: p.priority,
+        enabled: p.enabled,
+        status: cooldownSec > 0 ? 'rate_limited' : p.health.status,
+        quota_rpm: p.quota.rpm || 15,
+        quota_rpd: p.quota.rpd || 1500,
+        quota_tpm: p.quota.tpm || 1000000,
+        rpm_used: p.usage.rpm_used || 0,
+        rpd_used: p.usage.requests_today || 0,
+        tokens_used: p.usage.tokens_used || 0,
+        remaining_rpm: Math.max(0, (p.quota.rpm || 15) - (p.usage.rpm_used || 0)),
+        remaining_rpd: Math.max(0, (p.quota.rpd || 1500) - (p.usage.requests_today || 0)),
+        cooldown_seconds: cooldownSec,
+        latency_ms: p.health.latency || 120,
+        success_rate: p.health.success_rate || 100,
+        models_health: modelsHealth,
+        is_selected: isSelected,
+      };
+    });
+
+    const totalRequestsToday = formattedKeys.reduce((acc, k) => acc + k.rpd_used, 0);
+    const totalTokensToday = formattedKeys.reduce((acc, k) => acc + k.tokens_used, 0);
+    const activeKeysCount = formattedKeys.filter((k) => k.enabled && k.status === 'healthy').length;
+    const rateLimitedKeysCount = formattedKeys.filter((k) => k.status === 'rate_limited' || k.cooldown_seconds > 0).length;
+
+    return {
+      summary: {
+        total_keys: formattedKeys.length,
+        active_keys: activeKeysCount,
+        rate_limited_keys: rateLimitedKeysCount,
+        total_requests_today: totalRequestsToday,
+        total_tokens_today: totalTokensToday,
+        selected_key_id: activeKeyId || formattedKeys[0]?.id || '',
+      },
+      keys: formattedKeys,
+      available_models: AVAILABLE_MODELS,
+      recent_logs: this.logs.slice(-20).reverse(),
+    };
+  }
 }
 
 export const geminiProjectRouter = GeminiProjectRouter.getInstance();

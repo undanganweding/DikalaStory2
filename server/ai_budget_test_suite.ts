@@ -404,7 +404,7 @@ async function main() {
 
     // Seed the daily exhausted registry for the first candidate model
     const cacheKey = 'Test Credential Name:gemini-3.7-flash';
-    dailyExhaustedRegistry.add(cacheKey);
+    dailyExhaustedRegistry.set(cacheKey, Date.now() + 3600000);
 
     mockGenerateContentCallback = async (args: any) => {
       return { text: `Resolved model is ${args.model}` };

@@ -28,10 +28,24 @@ export function getGeminiAI(apiKeyOverride?: string | null): GoogleGenAI {
   // Only reuse the singleton when it was built from the same (global env) key.
   // When an explicit override is supplied, build a request-scoped client instead.
   if (apiKeyOverride && apiKeyOverride.trim().length > 0) {
-    return new GoogleGenAI({ apiKey });
+    return new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
   }
   if (!aiInstance) {
-    aiInstance = new GoogleGenAI({ apiKey });
+    aiInstance = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
   }
   return aiInstance;
 }

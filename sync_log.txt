@@ -1,4 +1,4 @@
-﻿[2026-09-02 12:41:47] ERROR Folder AI Studio update tidak ditemukan: D:\Sifa\dikalastoryupdate
+[2026-09-02 12:41:47] ERROR Folder AI Studio update tidak ditemukan: D:\Sifa\dikalastoryupdate
 [2026-09-03 23:22:51][INFO] Auto-detected source: D:\Web\sync github\dikalastory.rar
 [2026-09-03 23:22:51][INFO] Source : D:\Web\sync github\dikalastory.rar
 [2026-09-03 23:22:51][INFO] Target : D:\Web\sync github\dikalastory

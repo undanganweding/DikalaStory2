@@ -118,35 +118,57 @@ export const DEFAULT_NARRATIVE_STYLE_CONFIG: NarrativeStyleConfig = {
   },
 };
 
-export const GLOBAL_NARRATIVE_DOCTRINE_ID = `DOKTRIN GLOBAL NARRATIVE VOICE & ADAB:
-1. Gunakan bahasa Indonesia yang formal namun natural, sinematik, jelas, bermartabat, dan sesuai konteks sejarah.
-2. Narasi harus terasa seperti kisah sirah yang disampaikan dengan penghormatan mendalam terhadap tokoh dan peristiwa.
-3. Gunakan bahasa yang indah secara terkendali. Hindari bahasa berlebihan, slang, umpatan, humor yang tidak relevan, clickbait, atau dramatisasi murahan.
-4. JANGAN membuat kisah terasa seperti fairy tale, Cinderella, dongeng anak-anak, superhero story, novel remaja, atau storytelling hiburan populer.
-5. JANGAN mengubah fakta sejarah demi membuat cerita lebih dramatis. Jangan menciptakan dialog sejarah yang tidak memiliki dasar sumber dan kemudian menyajikannya sebagai perkataan nyata.
-6. Ketika Rasulullah ﷺ disebut, gunakan bahasa yang penuh adab, penghormatan, dan martabat luhur (hindari penggambaran visual langsung yang melanggar adab/konsensus).
-7. Intensitas, pacing, emosi, dan atmosfer harus mengikuti konteks peristiwa pada scene:
-   - Scene yang damai boleh tenang dan khidmat.
-   - Scene yang menegangkan boleh intens dan mencekam.
-   - Scene peperangan boleh keras, cepat, dan penuh energi dramatis.
-   - Scene kehilangan boleh emosional, hening, dan reflektif.
-   - Scene kemenangan boleh megah dan berwibawa.
-8. PERUBAHAN INTENSITAS TIDAK BOLEH MENGHILANGKAN ADAB, MARTABAT, ATAU KETEPATAN SEJARAH.`;
+export const GLOBAL_NARRATIVE_DOCTRINE_ID = `DOKTRIN SINEMATIK DIKALASTORY — SHORT FILM & DRAMATIC STORYTELLING:
+1. FILOSOFI UTAMA: "DRAMA FIRST, INFORMATION SECOND" — JANGAN PERNAH MENJELASKAN APA YANG BISA DITAMPILKAN ATAU DIDRAMATISASI (SHOW, DON'T TELL).
+   - Output BUKAN artikel ensiklopedia sejarah atau buku teks yang dibacakan narator.
+   - Setiap episode HARUS terasa seperti mini cinematic short film dengan ketegangan visual, aksi langsung, dan konflik karakter nyata.
+2. STRUKTUR DRAMATIS 6-BEAT SINEMATIK:
+   - 0–3s: HOOK (Aksi mendadak, keheningan mencekam, atau dialog bertensi tinggi yang langsung menyentak penonton tanpa pengantar narator bertele-tele).
+   - 3–30s: CONTEXT / PROBLEM (Pengenalan situasi melalui aksi visual dan taruhan dramatis langsung, bukan kuliah sejarah).
+   - 30–70s: ESCALATION (Eskalasi ketegangan, perdebatan tajam, rintangan, atau penolakan).
+   - 70–120s: TURNING POINT (Puncak klimaks, proklamasi penentu, pengungkapan kebenaran, titik tanpa kembali).
+   - 120–160s: PAYOFF (Dampak emosional, reaksi komunitas/tokoh, keharuan mendalam).
+   - Ending: SECOND PAYOFF / CLIFFHANGER (Resonansi abadi atau pemicu rasa penasaran untuk episode berikutnya).
+3. PENGUNCIAN PENGGAMBARAN NABI MUHAMMAD ﷺ (PROPHET DEPICTION LOCK):
+   - WAJIB MUTLAK: Wajah Nabi Muhammad ﷺ TIDAK BOLEH digambarkan atau ditampilkan secara visual (no recognizable facial features).
+   - Saat bayi/anak-anak: Sosok bayi SELALU dalam balutan kain kafan/bedong (swaddled in cloth), wajah tidak terlihat/menghadap dada penggendong, TANPA cahaya supernatural/halo magis berlebihan.
+   - Penghormatan dan adab suci (ta'dzim) dijaga sepanjang waktu.
+4. KLASIFIKASI INTEGRITAS HISTORIS (EPISTEMIC TIERS):
+   - FACT: Terpaku kuat pada catatan sejarah sahih dan sirah nabawiyah yang muktamad.
+   - DRAMATIZED_DIALOGUE: Dialog antar karakter yang masuk akal, menghidupkan suasana dengan subteks emosional, tetapi selaras dengan jiwa sejarah.
+   - NARRATIVE_BRIDGE: Jembatan sinematik yang menghubungkan peristiwa-peristiwa bersejarah.
+   - FICTIONALIZED: Detail atmosferik, sensoris fisik (desir angin, debu gurun, derap langkah).
+5. DIALOG AKTIF & VOICE-OVER MINIMAL:
+   - Karakter berbicara dengan dialog yang dinamis, bertenaga, dan memiliki subteks emosional (bukan khotbah datar).
+   - Voice-over (Narator) SANGAT MINIMAL, puitis, dan atmosferik. JANGAN menarasikan aksi fisik yang sedang dilihat penonton di layar.
+6. AUDIO & SOUND DESIGN TERINTEGRASI:
+   - Setiap adegan memiliki petunjuk efek suara spesifik (SFX) dan suasana musik latar (BGM) untuk membangun immersi penonton.`;
 
-export const GLOBAL_NARRATIVE_DOCTRINE_EN = `GLOBAL NARRATIVE VOICE & ADAB DOCTRINE:
-1. Use formal yet natural, cinematic, clear, dignified, and historically authentic language.
-2. The narrative must convey the weight of historical and sacred events with utmost reverence for figures and occurrences.
-3. Use restrained, evocative cinematic prose. Avoid colloquialisms, slang, profanity, irrelevant humor, clickbait, or cheap sensationalism.
-4. Never frame historical accounts like a fairy tale, fable, superhero fantasy, young adult novel, or cheap pop entertainment.
-5. Never fabricate or distort historical facts or invent unattested historical dialogue to artificially inflate drama.
-6. When the Prophet Muhammad ﷺ or sacred figures are referenced, maintain the highest standards of adab, respect, and dignity.
-7. Intensity, pacing, emotional gravity, and atmosphere must adapt to the scene context:
-   - Peaceful scenes may be serene and solemn.
-   - Tense scenes may be urgent and suspenseful.
-   - Battle scenes may be dynamic, fast-paced, and forceful.
-   - Scenes of loss must be poignant, quiet, and reflective.
-   - Victory scenes must be grand, majestic, and dignified.
-8. ANY ESCALATION IN DRAMATIC INTENSITY MUST NEVER COMPROMISE ADAB, DIGNITY, OR HISTORICAL TRUTH.`;
+export const GLOBAL_NARRATIVE_DOCTRINE_EN = `DIKALASTORY CINEMATIC DOCTRINE — SHORT FILM & DRAMATIC STORYTELLING:
+1. CORE PHILOSOPHY: "DRAMA FIRST, INFORMATION SECOND" — NEVER EXPLAIN WHAT CAN BE SHOWN OR DRAMATIZED (SHOW, DON'T TELL).
+   - Output is NOT an encyclopedic history entry or a narrator reading a textbook.
+   - Every episode MUST feel like a mini cinematic short film driven by visual tension, physical staging, and direct character conflict.
+2. 6-BEAT CINEMATIC SHORT DRAMATIC ARC:
+   - 0–3s: HOOK (Immediate action, sudden silence, or high-stakes dialogue arresting attention instantly with no slow narrator preamble).
+   - 3–30s: CONTEXT / PROBLEM (World setup established through visual action and immediate stakes, not dry exposition).
+   - 30–70s: ESCALATION (Rising tension, obstacles, sharp character disagreements, or building suspense).
+   - 70–120s: TURNING POINT (Climactic decision, decisive proclamation, truth revelation, point of no return).
+   - 120–160s: PAYOFF (Emotional aftermath, community reaction, profound resonance).
+   - Ending: SECOND PAYOFF / CLIFFHANGER (Lingering resonance or unresolved tension teasing the next chapter).
+3. PROPHET MUHAMMAD ﷺ DEPICTION LOCK:
+   - ABSOLUTE MANDATE: The facial features of the Prophet Muhammad ﷺ MUST NEVER be depicted (no recognizable face).
+   - As an infant: Always securely swaddled in cloth, face turned away or covered, with NO artificial halos or supernatural glowing light effects.
+   - Sacred adab, profound dignity, and historical reverence maintained at all times.
+4. EPISTEMIC INTEGRITY TIERS:
+   - FACT: Strictly grounded in authentic historical records and sirah consensus.
+   - DRAMATIZED_DIALOGUE: Plausible character dialogue conveying emotional subtext while honoring historical context.
+   - NARRATIVE_BRIDGE: Cinematic transitions connecting documented milestones.
+   - FICTIONALIZED: Sensory and atmospheric world details (wind, footsteps, desert dust).
+5. ACTIVE DIALOGUE & MINIMAL VOICE-OVER:
+   - Characters speak with active, authentic dialogue carrying tension and intention (not dry lectures).
+   - Narrator voice-over is MINIMAL, poetic, and atmospheric. NEVER narrate what the audience can already see on screen.
+6. INTEGRATED SOUND DESIGN:
+   - Every scene features specific sound effects (SFX) and background music (BGM) cues to maximize immersion.`;
 
 /**
  * Recommends an optimal SceneTone based on the scene's semantic context.
