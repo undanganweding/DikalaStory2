@@ -22,6 +22,13 @@
     "test:phase8": "tsx server/phase8_tests.ts",
     "test:r2-production": "tsx server/patch_6_r2_production_tests.ts",
     "test:r2-fixture": "tsx server/r2_fixture_engineering.ts",
+    "test:negative-api-gate": "tsx server/ai_infrastructure/negative_api_gate_matrix_tests.ts",
+    "test:fallback-regate": "tsx server/ai_infrastructure/fallback_regate_tests.ts",
+    "test:retry-regate": "tsx server/ai_infrastructure/retry_regate_production_tests.ts",
+    "test:production-boundary": "tsx server/ai_infrastructure/production_boundary_proof.ts",
+    "test:non-google-gateway-boundary": "tsx server/ai_infrastructure/non_google_gateway_boundary_proof.ts",
+    "test:durable-usability-process": "tsx -r dotenv/config server/ai_infrastructure/durable_usability_process_proof.ts",
+    "test:durable-recovery-isolated": "tsx -r dotenv/config server/ai_infrastructure/durable_recovery_isolated_runner.ts",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "push": "git add . && git commit -m \"update\" && git push origin main"

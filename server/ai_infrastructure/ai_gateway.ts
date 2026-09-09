@@ -14,6 +14,20 @@ import { costIntelligenceService } from './cost_intelligence';
 import { costMonitor } from './cost_monitor';
 import { db } from '../db';
 import { aiBudgetRegistry, AIBudgetExhaustedError } from './ai_budget_registry';
+import { evaluateApiGenerationGate } from './api_generation_gate';
+import { modelUsability } from './model_usability';
+import { freshFallbackRegate } from './fallback_regate';
+import { resolveProviderAdapter } from './provider_adapter_registry';
+
+export interface AIGatewayExecutionHooks {
+  createGoogleClient?: (apiKey: string) => { models: { generateContent: (request: any) => Promise<any> } };
+}
+
+export const aiGatewayExecutionHooks: AIGatewayExecutionHooks = {};
+
+export function resetAIGatewayExecutionHooks(): void {
+  delete aiGatewayExecutionHooks.createGoogleClient;
+}
 
 export const dailyExhaustedRegistry = new Map<string, number>();
 
@@ -74,7 +88,14 @@ export function isDailyQuotaExhaustedError(err: any): boolean {
     str.includes('per day') ||
     str.includes('daily') ||
     str.includes('limit: 0') ||
-    str.includes('limit: 20')
+    str.includes('limit: 20') ||
+    (str.includes('503') && (
+      str.includes('429') ||
+      str.includes('resource_exhausted') ||
+      str.includes('generaterequestsperday') ||
+      str.includes('quota exceeded') ||
+      str.includes('quotaexceeded')
+    ))
   ) {
     return true;
   }
@@ -297,6 +318,8 @@ export interface AIGatewayRequest {
   simulateQuotaErrorOnModel?: string;
   projectId?: string;
   plan?: any;
+  verifiedExecutionSnapshot?: any;
+  verifiedRegistryRequest?: any;
   fallbackPlan?: Array<{
     type: 'same_provider_next_credential' | 'next_eligible_model' | 'next_provider';
     providerId: string;
@@ -323,6 +346,17 @@ export interface AIGatewayResponse {
 export const aiGateway = {
   async generate(req: AIGatewayRequest): Promise<AIGatewayResponse> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    if (req.verifiedExecutionSnapshot && req.verifiedRegistryRequest) {
+      const gate = evaluateApiGenerationGate(req.verifiedRegistryRequest, req.verifiedExecutionSnapshot, {
+        credentialAvailable: Boolean(req.apiKey),
+        providerEnabled: req.plan?.providerId ? true : Boolean(req.providerId),
+        adapterAvailable: true,
+        requestValid: Boolean(req.prompt && req.prompt.trim()),
+      });
+      if (gate.status !== 'READY_FOR_EXECUTION') {
+        throw new Error(`${gate.status}: ${gate.reason || 'API generation gate rejected request'}`);
+      }
+    }
 
     // Intelligence Router Bridge: Translate task intent into candidate ranking preferences
     let taskIntent: TaskIntentRecommendation | undefined;
@@ -379,7 +413,9 @@ export const aiGateway = {
     const activeProviderId = req.providerId || (req.plan ? req.plan.providerId : undefined);
     const taskType = req.task || 'general_generation';
     const isComplexTask = ['scene_breakdown', 'shot_breakdown', 'narrative_structure', 'story_understanding'].includes(String(req.task));
-    const timeoutMs = req.timeoutMs || (isComplexTask ? 90000 : 60000);
+    // 9Router cold-start measured up to ~38s on first request (proof: 37.8s/4.3s/18.6s cold-warm-warm).
+    // 60s caused reproducible S2 timeouts; ChatGPT decision: raise driver timeout, no warmup.
+    const timeoutMs = req.timeoutMs || (isComplexTask ? 90000 : 120000);
 
     // Dynamically synchronize custom/database-registered models with AMM capability registry
     if (!modelsRegistry[modelId]) {
@@ -553,8 +589,11 @@ export const aiGateway = {
           let totalTokens = 0;
           let latencyMs = 0;
 
-          // Resolve config-driven native model name
-          let activeModelId = capabilityRegistry.resolveNativeModel(currentProviderId, modelId);
+          // Preserve router-bound model for verified executions. Native mapping may only
+          // apply when no immutable execution snapshot is present.
+          let activeModelId = req.verifiedExecutionSnapshot
+            ? req.verifiedExecutionSnapshot.modelId
+            : capabilityRegistry.resolveNativeModel(currentProviderId, modelId);
 
           let taskKey = req.task || '';
           if (!CINEMA_FALLBACK_POLICY[taskKey]) {
@@ -826,26 +865,20 @@ export const aiGateway = {
             completionTokens = 45;
             totalTokens = 165;
             latencyMs = 120;
-          } else if (isOpneAICompatible && currentProvider.baseUrl) {
-            const result = await openaiCompatibleDriver.executeChatCompletion({
-              baseUrl: currentProvider.baseUrl,
-              apiKey,
-              model: activeModelId,
-              prompt: req.prompt,
-              systemInstruction: req.systemInstruction,
-              temperature: req.temperature,
-              maxTokens: req.maxTokens,
-              timeoutMs,
-              responseSchema: req.responseSchema,
-            });
-
+          } else if (!isGoogle) {
+            const freshNonGoogleModel = await db.getModel(activeModelId, currentProviderId).catch(() => undefined) || { id: activeModelId, providerId: currentProviderId, enabled: !disabledModelIds.has(activeModelId), capabilities: ['text'] };
+            const nonGoogleGate = await freshFallbackRegate({ provider: currentProvider, model: freshNonGoogleModel, adapterProtocol: currentProvider.protocol || currentProvider.type || 'openai-compatible', request: { providerId: currentProviderId, modelId: activeModelId, registryVersion: 'api-registry-v1', capability: 'text', modality: 'text', durationSeconds: 1, constraintSet: 'api-text-default-v1', pricingPolicyVersion: 'api-pricing-policy-v1' }, preflight: { credentialAvailable: Boolean(apiKey), providerEnabled: currentProvider.enabled !== false, adapterAvailable: true, requestValid: Boolean(req.prompt && req.prompt.trim()) } });
+            console.log(`[AI NON-GOOGLE FRESH REGATE] candidate=${activeModelId} status=${nonGoogleGate.status} code=${nonGoogleGate.reasonCode || 'READY'}`);
+            if (nonGoogleGate.status !== 'READY_FOR_EXECUTION') throw new Error(`Non-Google candidate rejected: ${nonGoogleGate.reasonCode || 'GATE_REJECTED'}`);
+            const adapter = resolveProviderAdapter(currentProvider);
+            const result = await adapter.execute({ provider: currentProvider, apiKey, model: activeModelId, prompt: req.prompt, systemInstruction: req.systemInstruction, temperature: req.temperature, maxTokens: req.maxTokens, timeoutMs, responseSchema: req.responseSchema });
             text = result.text;
             promptTokens = result.promptTokens;
             completionTokens = result.completionTokens;
             totalTokens = result.totalTokens;
             latencyMs = result.latencyMs;
           } else {
-            const ai = new GoogleGenAI({
+            const ai = aiGatewayExecutionHooks.createGoogleClient?.(apiKey) || new GoogleGenAI({
               apiKey,
               httpOptions: {
                 headers: {
@@ -956,6 +989,55 @@ export const aiGateway = {
               let dequeuedAt = 0;
 
               try {
+                const fallbackModelRecord = await db.getModel(tryModel, currentProviderId).catch(() => undefined);
+                const freshFallbackModel = fallbackModelRecord || {
+                  id: tryModel,
+                  providerId: currentProviderId,
+                  enabled: !disabledModelIds.has(tryModel),
+                  capabilities: ['text'],
+                };
+                const fallbackGateRequest = {
+                  providerId: currentProviderId,
+                  modelId: tryModel,
+                  registryVersion: 'api-registry-v1',
+                  capability: 'text',
+                  modality: 'text',
+                  durationSeconds: 1,
+                  constraintSet: 'api-text-default-v1',
+                  pricingPolicyVersion: 'api-pricing-policy-v1',
+                };
+                const fallbackGate = await freshFallbackRegate({
+                  provider: currentProvider,
+                  model: freshFallbackModel,
+                  adapterProtocol: currentProvider.protocol || currentProvider.type || 'google-generative-ai',
+                  request: fallbackGateRequest,
+                  preflight: {
+                    credentialAvailable: Boolean(apiKey),
+                    providerEnabled: currentProvider.enabled !== false,
+                    adapterAvailable: true,
+                    requestValid: Boolean(req.prompt && req.prompt.trim()),
+                  },
+                });
+                console.log(`[AI FALLBACK FRESH REGATE] candidate=${tryModel} status=${fallbackGate.status} code=${fallbackGate.reasonCode || 'READY'} checkedAt=${fallbackGate.candidate.checkedAt} snapshot=${fallbackGate.candidate.snapshotVersion}`);
+                if (fallbackGate.status !== 'READY_FOR_EXECUTION') {
+                  lastExecutionError = new Error(`Fallback ${tryModel} rejected: ${fallbackGate.reasonCode || 'GATE_REJECTED'}: ${fallbackGate.reason || ''}`);
+                  continue;
+                }
+                if (!isGoogle) {
+                  const freshNonGoogleModel = await db.getModel(tryModel, currentProviderId).catch(() => undefined) || { id: tryModel, providerId: currentProviderId, enabled: !disabledModelIds.has(tryModel), capabilities: ['text'] };
+                  const nonGoogleGate = await freshFallbackRegate({
+                    provider: currentProvider,
+                    model: freshNonGoogleModel,
+                    adapterProtocol: currentProvider.protocol || currentProvider.type || 'openai-compatible',
+                    request: { providerId: currentProviderId, modelId: tryModel, registryVersion: 'api-registry-v1', capability: 'text', modality: 'text', durationSeconds: 1, constraintSet: 'api-text-default-v1', pricingPolicyVersion: 'api-pricing-policy-v1' },
+                    preflight: { credentialAvailable: Boolean(apiKey), providerEnabled: currentProvider.enabled !== false, adapterAvailable: true, requestValid: Boolean(req.prompt && req.prompt.trim()) },
+                  });
+                  console.log(`[AI FALLBACK FRESH REGATE] candidate=${tryModel} status=${nonGoogleGate.status} code=${nonGoogleGate.reasonCode || 'READY'} checkedAt=${nonGoogleGate.candidate.checkedAt} snapshot=${nonGoogleGate.candidate.snapshotVersion}`);
+                  if (nonGoogleGate.status !== 'READY_FOR_EXECUTION') {
+                    lastExecutionError = new Error(`Fallback ${tryModel} rejected: ${nonGoogleGate.reasonCode || 'GATE_REJECTED'}`);
+                    continue;
+                  }
+                }
                 if (req.simulateQuotaErrorOnModel && (tryModel.includes(req.simulateQuotaErrorOnModel) || activeModelId.includes(req.simulateQuotaErrorOnModel)) && (tryModel.includes('pro') || mIdx === 0)) {
                   throw new Error('429 RESOURCE_EXHAUSTED: Rate limit reached for pro tier (Quota simulation test)');
                 }
@@ -1033,7 +1115,11 @@ export const aiGateway = {
 
                 latencyMs = Date.now() - startTime;
 
-                text = response.text || '';
+                text = typeof response.text === 'string' && response.text.length > 0
+                  ? response.text
+                  : (response.candidates?.[0]?.content?.parts || [])
+                    .map((part: any) => typeof part?.text === 'string' ? part.text : '')
+                    .join('');
                 const promptStr = typeof req.prompt === 'string' ? req.prompt : (req.prompt ? JSON.stringify(req.prompt) : '');
                 promptTokens = Math.round(promptStr.length / 4);
                 completionTokens = Math.round((text || '').length / 4);
@@ -1049,6 +1135,7 @@ export const aiGateway = {
                   `\n[AI FALLBACK DECISION]\nTask: ${displayTask}\nModel: ${tryModel}\nProvider: ${currentProvider.id}\nStatus: SUCCESS\n`
                 );
 
+                modelUsability.set(currentProviderId, tryModel, 'AVAILABLE');
                 executionSuccess = true;
                 break;
               } catch (googleErr: any) {
@@ -1056,6 +1143,12 @@ export const aiGateway = {
                   throw googleErr;
                 }
                 lastExecutionError = googleErr;
+                const usabilityState = modelUsability.classify(googleErr);
+                const retryAfter = usabilityState === 'RATE_LIMITED' || usabilityState === 'QUOTA_EXHAUSTED'
+                  ? Date.now() + 60_000
+                  : undefined;
+                const usabilityRecord = modelUsability.set(currentProviderId, tryModel, usabilityState, googleErr?.message || String(googleErr), retryAfter);
+                await modelUsability.persist(currentProviderId, tryModel, usabilityRecord).catch(() => undefined);
                 console.warn(`[AI Gateway] Model ${tryModel} execution failed: ${googleErr?.message || googleErr}`);
 
                 const now = Date.now();
@@ -1140,6 +1233,38 @@ export const aiGateway = {
                 await new Promise(res => setTimeout(res, 1500));
                 for (const retryModel of fallbackChain) {
                   try {
+                    const retryModelRecord = await db.getModel(retryModel, currentProviderId).catch(() => undefined);
+                    const freshRetryModel = retryModelRecord || {
+                      id: retryModel,
+                      providerId: currentProviderId,
+                      enabled: !disabledModelIds.has(retryModel),
+                      capabilities: ['text'],
+                    };
+                    const retryGate = await freshFallbackRegate({
+                      provider: currentProvider,
+                      model: freshRetryModel,
+                      adapterProtocol: currentProvider.protocol || currentProvider.type || 'google-generative-ai',
+                      request: {
+                        providerId: currentProviderId,
+                        modelId: retryModel,
+                        registryVersion: 'api-registry-v1',
+                        capability: 'text',
+                        modality: 'text',
+                        durationSeconds: 1,
+                        constraintSet: 'api-text-default-v1',
+                        pricingPolicyVersion: 'api-pricing-policy-v1',
+                      },
+                      preflight: {
+                        credentialAvailable: Boolean(apiKey),
+                        providerEnabled: currentProvider.enabled !== false,
+                        adapterAvailable: true,
+                        requestValid: Boolean(req.prompt && req.prompt.trim()),
+                      },
+                    });
+                    console.log(`[AI RETRY FRESH REGATE] candidate=${retryModel} status=${retryGate.status} code=${retryGate.reasonCode || 'READY'} checkedAt=${retryGate.candidate.checkedAt} snapshot=${retryGate.candidate.snapshotVersion}`);
+                    if (retryGate.status !== 'READY_FOR_EXECUTION') {
+                      continue;
+                    }
                     globalAIQueue.resetPause();
                     const retryResponse = await ai.models.generateContent({
                       model: retryModel,

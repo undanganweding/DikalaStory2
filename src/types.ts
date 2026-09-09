@@ -2081,6 +2081,9 @@ export interface FullStoryPackage {
 // AI Infrastructure Domain (Phase 1 Schema Foundation)
 // ==========================================
 
+export type ProviderCredentialStrategy = 'API_KEY' | 'GOOGLE_FLOW_SESSION';
+export type ProviderResourceDomain = 'API_QUOTA' | 'GOOGLE_FLOW_CREDITS';
+
 export interface AIProvider {
   id: string;
   name: string;
@@ -2094,11 +2097,14 @@ export interface AIProvider {
     | 'openai'
     | 'anthropic'
     | 'openrouter'
-    | 'xai';
+    | 'xai'
+    | 'google-flow';
   protocol?: string;
   baseUrl?: string;
   description?: string;
   enabled: boolean;
+  credentialStrategy?: ProviderCredentialStrategy;
+  resourceDomain?: ProviderResourceDomain;
   capabilities: {
     text: boolean;
     vision: boolean;
@@ -2136,6 +2142,12 @@ export interface AIModel {
   capabilities: string[];
   enabled: boolean;
   contextWindow?: number;
+  discoveredAt?: number;
+  usabilityState?: 'AVAILABLE' | 'UNAVAILABLE' | 'QUOTA_EXHAUSTED' | 'RATE_LIMITED' | 'AUTH_FAILED' | 'UNKNOWN';
+  usabilityReason?: string;
+  lastProbeAt?: number;
+  retryAfter?: number;
+  stateUpdatedAt?: number;
   createdAt: number;
   updatedAt?: number;
 }

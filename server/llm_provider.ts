@@ -534,8 +534,8 @@ async function executeSingleModelRequest(
                     systemInstruction: options.systemInstruction,
                     temperature: options.temperature ?? 0.3,
                     maxOutputTokens: options.maxOutputTokens,
-                    responseMimeType: options.responseSchema ? 'application/json' : undefined,
-                    responseSchema: options.responseSchema,
+                                        responseMimeType: options.responseSchema ? 'application/json' : undefined,
+                                        responseSchema: options.responseSchema,
                   },
                 }),
                 GOOGLE_CONTENT_TIMEOUT_MS,
@@ -859,13 +859,25 @@ export async function executeLLMRequest(
 
   const runId = (options.modelPreferences as any)?.runId || `run_${stage}_${options.entityId || 'global'}`;
 
-  // If explicitly configured with custom/external OpenAI-compatible provider (e.g. 9router, Tabitoken, Groq, OpenRouter) or ad-hoc config
+  // Route explicitly configured providers through canonical gateway; direct SDK execution is probe-only.
   if (
     options.reasoningConfig &&
     (options.reasoningConfig.provider_type !== 'google' || options.reasoningConfig.base_url || (options.reasoningConfig.api_key && options.reasoningConfig.api_key.trim().length > 0))
   ) {
     try {
-      const singleRes = await executeSingleModelRequest(options);
+      const gatewayResponse = await aiGateway.generate({
+        model: options.reasoningConfig.model_id || requestedModel,
+        providerId: options.reasoningConfig.provider_type,
+        apiKey: options.reasoningConfig.api_key,
+        task: stage,
+        agentName: stage,
+        prompt: options.prompt,
+        systemInstruction: options.systemInstruction,
+        responseSchema: options.responseSchema,
+        temperature: options.temperature ?? 0.3,
+        maxTokens: options.maxOutputTokens,
+      });
+      const singleRes = { text: cleanJsonResponse(gatewayResponse.text) };
       armoOrchestrator.recordTransition(
         runId,
         stage,
@@ -945,9 +957,10 @@ export async function executeLLMRequest(
       );
       throw err;
     }
-    // Fallback attempt via executeSingleModelRequest
+    // Gateway failure must not fall through to direct provider generation.
+    throw err;
+    /* legacy fallback removed
     try {
-      console.warn(`[AIGateway] Gateway invocation failed (${err?.message}). Attempting fallback execution...`);
       const fallbackRes = await executeSingleModelRequest(options);
       armoOrchestrator.recordTransition(
         runId,
@@ -976,6 +989,7 @@ export async function executeLLMRequest(
       );
       throw err;
     }
+    */
   }
 }
 

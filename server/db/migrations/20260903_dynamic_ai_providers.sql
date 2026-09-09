@@ -19,6 +19,14 @@ WHERE protocol IS NULL OR protocol = '';
 
 UPDATE public.ai_providers SET metadata = '{}'::jsonb WHERE metadata IS NULL;
 
+-- Durable model usability state used by task-execution gating.
+ALTER TABLE public.ai_models ADD COLUMN IF NOT EXISTS discovered_at BIGINT;
+ALTER TABLE public.ai_models ADD COLUMN IF NOT EXISTS usability_state TEXT;
+ALTER TABLE public.ai_models ADD COLUMN IF NOT EXISTS usability_reason TEXT;
+ALTER TABLE public.ai_models ADD COLUMN IF NOT EXISTS last_probe_at BIGINT;
+ALTER TABLE public.ai_models ADD COLUMN IF NOT EXISTS retry_after BIGINT;
+ALTER TABLE public.ai_models ADD COLUMN IF NOT EXISTS state_updated_at BIGINT;
+
 -- Credential quota / usage columns
 ALTER TABLE public.ai_credentials ADD COLUMN IF NOT EXISTS quota_total INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE public.ai_credentials ADD COLUMN IF NOT EXISTS quota_used INTEGER NOT NULL DEFAULT 0;

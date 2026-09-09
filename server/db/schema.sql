@@ -443,6 +443,12 @@ CREATE TABLE IF NOT EXISTS ai_models (
   capabilities JSONB NOT NULL DEFAULT '["text"]'::jsonb,
   enabled BOOLEAN NOT NULL DEFAULT true,
   context_window INTEGER,
+  discovered_at BIGINT,
+  usability_state TEXT,
+  usability_reason TEXT,
+  last_probe_at BIGINT,
+  retry_after BIGINT,
+  state_updated_at BIGINT,
   created_at BIGINT NOT NULL DEFAULT (EXTRACT(epoch FROM NOW()) * 1000)::BIGINT,
   updated_at BIGINT NOT NULL DEFAULT (EXTRACT(epoch FROM NOW()) * 1000)::BIGINT,
   PRIMARY KEY (provider_id, id)

@@ -66,11 +66,15 @@ ${input.rawScript}
 ===============================`;
 
   const responseSchema = {
-    type: Type.ARRAY,
-    description: 'Array of detected characters with complete production bible profiles',
-    items: {
-      type: Type.OBJECT,
-      properties: {
+    type: Type.OBJECT,
+    description: 'Character detection result with complete production bible profiles',
+    properties: {
+      characters: {
+        type: Type.ARRAY,
+        description: 'Array of detected characters with complete production bible profiles',
+        items: {
+          type: Type.OBJECT,
+          properties: {
         name: { type: Type.STRING, description: 'Full character name' },
         age: { type: Type.STRING, description: 'Apparent or stated age (e.g., 34 years old, Early 20s)' },
         gender: { type: Type.STRING, description: 'Gender identity / presentation' },
@@ -113,21 +117,24 @@ ${input.rawScript}
           description: 'Body language, posture, gait, tempo of physical gestures',
         },
       },
-      required: [
-        'name',
-        'age',
-        'gender',
-        'physical_appearance',
-        'face_identity_locked',
-        'hair',
-        'beard',
-        'clothing',
-        'accessories',
-        'personality',
-        'voice_character',
-        'movement_style',
-      ],
+          required: [
+            'name',
+            'age',
+            'gender',
+            'physical_appearance',
+            'face_identity_locked',
+            'hair',
+            'beard',
+            'clothing',
+            'accessories',
+            'personality',
+            'voice_character',
+            'movement_style',
+          ],
+        },
+      },
     },
+    required: ['characters'],
   };
 
   const response = await executeTask({

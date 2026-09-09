@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { openaiCompatibleDriver } from './openai_compatible_driver';
 import { AIProvider } from '../../src/types';
 import { globalAIQueue } from './rate_limiter_queue';
+import { traceCrossProviderEvent } from './cross_provider_trace';
 
 export interface ProviderExecutionAdapter {
   execute(params: {
@@ -35,6 +36,12 @@ export interface ProviderExecutionAdapter {
   discoverModels?(provider: AIProvider, apiKey: string): Promise<{
     models: Array<{ id: string; displayName: string; capabilities: string[] }>;
   } | null>;
+}
+
+export function assertApiProviderCredentialStrategy(provider: AIProvider): void {
+  if (provider.credentialStrategy === 'GOOGLE_FLOW_SESSION' || provider.resourceDomain === 'GOOGLE_FLOW_CREDITS') {
+    throw new Error(`Provider ${provider.id} requires GOOGLE_FLOW_SESSION and cannot use API adapter`);
+  }
 }
 
 /**
@@ -101,7 +108,14 @@ const googleGenerativeAIAdapter: ProviderExecutionAdapter = {
     }));
     const response: any = await Promise.race([generatePromise, timeoutPromise]);
     const latencyMs = Date.now() - startTime;
-    const text = response.text || '';
+    const text = typeof response.text === 'string' && response.text.length > 0
+      ? response.text
+      : (response.candidates?.[0]?.content?.parts || [])
+        .map((part: any) => typeof part?.text === 'string' ? part.text : '')
+        .join('');
+    if (!text.trim()) {
+      throw new Error('Provider returned an empty response');
+    }
     const promptStr = typeof prompt === 'string' ? prompt : JSON.stringify(prompt);
     return {
       text,
@@ -177,8 +191,13 @@ const googleGenerativeAIAdapter: ProviderExecutionAdapter = {
 
 const openaiCompatibleAdapter: ProviderExecutionAdapter = {
   async execute({ provider, apiKey, model, prompt, systemInstruction, temperature, maxTokens, timeoutMs, responseSchema }) {
+    const startedAt = Date.now();
+    traceCrossProviderEvent('BEFORE_ADAPTER_EXECUTE', { providerId: provider.id, modelId: model, adapterType: 'openai-compatible', credentialPresent: Boolean(apiKey) });
+    traceCrossProviderEvent('BEFORE_OPENAI_DRIVER', { providerId: provider.id, modelId: model, adapterType: 'openai-compatible', credentialPresent: Boolean(apiKey) });
+    console.log(`[BEFORE_OPENAI_DRIVER] elapsedMs=${Date.now() - startedAt} providerId=${provider.id} modelId=${model} adapterType=openai-compatible credentialPresent=${Boolean(apiKey)}`);
     const baseUrl = provider.baseUrl || '';
-    return openaiCompatibleDriver.executeChatCompletion({
+    try {
+      const result = await openaiCompatibleDriver.executeChatCompletion({
       baseUrl,
       apiKey,
       model,
@@ -186,9 +205,18 @@ const openaiCompatibleAdapter: ProviderExecutionAdapter = {
       systemInstruction,
       temperature,
       maxTokens,
-      timeoutMs,
-      responseSchema,
-    });
+        timeoutMs,
+        responseSchema,
+      });
+      traceCrossProviderEvent('AFTER_OPENAI_DRIVER', { providerId: provider.id, modelId: model, adapterType: 'openai-compatible', credentialPresent: Boolean(apiKey) });
+      traceCrossProviderEvent('AFTER_ADAPTER_EXECUTE', { providerId: provider.id, modelId: model, adapterType: 'openai-compatible', credentialPresent: Boolean(apiKey) });
+      console.log(`[AFTER_OPENAI_DRIVER] elapsedMs=${Date.now() - startedAt} providerId=${provider.id} modelId=${model}`);
+      return result;
+    } catch (error) {
+      traceCrossProviderEvent('OPENAI_DRIVER_ERROR', { providerId: provider.id, modelId: model, adapterType: 'openai-compatible', credentialPresent: Boolean(apiKey), error: error instanceof Error ? error.message : String(error) });
+      console.log(`[OPENAI_DRIVER_ERROR] elapsedMs=${Date.now() - startedAt} providerId=${provider.id} modelId=${model} error=${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
   },
 
   async testConnection(provider, apiKey) {

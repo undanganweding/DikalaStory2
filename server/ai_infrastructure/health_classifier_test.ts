@@ -29,7 +29,13 @@ const testCases: TestCase[] = [
     expectedType: 'QUOTA_EXHAUSTED_ERROR',
   },
   {
-    name: 'C. Google RPM 429',
+    name: 'C. OpenAI-compatible exhausted credit 429',
+    errorMsg: 'Upstream [429]: {"error":{"message":"You have no credits remaining.","code":"credit_balance_exhausted"}}',
+    statusCode: 503,
+    expectedType: 'QUOTA_EXHAUSTED_ERROR',
+  },
+  {
+    name: 'D. Google RPM 429',
     errorMsg: 'Rate limit exceeded for models/gemini-2.5-flash (RPM). Too many requests in 1 minute.',
     statusCode: 429,
     expectedType: 'RATE_LIMIT_ERROR',

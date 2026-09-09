@@ -2,6 +2,9 @@ import { taskRouter, TaskExecutionPlan, AITaskId, TaskRouterRequest } from './ta
 import { aiGateway } from './ai_gateway';
 import { cleanJsonResponse } from '../llm_provider';
 import { ReasoningConfig } from '../../src/types';
+import { db } from '../db';
+import { resolveProviderAdapter, normalizeLegacyProtocol } from './provider_adapter_registry';
+import { createApiGenerationSnapshot, evaluateApiGenerationGate, CONSTRAINT_SET, PRICING_POLICY_VERSION, REGISTRY_VERSION } from './api_generation_gate';
 
 export interface ExecuteTaskOptions {
   taskId: AITaskId | string;
@@ -70,7 +73,35 @@ export const taskExecutor = {
     // 2. Resolve authoritative Execution Plan
     const plan = await taskRouter.resolveTaskExecutionPlan(routerRequest);
 
-    // 3. User feedback / progress notification
+    // 3. Bind immutable API registry snapshot to router decision.
+    const provider = await db.getProvider(plan.providerId);
+    const model = await db.getModel(plan.modelId, plan.providerId);
+    if (!provider || !model) {
+      throw new Error(`REGISTRY_REJECTED: Routed provider/model unavailable: ${plan.providerId}/${plan.modelId}`);
+    }
+    const adapterProtocol = normalizeLegacyProtocol(provider.protocol || provider.type);
+    const snapshot = createApiGenerationSnapshot(provider, model, adapterProtocol);
+    const registryRequest = {
+      providerId: snapshot.providerId,
+      modelId: snapshot.modelId,
+      registryVersion: REGISTRY_VERSION,
+      capability: 'text',
+      modality: 'text',
+      durationSeconds: 1,
+      constraintSet: CONSTRAINT_SET,
+      pricingPolicyVersion: PRICING_POLICY_VERSION,
+    };
+    const gate = evaluateApiGenerationGate(registryRequest, snapshot, {
+      credentialAvailable: Boolean(plan.apiKey),
+      providerEnabled: provider.enabled === true,
+      adapterAvailable: Boolean(resolveProviderAdapter(provider)),
+      requestValid: Boolean(options.prompt && options.prompt.trim()),
+    });
+    if (gate.status !== 'READY_FOR_EXECUTION') {
+      throw new Error(`${gate.status}: ${gate.reason || 'API generation gate rejected request'}`);
+    }
+
+    // 4. User feedback / progress notification
     if (options.onProgress) {
       const entityPrefix = options.entityId ? `${options.entityId}: ` : '';
       options.onProgress(
@@ -99,6 +130,8 @@ export const taskExecutor = {
       timeoutMs: options.timeoutMs,
       plan,
       fallbackPlan: plan.fallbackPlan,
+      verifiedExecutionSnapshot: snapshot,
+      verifiedRegistryRequest: registryRequest,
     });
 
     const latencyMs = Date.now() - startTime;

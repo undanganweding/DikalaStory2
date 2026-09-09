@@ -988,8 +988,14 @@ aiInfrastructureRouter.post('/credentials/:id/test', async (req: Request, res: R
     const isGoogleProtocol = ['google-generative-ai', 'gemini', 'google'].includes(providerType);
 
     if (providerType === 'openai-compatible' && provider?.baseUrl) {
-      testModel = 'openai-compatible-model';
-      const testResult = await openaiCompatibleDriver.testConnectivity(provider.baseUrl, apiKey);
+      const registeredModels = (await modelRegistryService.listModels())
+        .filter(model => model.enabled && model.providerId === provider.id);
+      const registeredModel = registeredModels[0];
+      if (!registeredModel) {
+        throw new Error(`No enabled registered model found for provider ${provider.id}.`);
+      }
+      testModel = registeredModel.id;
+      const testResult = await openaiCompatibleDriver.testConnectivity(provider.baseUrl, apiKey, registeredModel.id);
       latencyMs = testResult.latencyMs;
 
       if (!testResult.success) {

@@ -9,6 +9,8 @@ import { modelRegistryService } from './model_registry_service';
 import { classifyTaskRequirements, rankCandidatesForIntent } from './intelligence_router';
 import { healthService } from './health_service';
 import { isForbiddenCinemaModel } from './ai_gateway';
+import { modelUsability } from './model_usability';
+import { reconcileEnabledProviderModels } from './provider_reconciliation';
 
 export interface ScoredModelCandidate {
   model: AIModel;
@@ -26,7 +28,9 @@ export const taskRouter = {
    * Task Definition -> Active DB Models -> AMM Capability Match -> Provider Health -> Credential Router -> Execution Plan
    */
   async resolveTaskExecutionPlan(request: TaskRouterRequest): Promise<TaskExecutionPlan> {
+    await reconcileEnabledProviderModels();
     const rawTaskIdentifier = request.taskId || request.stageCode || 'story_analysis';
+    await modelUsability.loadPersisted();
     const task: AITaskDefinition = taskRegistry.getTask(rawTaskIdentifier) || taskRegistry.getTask('story_analysis')!;
     const projectPolicy = request.projectPolicy || { mode: 'auto', priority: 'quality' };
 
@@ -118,6 +122,10 @@ export const taskRouter = {
     const providerScoredCredsCache = new Map<string, any[]>();
 
     for (const model of enabledModels) {
+      // Runtime availability outranks stale enabled=true metadata.
+      if (!modelUsability.isEligible(model.providerId, model.id)) {
+        continue;
+      }
       // (a) Exclude test providers from production routing unless explicitly pinned by test harness
       const isTestProvider = model.providerId.startsWith('prov_pin_test_') ||
         model.providerId.startsWith('prov_test_') ||

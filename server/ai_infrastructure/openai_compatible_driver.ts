@@ -117,10 +117,11 @@ export const openaiCompatibleDriver = {
     let systemMsg = systemInstruction?.trim() || '';
     let userMsg = prompt;
     if (params.responseSchema) {
+      const schemaInstruction = `\n\nCRITICAL MANDATE: Output ONLY one JSON object. Use EXACT top-level field names and nesting from this schema. Do NOT invent alternate field names, do NOT wrap in markdown fences, and do NOT return a summary object. Schema: ${JSON.stringify(params.responseSchema)}`;
       if (systemMsg.length > 0) {
-        systemMsg += `\n\nCRITICAL MANDATE: Output ONLY valid JSON matching the required schema. Do NOT wrap in markdown fences.`;
+        systemMsg += schemaInstruction;
       } else {
-        userMsg += `\n\nCRITICAL MANDATE: Output ONLY valid JSON strictly matching the schema.`;
+        userMsg += schemaInstruction;
       }
     }
 
@@ -338,7 +339,7 @@ export const openaiCompatibleDriver = {
   /**
    * Tests connectivity to an OpenAI-compatible endpoint with minimal latency
    */
-  async testConnectivity(baseUrl: string, apiKey: string): Promise<{ success: boolean; latencyMs: number; error?: string }> {
+  async testConnectivity(baseUrl: string, apiKey: string, model?: string): Promise<{ success: boolean; latencyMs: number; error?: string }> {
     const startTime = Date.now();
     try {
       // First attempt fast /models discovery ping
@@ -353,7 +354,7 @@ export const openaiCompatibleDriver = {
         await this.executeChatCompletion({
           baseUrl,
           apiKey,
-          model: 'gpt-3.5-turbo',
+          model: model || 'gpt-3.5-turbo',
           prompt: 'ping',
           maxTokens: 1,
           timeoutMs: 5000,

@@ -10,7 +10,7 @@ export const providerService = {
 
   async getProvider(id: string): Promise<AIProvider | null> {
     let provider = await db.getProvider(id);
-    if (!provider && id === 'google') {
+    if (!provider && (id === 'google' || id === 'google-flow')) {
       await this.initializeDefaults();
       provider = await db.getProvider(id);
     }
@@ -105,7 +105,23 @@ export const providerService = {
         name: 'Google Gemini',
         type: 'gemini',
         enabled: true,
+        credentialStrategy: 'API_KEY',
+        resourceDomain: 'API_QUOTA',
         capabilities: { text: true, vision: true, image: true, video: true },
+      });
+    }
+
+    const googleFlow = await db.getProvider('google-flow');
+    if (!googleFlow) {
+      await this.addProvider({
+        id: 'google-flow',
+        name: 'Google Flow',
+        type: 'google-flow',
+        enabled: false,
+        credentialStrategy: 'GOOGLE_FLOW_SESSION',
+        resourceDomain: 'GOOGLE_FLOW_CREDITS',
+        description: 'Browser-session provider. Disabled until Flow worker and no-spend gates are available.',
+        capabilities: { text: false, vision: false, image: false, video: true },
       });
     }
   },

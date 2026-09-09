@@ -121,7 +121,7 @@ const FALLBACK_COLUMNS: Record<string, Set<string>> = {
   stage_telemetry: new Set(['id', 'project_id', 'run_id', 'scene_id', 'shot_id', 'stage', 'stage_code', 'scope', 'attempt', 'started_at', 'completed_at', 'duration_ms', 'status', 'error_type', 'error_message', 'summary_type', 'summary', 'created_at']),
   ai_providers: new Set(['id', 'name', 'type', 'base_url', 'enabled', 'capabilities', 'created_at', 'updated_at']),
   ai_credentials: new Set(['id', 'provider_id', 'name', 'masked_key', 'encrypted_secret', 'google_metadata', 'status', 'priority', 'weight', 'last_used_at', 'created_at', 'updated_at']),
-  ai_models: new Set(['id', 'provider_id', 'display_name', 'tier', 'capabilities', 'enabled', 'context_window', 'created_at', 'updated_at']),
+  ai_models: new Set(['id', 'provider_id', 'display_name', 'tier', 'capabilities', 'enabled', 'context_window', 'discovered_at', 'usability_state', 'usability_reason', 'last_probe_at', 'retry_after', 'state_updated_at', 'created_at', 'updated_at']),
   ai_usage: new Set(['id', 'credential_id', 'model_id', 'request_type', 'stage', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'latency_ms', 'success', 'error_type', 'timestamp']),
   ai_health: new Set(['credential_id', 'status', 'consecutive_failures', 'success_rate', 'cooldown_until', 'last_error', 'updated_at']),
   ai_routing_policies: new Set(['id', 'task_type', 'preferred_model_ids', 'fallback_model_ids', 'strategy', 'enabled', 'created_at', 'updated_at']),
@@ -1210,7 +1210,8 @@ export const supabaseDb = {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase.from('ai_providers').select('*');
     if (error) throw new Error(`[Supabase Error getProviders]: ${error.message}`);
-    return (data || []).map(r => ({
+    if (!Array.isArray(data)) return [];
+    return data.map(r => ({
       ...r,
       baseUrl: r.base_url,
       createdAt: r.created_at,
@@ -1329,11 +1330,21 @@ export const supabaseDb = {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase.from('ai_models').select('*');
     if (error) throw new Error(`[Supabase Error getModels]: ${error.message}`);
-    return (data || []).map(r => ({
+    if (!Array.isArray(data)) {
+      console.warn(`[DB getModels shape] type=${typeof data} isArray=false keys=${data && typeof data === 'object' ? Object.keys(data).join(',') : ''}`);
+      return [];
+    }
+    return data.map(r => ({
       ...r,
       providerId: r.provider_id,
       displayName: r.display_name,
       contextWindow: r.context_window,
+      discoveredAt: r.discovered_at,
+      usabilityState: r.usability_state,
+      usabilityReason: r.usability_reason,
+      lastProbeAt: r.last_probe_at,
+      retryAfter: r.retry_after,
+      stateUpdatedAt: r.state_updated_at,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     })) as AIModel[];
@@ -1352,6 +1363,12 @@ export const supabaseDb = {
       providerId: data.provider_id,
       displayName: data.display_name,
       contextWindow: data.context_window,
+      discoveredAt: data.discovered_at,
+      usabilityState: data.usability_state,
+      usabilityReason: data.usability_reason,
+      lastProbeAt: data.last_probe_at,
+      retryAfter: data.retry_after,
+      stateUpdatedAt: data.state_updated_at,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     } as AIModel;
@@ -1368,6 +1385,12 @@ export const supabaseDb = {
       capabilities: model.capabilities,
       enabled: model.enabled !== undefined ? model.enabled : true,
       context_window: model.contextWindow,
+      discovered_at: model.discoveredAt,
+      usability_state: model.usabilityState,
+      usability_reason: model.usabilityReason,
+      last_probe_at: model.lastProbeAt,
+      retry_after: model.retryAfter,
+      state_updated_at: model.stateUpdatedAt,
       created_at: model.createdAt || now,
       updated_at: model.updatedAt || now,
     });

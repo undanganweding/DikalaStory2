@@ -61,6 +61,20 @@ export interface TelemetrySummaryMetrics {
   statusCodeBreakdown: Record<number, number>;
 }
 
+export interface ExecutionEvent {
+  eventId: string;
+  type: string;
+  providerId: string;
+  operation: string;
+  credentialDomain: string;
+  resourceDomain: string;
+  sessionId?: string;
+  resourceId?: string;
+  status?: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface TelemetryRecord {
   traceId: string;
   spanId: string;
@@ -94,8 +108,21 @@ export interface TelemetryRecord {
 const memoryLogs: AIRequestLog[] = [];
 const telemetryLogs: AITelemetryLog[] = [];
 const telemetryRecords: TelemetryRecord[] = [];
+const executionEvents: ExecutionEvent[] = [];
 
 export const observabilityService = {
+  recordExecutionEvent(event: ExecutionEvent): void {
+    executionEvents.push({ ...event, metadata: event.metadata ? { ...event.metadata } : undefined });
+  },
+
+  getExecutionEvents(): ExecutionEvent[] {
+    return executionEvents.map((event) => ({ ...event, metadata: event.metadata ? { ...event.metadata } : undefined }));
+  },
+
+  clearExecutionEvents(): void {
+    executionEvents.length = 0;
+  },
+
   recordTelemetry(record: TelemetryRecord) {
     telemetryRecords.push({
       ...record,

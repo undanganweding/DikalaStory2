@@ -16,6 +16,8 @@
 import { db } from '../db';
 import { taskRouter } from './task_router';
 import { aiGateway, isForbiddenCinemaModel, CINEMA_FALLBACK_POLICY } from './ai_gateway';
+import { modelUsability } from './model_usability';
+import { quotaRouter } from './quota_router';
 import { runStage1StoryUnderstanding } from '../stages/stage1_story_understanding';
 import { runStage2CharacterDetection } from '../stages/stage2_character_detection';
 import { runStage3LocationObjectDetection } from '../stages/stage3_location_object_detection';
@@ -26,6 +28,33 @@ import { runStage7MasterFrameAndImagePrompt } from '../stages/stage7_master_fram
 import { runStage8VideoPrompt } from '../stages/stage8_video_prompt';
 
 async function execute12SceneRealProjectRun() {
+  const harnessStartedAt = Date.now();
+  let lastHarnessMarker = 'ENTRY';
+  const watchdog = setTimeout(() => {
+    console.error(`HARNESS_WATCHDOG_TIMEOUT elapsedMs=${Date.now() - harnessStartedAt} lastMarker=${lastHarnessMarker}`);
+    process.exit(2);
+  }, 900000);
+  const mark = (marker: string) => {
+    lastHarnessMarker = marker;
+    console.log(`${marker} elapsedMs=${Date.now() - harnessStartedAt}`);
+  };
+  const snapshot = async (label: string) => {
+    const models = await db.getModels();
+    const providers = await db.getProviders();
+    const credentials = await db.getCredentials();
+    const nine = providers.find((provider: any) => provider.id === 'local_9router_mtssnvob');
+    const nineModel = models.find((model: any) => model.providerId === 'local_9router_mtssnvob' && model.id === 'codex');
+    const nineCredential = credentials.find((credential: any) => credential.providerId === 'local_9router_mtssnvob');
+    const operational = nine ? await quotaRouter.getProviderOperationalState(nine.id) : null;
+    console.log(`STATE_${label}`, JSON.stringify({
+      modelUsability: nineModel?.usabilityState || modelUsability.get('local_9router_mtssnvob', 'codex') || null,
+      provider: nine ? { id: nine.id, enabled: nine.enabled, status: (nine as any).status } : null,
+      model: nineModel ? { id: nineModel.id, enabled: nineModel.enabled, usabilityState: nineModel.usabilityState || null } : null,
+      credential: nineCredential ? { id: nineCredential.id, status: nineCredential.status } : null,
+      operational: operational ? { eligibility: operational.eligibility, healthState: operational.healthState, quotaState: operational.quotaState } : null,
+    }));
+  };
+  mark('HARNESS_START');
   console.log('======================================================================');
   console.log('🎥 EXECUTING E2E 12-SCENE PROJECT REAL RUNTIME AUDIT');
   console.log('======================================================================\n');
@@ -75,40 +104,91 @@ async function execute12SceneRealProjectRun() {
   }
 
   // STEP 2: Task Router Audit on Key Stages
+  mark('STEP2_ENTER');
   console.log('\n👉 [STEP 2] Verifying Task Router Selection on S1, S7, S8:');
+  const step2StartedAt = Date.now();
+  const runStep2Operation = async <T>(label: string, operation: () => Promise<T>): Promise<T> => {
+    const startedAt = Date.now();
+    console.log(`  [STEP2 BEFORE] ${label}`);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`STEP2 operation timeout after 90000ms: ${label}`)), 90000);
+    });
+    try {
+      const result = await Promise.race([operation(), timeout]);
+      console.log(`  [STEP2 AFTER] ${label} elapsedMs=${Date.now() - startedAt}`);
+      return result;
+    } catch (error: any) {
+      console.error(`  [STEP2 ERROR] ${label} elapsedMs=${Date.now() - startedAt} error=${error?.message || error}`);
+      throw error;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+  const assertCurrentEligiblePlan = async (stage: string, taskId: string) => {
+    const plan = await runStep2Operation(`${stage} taskRouter.resolveTaskExecutionPlan`, () =>
+      taskRouter.resolveTaskExecutionPlan({ taskId, stageCode: stage })
+    );
+    const selectedModel = dbModels.find(candidate => candidate.id === plan.modelId && candidate.providerId === plan.providerId);
+    const selectedProvider = await runStep2Operation(`${stage} db.getProvider(${plan.providerId})`, () => db.getProvider(plan.providerId));
+    if (!selectedModel || !selectedProvider || selectedModel.enabled !== true || selectedProvider.enabled !== true) {
+      throw new Error(`Router selected non-current model/provider for ${stage}: ${plan.providerId}/${plan.modelId}`);
+    }
+    console.log(`  [${stage}] ${taskId} -> Model: ${plan.modelId} | Provider: ${plan.providerId} | Score: ${plan.score}`);
+    return plan;
+  };
 
-  const s1Plan = await taskRouter.resolveTaskExecutionPlan({ taskId: 'story_analysis', stageCode: 'S1' });
-  console.log(`  [S1] story_analysis -> Model: ${s1Plan.modelId}`);
-  if (s1Plan.modelId !== 'gemini-2.5-pro') {
-    throw new Error(`Expected S1 to select gemini-2.5-pro, got ${s1Plan.modelId}`);
+  mark('STEP2_S1_START');
+  const s1Plan = await assertCurrentEligiblePlan('S1', 'story_analysis');
+  mark('STEP2_S1_END');
+  await snapshot('S1_END');
+  mark('STEP2_S7_START');
+  await snapshot('S7_START');
+  const s7Plan = await assertCurrentEligiblePlan('S7', 'master_frame_generation');
+  mark('STEP2_S7_END');
+  mark('STEP2_S8_START');
+  const s8Plan = await assertCurrentEligiblePlan('S8', 'video_prompt_generation');
+  mark('STEP2_S8_END');
+  console.log(`  ✅ Step 2 Passed: Router selected current enabled provider/model plans. elapsedMs=${Date.now() - step2StartedAt}\n`);
+  if (process.env.STEP2_ONLY === '1') {
+    mark('STEP2_EXIT');
+    clearTimeout(watchdog);
+    console.log('STEP2_ONLY_COMPLETE');
+    return;
   }
 
-  const s7Plan = await taskRouter.resolveTaskExecutionPlan({ taskId: 'master_frame_generation', stageCode: 'S7' });
-  console.log(`  [S7] master_frame   -> Model: ${s7Plan.modelId}`);
-  if (s7Plan.modelId !== 'gemini-2.5-pro') {
-    throw new Error(`Expected S7 to select gemini-2.5-pro, got ${s7Plan.modelId}`);
+  // STEP 3: Provider-agnostic fallback verification using current router authority.
+  console.log('👉 [STEP 3] Testing provider-agnostic fallback from current S4 route:');
+  const s4Plan = await taskRouter.resolveTaskExecutionPlan({ taskId: 'narrative_structure', stageCode: 'S4' });
+  const s4Candidates = [{ providerId: s4Plan.providerId, modelId: s4Plan.modelId, type: 'primary', description: 'Primary router candidate' }, ...(s4Plan.fallbackPlan || [])];
+  console.log('  Complete ordered candidate chain:');
+  for (const candidate of s4Candidates) {
+    const provider = await db.getProvider(candidate.providerId);
+    const model = (await db.getModels()).find(item => item.providerId === candidate.providerId && item.id === candidate.modelId);
+    const usability = modelUsability.get(candidate.providerId, candidate.modelId) || model?.usabilityState || 'UNKNOWN';
+    console.log(`    ${candidate.type}: providerId=${candidate.providerId} providerName=${provider?.name || 'UNKNOWN'} modelId=${candidate.modelId} usability=${usability} enabled=${model?.enabled === true && provider?.enabled === true}`);
   }
-
-  const s8Plan = await taskRouter.resolveTaskExecutionPlan({ taskId: 'video_prompt_generation', stageCode: 'S8' });
-  console.log(`  [S8] video_prompt   -> Model: ${s8Plan.modelId}`);
-  if (s8Plan.modelId !== 'gemini-2.5-flash') {
-    throw new Error(`Expected S8 to select gemini-2.5-flash, got ${s8Plan.modelId}`);
+  const nonGoogleCandidate = s4Candidates.find(candidate => candidate.providerId !== 'google');
+  if (!nonGoogleCandidate) {
+    console.log('  ROUTER CANDIDATE DIVERSITY GAP: S4 fallbackPlan contains only Google candidates.');
+  } else {
+    console.log(`  Non-Google candidate exists: ${nonGoogleCandidate.providerId}/${nonGoogleCandidate.modelId}`);
   }
-  console.log('  ✅ Step 2 Passed: Router selected exact designated tiers (S1=Pro, S7=Pro, S8=Flash).\n');
-
-  // STEP 3: Fallback Matrix Verification with 429 Quota Drop
-  console.log('👉 [STEP 3] Testing Direct 429 Drop from gemini-2.5-pro to gemini-2.5-flash:');
   const s4FallbackRes = await aiGateway.generate({
     task: 'narrative_structure',
     agentName: 'S4',
+    providerId: s4Plan.providerId,
+    model: s4Plan.modelId,
+    apiKey: s4Plan.apiKey,
     prompt: 'Respond strictly with JSON: { "status": "ok" }',
-    simulateQuotaErrorOnModel: 'gemini-2.5-pro',
+    fallbackPlan: s4Plan.fallbackPlan,
+    simulateQuotaErrorOnModel: s4Plan.modelId,
   });
-  console.log(`  S4 Result Model after 429 Pro drop: ${s4FallbackRes.model} (Expected Flash candidate)`);
+  console.log(`  S4 Result: ${s4FallbackRes.providerId}/${s4FallbackRes.model}`);
   if (isForbiddenCinemaModel(s4FallbackRes.model)) {
     throw new Error(`VIOLATION: Fallback resolved to forbidden model: ${s4FallbackRes.model}`);
   }
-  console.log('  ✅ Step 3 Passed: 429 on Pro dropped directly to Flash with zero forbidden candidates.\n');
+  console.log('  ✅ Step 3 Passed: current router candidate chain executed without forbidden fallback.\n');
 
   // STEP 4: 12-Scene Project Pipeline Execution Trace
   console.log('👉 [STEP 4] Running 12-Scene Pipeline Sequence S1 -> S8:');
@@ -238,6 +318,7 @@ Lentera perdamaian menyala terang di puncak menara, memancarkan kedamaian abadi.
   console.log('\n======================================================================');
   console.log('🎬 12-SCENE RUNTIME PROOF COMPLETED SUCCESSFULLY WITH ZERO DEFECTS');
   console.log('======================================================================\n');
+  clearTimeout(watchdog);
 }
 
 execute12SceneRealProjectRun()

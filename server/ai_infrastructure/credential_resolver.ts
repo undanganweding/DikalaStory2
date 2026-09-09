@@ -1,23 +1,82 @@
 import { credentialService } from './credential_service';
 import { healthService } from './health_service';
 import { secretVault } from '../security/secret_vault';
+import { flowSessionManager } from '../flow/flow_session_manager';
+import { FlowSession, FlowSessionState } from '../flow/flow_types';
+import { recordFlowLifecycleEvent } from '../flow/flow_events';
+
+export type CredentialResolutionDomain = 'API' | 'GOOGLE_FLOW_SESSION';
 
 export interface ResolveInput {
   providerId: string;
   modelId?: string;
   taskType?: string;
+  credentialDomain?: CredentialResolutionDomain;
+  sessionId?: string;
+  requiredCapability?: string;
 }
 
-export interface ResolvedCredential {
-  credentialId: string;
-  providerId: string;
-  apiKey: string;
-  healthStatus: string;
-}
+export type ResolvedCredential =
+  | {
+      domain: 'API';
+      credentialId: string;
+      providerId: string;
+      apiKey: string;
+      healthStatus: string;
+    }
+  | {
+      domain: 'GOOGLE_FLOW_SESSION';
+      sessionId: string;
+      accountId: string;
+      providerId: 'google-flow';
+      status: FlowSessionState;
+      transport: FlowSession['transport'];
+    };
 
 export const credentialResolver = {
   async resolveCredential(input: ResolveInput): Promise<ResolvedCredential> {
     const { providerId } = input;
+    const domain = input.credentialDomain || (providerId === 'google-flow' ? 'GOOGLE_FLOW_SESSION' : 'API');
+
+    if (domain === 'GOOGLE_FLOW_SESSION') {
+      if (providerId !== 'google-flow') {
+        throw new Error(`Credential domain mismatch: ${providerId} cannot use GOOGLE_FLOW_SESSION`);
+      }
+      const sessions = flowSessionManager.list();
+      const session = input.sessionId
+        ? sessions.find((candidate) => candidate.sessionId === input.sessionId)
+        : sessions.find((candidate) => candidate.status === 'AUTHENTICATED');
+      if (!session) {
+        recordFlowLifecycleEvent({ providerId: 'google-flow',
+          type: 'FLOW_SESSION_CHECK', operation: 'resolve-credential', credentialDomain: 'GOOGLE_FLOW_SESSION',
+          resourceDomain: 'GOOGLE_FLOW_CREDITS', sessionId: input.sessionId, status: 'UNAVAILABLE',
+        });
+        throw new Error('No Google Flow session available');
+      }
+      recordFlowLifecycleEvent({ providerId: 'google-flow',
+        type: 'FLOW_SESSION_CHECK', operation: 'resolve-credential', credentialDomain: 'GOOGLE_FLOW_SESSION',
+        resourceDomain: 'GOOGLE_FLOW_CREDITS', sessionId: session.sessionId, status: session.status,
+      });
+      if (session.status !== 'AUTHENTICATED') {
+        throw new Error(`Google Flow session requires human action: ${session.status === 'EXPIRED' ? 'REAUTH_REQUIRED' : session.status}`);
+      }
+      if (input.requiredCapability && !session.capabilities.includes(input.requiredCapability)) {
+        throw new Error(`Google Flow session lacks capability: ${input.requiredCapability}`);
+      }
+      return {
+        domain: 'GOOGLE_FLOW_SESSION',
+        sessionId: session.sessionId,
+        accountId: session.accountId,
+        providerId: 'google-flow',
+        status: session.status,
+        transport: session.transport,
+      };
+    }
+
+    if (providerId === 'google-flow') {
+      throw new Error('Credential domain mismatch: google-flow requires GOOGLE_FLOW_SESSION');
+    }
+
     const allCreds = await credentialService.listCredentials();
 
     // 1. Filter by provider and status
@@ -107,6 +166,7 @@ export const credentialResolver = {
     await credentialService.updateCredential(selected.cred.id, { lastUsedAt: Date.now() });
 
     return {
+      domain: 'API',
       credentialId: selected.cred.id,
       providerId: selected.cred.providerId,
       apiKey,

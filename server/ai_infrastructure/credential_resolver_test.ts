@@ -80,15 +80,15 @@ async function runResolverTests() {
   });
 
   console.log('Resolved Credential:', {
-    credentialId: resolved.credentialId,
-    providerId: resolved.providerId,
-    maskedApiKey: resolved.apiKey.substring(0, 4) + '...' + resolved.apiKey.substring(resolved.apiKey.length - 4),
-    healthStatus: resolved.healthStatus,
+    credentialId: (resolved as any).credentialId,
+    providerId: (resolved as any).providerId,
+    maskedApiKey: (resolved as any).apiKey.substring(0, 4) + '...' + (resolved as any).apiKey.substring((resolved as any).apiKey.length - 4),
+    healthStatus: (resolved as any).healthStatus,
   });
 
   // Expected: Key A should be selected because C is in cooldown, D is invalid_auth, and A has higher priority than B and E.
-  if (resolved.credentialId !== credA.id) {
-    throw new Error(`Test Failed: Expected Key A (${credA.id}), but got ${resolved.credentialId}`);
+  if ((resolved as any).credentialId !== credA.id) {
+    throw new Error(`Test Failed: Expected Key A (${credA.id}), but got ${(resolved as any).credentialId}`);
   }
 
   console.log('✅ Test Passed: Resolver successfully skipped cooldown (C) and invalid (D) keys, selecting highest priority healthy key (A).');
